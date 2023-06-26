@@ -53,6 +53,14 @@
  */
 void GcodeSuite::M73() {
 
+  #if ENABLED(SET_PROGRESS_PERCENT)
+    if (parser.seenval('P'))
+      ui.set_progress((PROGRESS_SCALE) > 1
+        ? parser.value_float() * (PROGRESS_SCALE)
+        : parser.value_byte()
+      );
+  #endif
+  
   #if ENABLED(DWIN_LCD_PROUI)
 
     DWIN_M73();
