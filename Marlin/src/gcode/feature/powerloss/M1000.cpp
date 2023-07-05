@@ -78,7 +78,7 @@ void GcodeSuite::M1000() {
       #elif ENABLED(E3S1PRO_RTS)
         recovery.info.print_job_elapsed = print_job_timer.duration() + recovery.info.print_job_elapsed;
       #elif ENABLED(DWIN_CREALITY_LCD_JYERSUI) // Temporary fix until it can be better implemented
-        crealityDWIN.popupHandler(Resume);
+        jyersDWIN.popupHandler(Popup_Resume);
       #elif ENABLED(EXTENSIBLE_UI)
         ExtUI::onPowerLossResume();
       #else
