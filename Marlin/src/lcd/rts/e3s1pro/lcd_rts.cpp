@@ -2178,18 +2178,38 @@ void RTSSHOW::RTS_HandleData(void)
             waitway = 4;
             if (bltouch_tramming == 0){
             queue.enqueue_now_P(PSTR("G1 F600 Z3"));
-            sprintf_P(cmd, "G1 X%d Y%d F2000", (X_BED_SIZE/2),(Y_BED_SIZE/2));                
-            queue.enqueue_now_P(cmd);
-            rtscheck.RTS_SndData((unsigned char)10 * (unsigned char)(X_BED_SIZE/2), AXIS_X_COORD_VP);
-            rtscheck.RTS_SndData((unsigned char)10 * (unsigned char)(Y_BED_SIZE/2), AXIS_Y_COORD_VP);
+            #if ENABLED(ENDER_3S1_PRO) || ENABLED(ENDER_3S1)
+              sprintf_P(cmd, "G1 X117.5 Y117.5 F2000");
+            #elif ENABLED(ENDER_3S1_PLUS)
+              sprintf_P(cmd, "G1 X155 Y157.5 F2000");
+            #else
+              sprintf_P(cmd, "G1 X%d Y%d F2000", manual_level_5position[0][0],manual_level_5position[0][1]);
+            #endif          
+            queue.enqueue_now_P(cmd);               
+            #if ENABLED(ENDER_3S1_PRO) || ENABLED(ENDER_3S1)
+              rtscheck.RTS_SndData((unsigned char)10 * (unsigned char)117.5, AXIS_X_COORD_VP);
+              rtscheck.RTS_SndData((unsigned char)10 * (unsigned char)117.5, AXIS_Y_COORD_VP);
+            #elif ENABLED(ENDER_3S1_PLUS)
+              rtscheck.RTS_SndData((unsigned char)10 * (unsigned char)155, AXIS_X_COORD_VP);
+              rtscheck.RTS_SndData((unsigned char)10 * (unsigned char)157.5, AXIS_Y_COORD_VP);
+            #else
+              rtscheck.RTS_SndData(10 * manual_level_5position[0][0], AXIS_X_COORD_VP);
+              rtscheck.RTS_SndData(10 * manual_level_5position[0][1], AXIS_Y_COORD_VP);
+            #endif
             queue.enqueue_now_P(PSTR("G1 F600 Z0"));
             rtscheck.RTS_SndData(10 * 0, AXIS_Z_COORD_VP);
             }
             if (bltouch_tramming == 1){
-              sprintf_P(cmd, "G30 X%d Y%d", (X_BED_SIZE/2),(Y_BED_SIZE/2));                 
-              queue.enqueue_now_P(cmd);
+              #if ENABLED(ENDER_3S1_PRO) || ENABLED(ENDER_3S1)
+                queue.enqueue_now_P(PSTR("G30 X117.5 Y117.5")); 
+              #elif ENABLED(ENDER_3S1_PLUS)
+                queue.enqueue_now_P(PSTR("G30 X155 Y157.5")); 
+              #else
+                sprintf_P(cmd, "G30 X%d Y%d", manual_level_5position[0][0],manual_level_5position[0][1]);
+                queue.enqueue_now_P(cmd);              
+              #endif             
               RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
-            change_page_font = 89;                      
+              change_page_font = 89;                      
             }
             waitway = 0;
           }

@@ -2277,7 +2277,7 @@
     //                                Point: (1)     (6)      (7)    (8)     (9)      (2)    (3)     (4)     (5)
     #define MANUALL_BED_LEVEING_5POSITION {117,117, 45,45, 190,45, 45,190, 190,190, 10,10, 225,10, 10,225, 225,225}
   #else
-    #define MANUALL_BED_LEVEING_5POSITION {117,117, 27,27, 208,27, 208,190, 27,190, 27,27, 208,27, 208,190, 27,190}
+    #define MANUALL_BED_LEVEING_5POSITION {117,117, 45,45, 190,45, 45,190, 190,190, 10,10, 225,10, 10,225, 225,225}
   #endif
 #elif ENABLED(ENDER_3S1) 
   #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
@@ -2294,7 +2294,7 @@
     //                                Point: (1)     (6)      (7)    (8)     (9)     (2)    (3)     (4)     (5)
     #define MANUALL_BED_LEVEING_5POSITION {155,155, 45,45, 265,45, 45,270, 265,270, 15,15, 295,15, 15,300, 295,300}
   #else
-    #define MANUALL_BED_LEVEING_5POSITION {155,157, 27,38, 283,38, 283,260, 27,260, 27,38, 283,38, 283,260, 27,260}
+    #define MANUALL_BED_LEVEING_5POSITION {155,157, 45,45, 265,45, 45,270, 265,270, 15,15, 295,15, 15,300, 295,300}
   #endif
 #elif ENABLED(ENDER_3) 
     //                                     X0,Y0    X1,Y1    X2,Y2  X3,Y3   X4 Y4   X5,Y5  X6,Y6   X7,Y7   X8,Y8
