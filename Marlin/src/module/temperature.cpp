@@ -848,14 +848,19 @@ volatile bool Temperature::raw_temps_ready = false;
           SHV((bias + d) >> 1);
           TERN_(HAS_STATUS_MESSAGE, ui.status_printf(0, F(S_FMT " %i/%i"), GET_TEXT(MSG_PID_CYCLE), cycles, ncycles));
           cycles++;
-          
+          int cycles_to_sent;
+          if (cycles > ncycles) {
+            cycles_to_sent = ncycles;
+          }else{
+            cycles_to_sent = cycles;
+          }          
           #if ENABLED(E3S1PRO_RTS)
             if (isBed_autopid){
-              rtscheck.RTS_SndData(cycles, PID_TEXT_OUT_CUR_CYCLE_HOTBED_VP);
+              rtscheck.RTS_SndData(cycles_to_sent, PID_TEXT_OUT_CUR_CYCLE_HOTBED_VP);
               rtscheck.RTS_SndData(ncycles, AUTO_PID_SET_HOTBED_CYCLES);  
             }
             if (isHeater_autopid){
-              rtscheck.RTS_SndData(cycles, PID_TEXT_OUT_CUR_CYCLE_NOZZLE_VP);
+              rtscheck.RTS_SndData(cycles_to_sent, PID_TEXT_OUT_CUR_CYCLE_NOZZLE_VP);
               rtscheck.RTS_SndData(ncycles, AUTO_PID_SET_NOZZLE_CYCLES); 
             }
           #endif
