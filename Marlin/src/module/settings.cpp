@@ -281,11 +281,13 @@ typedef struct SettingsDataStruct {
   //
   // MESH_BED_LEVELING
   //
-  float mbl_z_offset;                                   // bedlevel.z_offset
-  uint8_t mesh_num_x, mesh_num_y;                       // GRID_MAX_POINTS_X, GRID_MAX_POINTS_Y
-  uint16_t mesh_check;                                  // Hash to check against X/Y
-  float mbl_z_values[TERN(MESH_BED_LEVELING, GRID_MAX_POINTS_X, 3)]   // bedlevel.z_values
-                    [TERN(MESH_BED_LEVELING, GRID_MAX_POINTS_Y, 3)];
+  #if ENABLED(MESH_BED_LEVELING)
+    float mbl_z_offset;                                   // bedlevel.z_offset
+    uint8_t mesh_num_x, mesh_num_y;                       // GRID_MAX_POINTS_X, GRID_MAX_POINTS_Y
+    uint16_t mesh_check;                                  // Hash to check against X/Y
+    float mbl_z_values[TERN(MESH_BED_LEVELING, GRID_MAX_POINTS_X, 3)]   // bedlevel.z_values
+                      [TERN(MESH_BED_LEVELING, GRID_MAX_POINTS_Y, 3)];
+  #endif
 
   //
   // HAS_BED_PROBE
@@ -474,11 +476,12 @@ typedef struct SettingsDataStruct {
   //
   // HAS_TRINAMIC_CONFIG
   //
+  #if HAS_TRINAMIC_CONFIG
   per_stepper_uint16_t tmc_stepper_current;             // M906 X Y Z...
   per_stepper_uint32_t tmc_hybrid_threshold;            // M913 X Y Z...
   mot_stepper_int16_t tmc_sgt;                          // M914 X Y Z...
   per_stepper_bool_t tmc_stealth_enabled;               // M569 X Y Z...
-
+#endif
   //
   // LIN_ADVANCE
   //
@@ -504,7 +507,9 @@ typedef struct SettingsDataStruct {
   // CNC_COORDINATE_SYSTEMS
   //
   #if NUM_AXES
-    xyz_pos_t coordinate_system[MAX_COORDINATE_SYSTEMS]; // G54-G59.3
+    #if ENABLED(CNC_COORDINATE_SYSTEMS)  
+      xyz_pos_t coordinate_system[MAX_COORDINATE_SYSTEMS]; // G54-G59.3
+    #endif
   #endif
 
   //
@@ -563,8 +568,6 @@ typedef struct SettingsDataStruct {
   #if ENABLED(E3S1PRO_RTS)
     uint8_t g_soundSetOffOn;
     uint8_t language_change_font;
-    //uint8_t x_min_pos_eeprom;
-    //uint8_t y_min_pos_eeprom;
   #endif
 
   //
@@ -957,6 +960,7 @@ void MarlinSettings::postprocess() {
     //
     {
       #if ENABLED(MESH_BED_LEVELING)
+      #if ENABLED(MESH_BED_LEVELING)
         static_assert(
           sizeof(bedlevel.z_values) == GRID_MAX_POINTS * sizeof(bedlevel.z_values[0][0]),
           "MBL Z array is the wrong size."
@@ -980,6 +984,7 @@ void MarlinSettings::postprocess() {
         EEPROM_WRITE(bedlevel.z_values);
       #else
         for (uint8_t q = mesh_num_x * mesh_num_y; q--;) EEPROM_WRITE(dummyf);
+      #endif
       #endif
     }
 
@@ -1339,7 +1344,7 @@ void MarlinSettings::postprocess() {
 
       #endif
     }
-
+      #if HAS_TRINAMIC_CONFIG
     //
     // TMC Configuration
     //
@@ -1518,6 +1523,7 @@ void MarlinSettings::postprocess() {
       TERN_(E7_HAS_STEALTHCHOP, tmc_stealth_enabled.E7 = stepperE7.get_stored_stealthChop());
       EEPROM_WRITE(tmc_stealth_enabled);
     }
+    #endif
 
     //
     // Linear Advance
@@ -1551,11 +1557,13 @@ void MarlinSettings::postprocess() {
     // CNC Coordinate Systems
     //
     #if NUM_AXES
-      _FIELD_TEST(coordinate_system);
-      #if DISABLED(CNC_COORDINATE_SYSTEMS)
-        const xyz_pos_t coordinate_system[MAX_COORDINATE_SYSTEMS] = { { 0 } };
+      #if ENABLED(CNC_COORDINATE_SYSTEMS)
+        _FIELD_TEST(coordinate_system);
+        #if DISABLED(CNC_COORDINATE_SYSTEMS)
+          const xyz_pos_t coordinate_system[MAX_COORDINATE_SYSTEMS] = { { 0 } };
+        #endif
+        EEPROM_WRITE(TERN(CNC_COORDINATE_SYSTEMS, gcode.coordinate_system, coordinate_system));
       #endif
-      EEPROM_WRITE(TERN(CNC_COORDINATE_SYSTEMS, gcode.coordinate_system, coordinate_system));
     #endif
 
     //
@@ -1654,10 +1662,10 @@ void MarlinSettings::postprocess() {
     #endif
 
     #if ENABLED(E3S1PRO_RTS)
+        _FIELD_TEST(g_soundSetOffOn);
         EEPROM_WRITE(g_soundSetOffOn);
+        _FIELD_TEST(language_change_font);
         EEPROM_WRITE(language_change_font);
-        //EEPROM_WRITE(x_min_pos_eeprom);
-        //EEPROM_WRITE(y_min_pos_eeprom);
     #endif
 
     //
@@ -1698,6 +1706,7 @@ void MarlinSettings::postprocess() {
     // Buzzer enable/disable
     //
     #if ENABLED(SOUND_MENU_ITEM)
+      _FIELD_TEST(sound_on);
       EEPROM_WRITE(ui.sound_on);
     #endif
 
@@ -1983,6 +1992,7 @@ void MarlinSettings::postprocess() {
       // Mesh (Manual) Bed Leveling
       //
       {
+      #if ENABLED(MESH_BED_LEVELING)        
         uint8_t mesh_num_x, mesh_num_y;
         uint16_t mesh_check;
         EEPROM_READ(dummyf);
@@ -2015,6 +2025,7 @@ void MarlinSettings::postprocess() {
           // MBL is disabled - skip the stored data
           for (uint16_t q = mesh_num_x * mesh_num_y; q--;) EEPROM_READ(dummyf);
         #endif
+      #endif
       }
 
       //
@@ -2061,7 +2072,11 @@ void MarlinSettings::postprocess() {
 
         xy_pos_t spacing, start;
         EEPROM_READ(spacing);                          // 2 ints
-        EEPROM_READ(start);                            // 2 ints
+        //spacing = 0;
+        //SERIAL_ECHOLNPGM("spacing read:", spacing);          
+        EEPROM_READ(start);
+        //start = 0;                            // 2 ints
+        //SERIAL_ECHOLNPGM("start read:", start);          
         #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
           if (grid_max_x == (GRID_MAX_POINTS_X) && grid_max_y == (GRID_MAX_POINTS_Y)) {
             if (!validating) set_bed_leveling_enabled(false);
@@ -2389,7 +2404,7 @@ void MarlinSettings::postprocess() {
       //
       // TMC Stepper Settings
       //
-
+      #if HAS_TRINAMIC_CONFIG
       if (!validating) reset_stepper_drivers();
 
       // TMC Stepper Current
@@ -2572,7 +2587,7 @@ void MarlinSettings::postprocess() {
           }
         #endif
       }
-
+#endif
       //
       // Linear Advance
       //
@@ -2614,13 +2629,15 @@ void MarlinSettings::postprocess() {
       //
       #if NUM_AXES
       {
-        _FIELD_TEST(coordinate_system);
         #if ENABLED(CNC_COORDINATE_SYSTEMS)
-          if (!validating) (void)gcode.select_coordinate_system(-1); // Go back to machine space
-          EEPROM_READ(gcode.coordinate_system);
-        #else
-          xyz_pos_t coordinate_system[MAX_COORDINATE_SYSTEMS];
-          EEPROM_READ(coordinate_system);
+          _FIELD_TEST(coordinate_system);
+          #if ENABLED(CNC_COORDINATE_SYSTEMS)
+            if (!validating) (void)gcode.select_coordinate_system(-1); // Go back to machine space
+            EEPROM_READ(gcode.coordinate_system);
+          #else
+            xyz_pos_t coordinate_system[MAX_COORDINATE_SYSTEMS];
+            EEPROM_READ(coordinate_system);
+          #endif
         #endif
       }
       #endif
@@ -3260,8 +3277,6 @@ void MarlinSettings::reset() {
   #if ENABLED(E3S1PRO_RTS)
       g_soundSetOffOn = g_soundSetOffOn;
       language_change_font = 2;
-      //x_min_pos_eeprom = 0;
-      //y_min_pos_eeprom = 0;
   #endif
 
   //
@@ -4019,9 +4034,7 @@ void MarlinSettings::reset() {
       }
       if(g_soundSetOffOn == 2){
         SERIAL_ECHO_MSG("  Display sound: OFF");
-      }      
-      //SERIAL_ECHO_MSG("  x_min_pos_eeprom:", int(x_min_pos_eeprom));          
-      //SERIAL_ECHO_MSG("  y_min_pos_eeprom:", int(y_min_pos_eeprom));    
+      }
     #endif
 
     //
