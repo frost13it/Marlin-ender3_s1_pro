@@ -211,14 +211,6 @@ static const uint32_t   _DMA[] PROGMEM = DEFAULT_MAX_ACCELERATION;
 static const float     _DASU[] PROGMEM = DEFAULT_AXIS_STEPS_PER_UNIT;
 static const feedRate_t _DMF[] PROGMEM = DEFAULT_MAX_FEEDRATE;
 
-void printZValues(float z_values[][GRID_MAX_POINTS_X], size_t rows, size_t cols) {
-    for (size_t i = 0; i < rows; i++) {
-        for (size_t j = 0; j < cols; j++) {
-                SERIAL_ECHOLNPGM("z_values[", i, "][", j, "]: ", z_values[i][j]);     
-        }
-    }
-}
-
 /**
  * Current EEPROM Layout
  *
@@ -581,10 +573,7 @@ typedef struct SettingsDataStruct {
   #endif
 
   #if ENABLED(E3S1PRO_RTS)
-    uint8_t g_soundSetOffOn;
     uint8_t language_change_font;
-    //uint8_t x_min_pos_eeprom;
-    //uint8_t y_min_pos_eeprom;
   #endif
 
   //
@@ -1062,10 +1051,6 @@ void MarlinSettings::postprocess() {
       #endif
 
       #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-        const size_t rows = sizeof(bedlevel.z_values) / sizeof(bedlevel.z_values[0]);
-        const size_t cols = sizeof(bedlevel.z_values[0]) / sizeof(bedlevel.z_values[0][0]);
-
-        printZValues(bedlevel.z_values, rows, cols);
         EEPROM_WRITE(bedlevel.z_values);              // 9-256 floats
       #else
         dummyf = 0;
@@ -1699,12 +1684,7 @@ void MarlinSettings::postprocess() {
     #endif
 
     #if ENABLED(E3S1PRO_RTS)
-        //_FIELD_TEST(g_soundSetOffOn);
-        EEPROM_WRITE(g_soundSetOffOn);
-        //_FIELD_TEST(language_change_font);
         EEPROM_WRITE(language_change_font);
-        //EEPROM_WRITE(x_min_pos_eeprom);
-        //EEPROM_WRITE(y_min_pos_eeprom);
     #endif
 
     //
@@ -1745,7 +1725,6 @@ void MarlinSettings::postprocess() {
     // Buzzer enable/disable
     //
     #if ENABLED(SOUND_MENU_ITEM)
-      //_FIELD_TEST(sound_on);
       EEPROM_WRITE(ui.sound_on);
     #endif
 
@@ -2119,9 +2098,6 @@ void MarlinSettings::postprocess() {
             if (!validating) set_bed_leveling_enabled(false);
             bedlevel.set_grid(spacing, start);
             EEPROM_READ(bedlevel.z_values);                 // 9 to 256 floats
-            const size_t rows = sizeof(bedlevel.z_values) / sizeof(bedlevel.z_values[0]);
-            const size_t cols = sizeof(bedlevel.z_values[0]) / sizeof(bedlevel.z_values[0][0]);
-            printZValues(bedlevel.z_values, rows, cols);
           }
           else if (grid_max_x > (GRID_MAX_POINTS_X) || grid_max_y > (GRID_MAX_POINTS_Y)) {
             eeprom_error = ERR_EEPROM_CORRUPT;
@@ -2796,11 +2772,6 @@ void MarlinSettings::postprocess() {
       #endif
 
       #if ENABLED(E3S1PRO_RTS)
-        if((g_soundSetOffOn != 1) && (g_soundSetOffOn != 2)) {
-          g_soundSetOffOn = 1;
-        }
-        EEPROM_READ(g_soundSetOffOn); 
-            
         if((language_change_font != 1) &&
           (language_change_font != 2) &&
           (language_change_font != 3) &&
@@ -2814,18 +2785,6 @@ void MarlinSettings::postprocess() {
           language_change_font = 2;
         }
         EEPROM_READ(language_change_font);
-        //if((x_min_pos_eeprom != 0) && (x_min_pos_eeprom != 1)) {
-        //  x_min_pos_eeprom = 1;
-        //}        
-        //_FIELD_TEST(x_min_pos_eeprom);
-        //EEPROM_READ(x_min_pos_eeprom);
-        //if((y_min_pos_eeprom != 0) && (y_min_pos_eeprom != 1)) {
-        //  y_min_pos_eeprom = 1;
-        //}  
-        //_FIELD_TEST(y_min_pos_eeprom);        
-        //EEPROM_READ(y_min_pos_eeprom);
-        //SERIAL_ECHO_MSG("  x_min_pos_eeprom:", x_min_pos_eeprom);        
-        //SERIAL_ECHO_MSG("  y_min_pos_eeprom:", y_min_pos_eeprom);  
       #endif
 
       //
@@ -3325,10 +3284,7 @@ void MarlinSettings::reset() {
   TERN_(CASELIGHT_USES_BRIGHTNESS, caselight.brightness = CASE_LIGHT_DEFAULT_BRIGHTNESS);
 
   #if ENABLED(E3S1PRO_RTS)
-      g_soundSetOffOn = g_soundSetOffOn;
       language_change_font = 2;
-      //x_min_pos_eeprom = 0;
-      //y_min_pos_eeprom = 0;
   #endif
 
   //
@@ -4082,14 +4038,11 @@ void MarlinSettings::reset() {
     TERN_(HAS_MULTI_LANGUAGE, gcode.M414_report(forReplay));
 
     #if ENABLED(E3S1PRO_RTS)
-      if (g_soundSetOffOn == 1 || g_soundSetOffOn == 0) {
-        SERIAL_ECHO_MSG("  Display sound: ON");
-      }
-      if(g_soundSetOffOn == 2){
-        SERIAL_ECHO_MSG("  Display sound: OFF");
-      }      
-      //SERIAL_ECHO_MSG("  x_min_pos_eeprom:", int(x_min_pos_eeprom));          
-      //SERIAL_ECHO_MSG("  y_min_pos_eeprom:", int(y_min_pos_eeprom));    
+      SERIAL_ECHO_MSG("  Screen brightness: ", lcd_rts_settings.screen_brightness);
+      SERIAL_ECHO_MSG("  Screen standby brightness: ", lcd_rts_settings.standby_brightness);      
+      SERIAL_ECHO_MSG("  Display sound: ", lcd_rts_settings.display_sound);
+      SERIAL_ECHO_MSG("  Display volume: ", lcd_rts_settings.display_volume);
+
     #endif
 
     //

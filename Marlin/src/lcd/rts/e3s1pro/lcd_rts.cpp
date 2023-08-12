@@ -263,11 +263,11 @@ void resetSettings() {
   lcd_rts_settings.settings_version      = lcd_rts_settings_version;
   lcd_rts_settings.display_standby       = true;
   lcd_rts_settings.display_sound         = true;
-  lcd_rts_settings.display_volume        = 32;
-  lcd_rts_settings.standby_brightness    = 15;
+  lcd_rts_settings.display_volume        = 256;
+  lcd_rts_settings.standby_brightness    = 20;
   lcd_rts_settings.screen_brightness     = 100;
   lcd_rts_settings.standby_time_seconds  = 60;
-  lcd_rts_settings.screen_rotation       = 0;
+  lcd_rts_settings.screen_rotation       = 62; // cfg position 0x05 -> 3E 
   lcd_rts_settings.bed_size_x = 235.00;
   lcd_rts_settings.bed_size_y = 235.00;
   lcd_rts_settings.x_min_pos = 0.00;
@@ -311,6 +311,7 @@ void loadSettings(const char * const buff) {
     SERIAL_ECHOLNPGM("ubl_probe_margin_r:", lcd_rts_settings.ubl_probe_margin_r);
     SERIAL_ECHOLNPGM("ubl_probe_margin_f:", lcd_rts_settings.ubl_probe_margin_f);
     SERIAL_ECHOLNPGM("ubl_probe_margin_b:", lcd_rts_settings.ubl_probe_margin_b);
+    SERIAL_ECHOLNPGM("------Load lcd_rts_settings from lcd_rts.cpp!-------");    
   #endif
 }
 
@@ -341,6 +342,7 @@ void saveSettings(char * const buff) {
     SERIAL_ECHOLNPGM("ubl_probe_margin_r:", lcd_rts_settings.ubl_probe_margin_r);
     SERIAL_ECHOLNPGM("ubl_probe_margin_f:", lcd_rts_settings.ubl_probe_margin_f);
     SERIAL_ECHOLNPGM("ubl_probe_margin_b:", lcd_rts_settings.ubl_probe_margin_b);
+    SERIAL_ECHOLNPGM("------Save lcd_rts_settings from lcd_rts.cpp!-------");
   #endif
 }
 
@@ -509,6 +511,84 @@ void RTSSHOW::RTS_SDCardUpdate() {
     //hal.watchdog_refresh();
     CardUpdate = false;
   }
+}
+
+void RTSSHOW::writeVariable(const uint16_t adr, const void * const values, uint8_t valueslen, const bool isstr/*=false*/, const char fillChar/*=' '*/) {
+  const char* myvalues = static_cast<const char*>(values);
+  bool strend = !myvalues;
+  LCDSERIAL.write(FHONE);
+  LCDSERIAL.write(FHTWO);
+  LCDSERIAL.write(valueslen + 3);
+  LCDSERIAL.write(0x82);
+  LCDSERIAL.write(adr >> 8);
+  LCDSERIAL.write(adr & 0xFF);
+  while (valueslen--) {
+    char x;
+    if (!strend) x = *myvalues++;
+    if ((isstr && !x) || strend) {
+      strend = true;
+      x = fillChar;
+    }
+    LCDSERIAL.write(x);
+  }
+}
+
+void RTSSHOW::setTouchScreenConfiguration() {
+  // Main configuration (System_Config)
+  LIMIT(lcd_rts_settings.screen_brightness, 20, 100); // Prevent a possible all-dark screen
+  LIMIT(lcd_rts_settings.standby_time_seconds, 10, 655); // Prevent a possible all-dark screen for standby, yet also don't go higher than the DWIN limitation
+
+  uint8_t cfg_bits = (0x0
+    |                                   _BV(7)       // 7: Enable Control ... TERN0(DWINOS_4, _BV(7))
+    |                                   _BV(5)       // 5: load 22 touch file
+    |                                   _BV(4)       // 4: auto-upload should always be enabled
+    | (lcd_rts_settings.display_sound         ? _BV(3) : 0)  // 3: audio
+    | (lcd_rts_settings.display_standby       ? _BV(2) : 0)  // 2: backlight on standby
+    | (lcd_rts_settings.screen_rotation == 62 ? _BV(1) : 0)  // 1 & 0: Inversion
+    #if LCD_SCREEN_ROTATE == 90
+      |                                 _BV(0)       // Portrait Mode or 800x480 display has 0 point rotated 90deg from 480x272 display
+    #elif LCD_SCREEN_ROTATE
+      #error "Only 90° rotation is supported for the selected LCD."
+    #endif
+  );
+
+  const uint8_t config_set[] = { 0x5A, 0x00, TERN(DWINOS_4, 0x00, 0xFF), cfg_bits };
+  writeVariable(0x80 /*System_Config*/, config_set, sizeof(config_set));
+
+  // Standby brightness (LED_Config)
+  uint16_t dwinStandbyTimeSeconds = 100 * lcd_rts_settings.standby_time_seconds; /* milliseconds, but divided by 10 (not 5 like the docs say) */
+  const uint8_t brightness_set[] = {
+    lcd_rts_settings.screen_brightness /*% active*/,
+    lcd_rts_settings.standby_brightness /*% standby*/,
+    static_cast<uint8_t>(dwinStandbyTimeSeconds >> 8),
+    static_cast<uint8_t>(dwinStandbyTimeSeconds)
+  };
+  writeVariable(0x82 /*LED_Config*/, brightness_set, sizeof(brightness_set));
+
+  if (!lcd_rts_settings.display_sound) {
+    RTS_SndData(193, VolumeIcon);
+    RTS_SndData(102, SoundIcon);
+    RTS_SndData(191, VOLUME_DISPLAY);     
+  }
+  else {
+    RTS_SndData((lcd_rts_settings.display_volume + 1) / 32 - 1 + 193, VolumeIcon);
+    RTS_SndData(101, SoundIcon);
+    RTS_SndData(192, VOLUME_DISPLAY); 
+    RTS_SndData(StartSoundSet, SoundAddr);        
+  }
+
+  if (lcd_rts_settings.screen_brightness <= 20) {
+    RTS_SndData(193, BrightnessIcon);  
+  }
+  else {
+    RTS_SndData((lcd_rts_settings.screen_brightness + 1) / 12 - 1 + 193, BrightnessIcon);     
+  }
+
+  RTS_SndData(lcd_rts_settings.display_volume << 8, SoundAddr + 1);
+  RTS_SndData(lcd_rts_settings.screen_brightness, DISPLAY_BRIGHTNESS);
+  RTS_SndData(lcd_rts_settings.standby_brightness, DISPLAYSTANDBY_BRIGHTNESS);
+  RTS_SndData(lcd_rts_settings.standby_time_seconds, DISPLAYSTANDBY_SECONDS);
+  RTS_SndData(lcd_rts_settings.display_standby ? 3 : 2, DISPLAYSTANDBY_ENABLEINDICATOR);
 }
 
 bool RTSSHOW::readDisplayVersion(uint8_t &guiVersion, uint8_t &osVersion) {
@@ -747,7 +827,6 @@ void RTSSHOW::RTS_Init(void)
   RTS_SndData(planner.extruder_advance_K[0] * 100, ADVANCE_K_SET);
   RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
 
-  RTS_SndData(StartSoundSet, 0);
   #if ENABLED(GCODE_PREVIEW_ENABLED)
     RTS_SndData(0, DEFAULT_PRINT_MODEL_VP);
     RTS_SndData(0, DOWNLOAD_PREVIEW_VP);
@@ -809,13 +888,7 @@ void RTSSHOW::RTS_Init(void)
   RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);
   RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);
 
-  if (g_soundSetOffOn == 2) {
-    RTS_SndData(DC_SOUND_SET_OFF, DC_SOUND_SET_DDR);
-    RTS_SndData(102, SOUND_SETTING_OFF_ON_VP);
-  } else {
-    RTS_SndData(DC_SOUND_SET_ON, DC_SOUND_SET_DDR);
-    RTS_SndData(101, SOUND_SETTING_OFF_ON_VP);
-  }
+  setTouchScreenConfiguration();
 
   /**************************some info init*******************************/
   RTS_SndData(0, PRINT_PROCESS_ICON_VP);
@@ -2168,15 +2241,6 @@ void RTSSHOW::RTS_HandleData(void)
         RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
         change_page_font = 21;
       } else if (recdat.data[0] == 3) {
-        if (g_soundSetOffOn == 2) {
-          g_soundSetOffOn = 1;
-          RTS_SndData(DC_SOUND_SET_ON, DC_SOUND_SET_DDR);
-          RTS_SndData(101, SOUND_SETTING_OFF_ON_VP);
-        } else {
-          g_soundSetOffOn = 2;
-          RTS_SndData(DC_SOUND_SET_OFF, DC_SOUND_SET_DDR);
-          RTS_SndData(102, SOUND_SETTING_OFF_ON_VP);
-        }
         settings.save();
       }else if (recdat.data[0] == 4) {
         RTS_SndData(ExchangePageBase + 48, ExchangepageAddr);
@@ -2977,6 +3041,38 @@ void RTSSHOW::RTS_HandleData(void)
             change_page_font = 89;                      
           }
       }
+      else if (recdat.data[0] == 167) 
+      {
+        lcd_rts_settings.display_volume = 0;
+        lcd_rts_settings.display_sound = false;
+        setTouchScreenConfiguration();
+      }
+      else if (recdat.data[0] == 168) 
+      {
+        lcd_rts_settings.display_volume = 255;
+        lcd_rts_settings.display_sound = true;
+        setTouchScreenConfiguration();
+      }
+      else if (recdat.data[0] == 169) 
+      {
+        lcd_rts_settings.screen_brightness = 10;
+        setTouchScreenConfiguration();
+      }
+      else if (recdat.data[0] == 170) 
+      {
+        lcd_rts_settings.screen_brightness = 100;
+        setTouchScreenConfiguration();
+      }
+      else if (recdat.data[0] == 171) 
+      {
+        lcd_rts_settings.display_standby ^= true;
+        setTouchScreenConfiguration();
+      }
+      else if (recdat.data[0] == 172) 
+      {
+        lcd_rts_settings.screen_rotation = lcd_rts_settings.screen_rotation == 62 ? 0 : 10;
+        setTouchScreenConfiguration();
+      }      
       RTS_SndData(0, MOTOR_FREE_ICON_VP);
       break;
 
@@ -3130,7 +3226,12 @@ void RTSSHOW::RTS_HandleData(void)
         RTS_SndData(0, HOME_Y_OFFSET_SET_VP);            
         RTS_SndData(ExchangePageBase + 93, ExchangepageAddr);
         change_page_font = 93; 
-      }                                   
+      }
+      else if(recdat.data[0] == 179)
+      { // 00B3 // 00A1 before Offsetrouting
+        RTS_SndData(ExchangePageBase + 97, ExchangepageAddr);
+        change_page_font = 97;
+      }                                        
       break;
 
     case XaxismoveKey:
@@ -3610,7 +3711,14 @@ void RTSSHOW::RTS_HandleData(void)
         change_page_font = 33;
         // settings.save();
         // delay(100);
-      }    
+      }
+      else if(recdat.data[0] == 0x0E)
+      {         
+        rtscheck.RTS_SndData(ExchangePageBase + 33, ExchangepageAddr);
+        change_page_font = 33;
+        settings.save();
+        delay(100);
+      }      
       else if (recdat.data[0] == 161)
       { // 00A1
          g_autoPIDHeaterTempTargetset = g_autoPIDHeaterTempTargetset;     
@@ -3976,6 +4084,66 @@ void RTSSHOW::RTS_HandleData(void)
       RTS_SndData(home_offset.y * 10, HOME_Y_OFFSET_VP);      
       settings.save();      
       break;                     
+
+    case Volume:
+      if (recdat.data[0] <= 32){
+        lcd_rts_settings.display_volume = 32;
+        lcd_rts_settings.display_sound = false;        
+      }else if (recdat.data[0] > 255){
+        lcd_rts_settings.display_volume = 0xFF;
+        lcd_rts_settings.display_sound = true;              
+      }else{
+        lcd_rts_settings.display_volume = recdat.data[0];
+        lcd_rts_settings.display_sound = true;        
+      }
+      setTouchScreenConfiguration();      
+      break;
+
+    case VolumeDisplay:
+    if (lcd_rts_settings.display_volume == 255){
+      if (recdat.data[0] == 0) {
+        lcd_rts_settings.display_volume = 0;
+        lcd_rts_settings.display_sound = false;
+        RTS_SndData(191, VOLUME_DISPLAY);        
+      }
+    }else{
+        lcd_rts_settings.display_volume = 255;
+        lcd_rts_settings.display_sound = true;
+        RTS_SndData(192, VOLUME_DISPLAY);         
+    }
+    setTouchScreenConfiguration();
+    break;
+
+    case DisplayBrightness:
+      if (recdat.data[0] <= 20){
+        lcd_rts_settings.screen_brightness = 20;
+      }else if (recdat.data[0] > 100){
+        lcd_rts_settings.screen_brightness = 100;
+      }else{
+        lcd_rts_settings.screen_brightness = (uint8_t)recdat.data[0];
+      }
+      setTouchScreenConfiguration();
+      break;
+
+    case DisplayStandbyBrightness:
+      if (recdat.data[0] < 20)
+        lcd_rts_settings.standby_brightness = 20;
+      else if (recdat.data[0] > 100)
+        lcd_rts_settings.standby_brightness = 100;
+      else
+        lcd_rts_settings.standby_brightness = (uint8_t)recdat.data[0];
+      setTouchScreenConfiguration();
+      break;
+
+    case DisplayStandbySeconds:
+      if (recdat.data[0] < 5)
+        lcd_rts_settings.standby_time_seconds = 5;
+      else if (recdat.data[0] > 100)
+        lcd_rts_settings.standby_time_seconds = 100;
+      else
+        lcd_rts_settings.standby_time_seconds = (uint8_t)recdat.data[0];
+      setTouchScreenConfiguration();
+      break;
 
     case SelectFileKey:
       if (RTS_SD_Detected()) {
@@ -4378,7 +4546,7 @@ void EachMomentUpdate(void)
       // delay(30);
       if((startprogress += 1) > 100)
       {
-        rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
+        //rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
         power_off_type_yes = true;
         for(uint16_t i = 0;i < CardRecbuf.Filesum;i ++) 
         {
@@ -4404,7 +4572,7 @@ void EachMomentUpdate(void)
       // delay(30);
       if((startprogress += 1) > 100)
       {
-        rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
+        //rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
         power_off_type_yes = true;
         Update_Time_Value = RTS_UPDATE_VALUE; 
         change_page_font = 1;
@@ -4525,6 +4693,15 @@ void EachMomentUpdate(void)
         thermalManager.setTargetHotend(0, 0);
         rtscheck.RTS_SndData(0, HEAD_SET_TEMP_VP);
       }
+
+      //rtscheck.RTS_SndData(map(constrain(lcd_rts_settings.display_volume, 0, 255), 0, 255, 0, 100), VOLUME_DISPLAY);
+      rtscheck.RTS_SndData(lcd_rts_settings.screen_brightness, DISPLAY_BRIGHTNESS);
+      rtscheck.RTS_SndData(lcd_rts_settings.standby_brightness, DISPLAYSTANDBY_BRIGHTNESS);
+      rtscheck.RTS_SndData(lcd_rts_settings.standby_time_seconds, DISPLAYSTANDBY_SECONDS);
+      if (lcd_rts_settings.display_standby)
+        rtscheck.RTS_SndData(3, DISPLAYSTANDBY_ENABLEINDICATOR);
+      else
+        rtscheck.RTS_SndData(2, DISPLAYSTANDBY_ENABLEINDICATOR);
 
       rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD_CURRENT_TEMP_VP);
       rtscheck.RTS_SndData(thermalManager.temp_bed.celsius, BED_CURRENT_TEMP_VP);

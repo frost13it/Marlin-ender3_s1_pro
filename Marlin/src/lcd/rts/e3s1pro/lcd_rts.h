@@ -52,9 +52,6 @@ extern bool power_off_type_yes;
 #define ExchangePageBase    ((unsigned long)0x5A010000)
 #define StartSoundSet       ((unsigned long)0x060480A0)
 
-#define DC_SOUND_SET_OFF     ((unsigned long)(0x5A00003E & (~(1 << 3))))
-#define DC_SOUND_SET_ON     ((unsigned long)(0x5A00003E))
-#define DC_SOUND_SET_DDR    ((unsigned long)0x0080)
 #define WRITE_CURVE_DDR_CMD ((unsigned long)0x030B)
 
 const uint8_t DGUS_READVAR = 0x83;
@@ -499,6 +496,15 @@ const uint16_t DGUS_VERSION = 0x000F;
   #define SW_FOCUS_Z_VP                     0x2207
 #endif
 
+#define VOLUME_DISPLAY                      0x1140
+#define DISPLAY_BRIGHTNESS                  0x1142
+#define DISPLAYSTANDBY_BRIGHTNESS           0x1144
+#define DISPLAYSTANDBY_ENABLEINDICATOR      0x1146
+#define DISPLAYSTANDBY_SECONDS              0x1148
+#define VolumeIcon                          0x1150
+#define SoundIcon                           0x1152
+#define BrightnessIcon                      0x1154
+
 /************struct**************/
 typedef struct DataBuf
 {
@@ -605,6 +611,8 @@ class RTSSHOW
       void RTS_HandleData_Laser(void);
       void RTS_SDcard_Stop_laser(void);
     #endif
+    void writeVariable(const uint16_t adr, const void * const values, uint8_t valueslen, const bool isstr=false, const char fillChar=' ');    
+    void setTouchScreenConfiguration();    
     String RTS_ReadTextField(uint16_t address);
     void sendPacketAndReceiveResponse(uint16_t packetValue);
     bool readDisplayVersion(uint8_t &guiVersion, uint8_t &osVersion);
@@ -721,7 +729,12 @@ typedef enum PROC_COM : int8_t {
    YMinPosEepromEnterKey   = 79,
    XaxismoveKeyHomeOffset  = 80,
    YaxismoveKeyHomeOffset  = 81,
-   E0FlowKey               = 82
+   E0FlowKey               = 82,
+   Volume                  = 83,
+   DisplayBrightness        = 84,
+   DisplayStandbyBrightness = 85,
+   VolumeDisplay            = 86,   
+   DisplayStandbySeconds    = 87
 } proc_command_t; 
 
 const unsigned long Addrbuf[] = 
@@ -811,6 +824,11 @@ const unsigned long Addrbuf[] =
    0x191A, // y_min_pos_homeoffset
    0x192A, // y_min_pos_homeoffset
    0x193A, // Flow Key
+   0x194A, // Volume
+   0x1142, // Screen Brightness
+   0x1144, // Screen Standby Brightness
+   0x1146, // VolumeDisplayEnableIndicator
+   0x1148, // DisplayStandbySeconds
   0
 };
 
@@ -879,7 +897,6 @@ typedef struct
 
 extern BedNozzleHeightCalSt st_bedNozzleHeightCal;
 extern float bedNozzleHeightCalZ;
-extern uint8_t g_soundSetOffOn;
 extern uint8_t x_min_pos_eeprom;
 extern uint8_t y_min_pos_eeprom;
 extern int8_t g_uiAutoPIDRuningDiff;
