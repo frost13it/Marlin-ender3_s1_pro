@@ -1,24 +1,28 @@
-// This class was initially released by Creality for the Ender 3 S1 Pro
-// This class was modified by Thomas Toka for MALRIN-E3S1PRO-FORK-BYTT
-// This class is backward compatible to the stock screen firmware with its stock features.
+/**
+ * This class was initially released by Creality for the Ender 3 S1 Pro
+ * This class was modified by Thomas Toka for MARLIN-E3S1PRO-FORK-BYTT
+ * This class is backward compatible to the stock screen firmware with its stock features.
+ */
 
 // GCODE_PREVIEW requires some fixing..
 //#define GCODE_PREVIEW_ENABLED
 
-#define LCD_RTS_DEBUG
+//#define LCD_RTS_DEBUG
 
-#include <wstring.h>
+#include <Wstring.h>
 #include <stdio.h>
 #include <string.h>
-#include <Arduino.h>
-#include "lcd_rts.h"
-#include "../../../MarlinCore.h"
+//#include <Arduino.h>
+
 #include "../../../inc/MarlinConfig.h"
+
+#include "lcd_rts.h"
+#include "../../marlinui.h"
+#include "../../../MarlinCore.h"
 #include "../../../module/settings.h"
 #include "../../../core/serial.h"
 #include "../../../core/macros.h"
 #include "../../utf8.h"
-#include "../../marlinui.h"
 #include "../../../sd/cardreader.h"
 #include "../../../feature/babystep.h"
 #include "../../../module/temperature.h"
@@ -261,56 +265,60 @@ inline void RTS_line_to_current(AxisEnum axis)
 void resetSettings() {
   lcd_rts_settings.settings_size         = sizeof(lcd_rts_settings_t);
   lcd_rts_settings.settings_version      = lcd_rts_settings_version;
-  lcd_rts_settings.display_standby       = true;
+  lcd_rts_settings.screen_rotation       = 62; // cfg position 0x05 -> 3E
   lcd_rts_settings.display_sound         = true;
   lcd_rts_settings.display_volume        = 256;
+  lcd_rts_settings.display_standby       = true;
   lcd_rts_settings.standby_brightness    = 20;
   lcd_rts_settings.screen_brightness     = 100;
   lcd_rts_settings.standby_time_seconds  = 60;
-  lcd_rts_settings.screen_rotation       = 62; // cfg position 0x05 -> 3E 
-  lcd_rts_settings.bed_size_x = 235.00;
-  lcd_rts_settings.bed_size_y = 235.00;
-  lcd_rts_settings.x_min_pos = 0.00;
-  lcd_rts_settings.y_min_pos = 0.00;
-  lcd_rts_settings.x_max_pos = 235.00;
-  lcd_rts_settings.y_max_pos = 235.00;
-  lcd_rts_settings.grid_max_points_x = 5;
-  lcd_rts_settings.grid_max_points_y = 5;  
-  lcd_rts_settings.abl_probe_margin = 45.00;
-  lcd_rts_settings.ubl_probe_margin_l = 27.00;
-  lcd_rts_settings.ubl_probe_margin_r = 27.00;
-  lcd_rts_settings.ubl_probe_margin_f = 27.00;
-  lcd_rts_settings.ubl_probe_margin_b = 45.00;
+  //lcd_rts_settings.bed_size_x = 235.00;
+  //lcd_rts_settings.bed_size_y = 235.00;
+  //lcd_rts_settings.x_min_pos = -2.00;
+  //lcd_rts_settings.y_min_pos = -2.00;
+  //lcd_rts_settings.x_max_pos = 235.00;
+  //lcd_rts_settings.y_max_pos = 235.00;
+  //lcd_rts_settings.z_max_pos = 270.00;
+  //lcd_rts_settings.grid_max_points = 5;
+  //lcd_rts_settings.abl_probe_margin = 45.00;
+  //lcd_rts_settings.ubl_probe_margin_l = 27.00;
+  //lcd_rts_settings.ubl_probe_margin_r = 27.00;
+  //lcd_rts_settings.ubl_probe_margin_f = 27.00;
+  //lcd_rts_settings.ubl_probe_margin_b = 45.00;
+  lcd_rts_settings.gcode_preview = false;
+  lcd_rts_settings.lcd_rts_debug = false;
   SERIAL_ECHOLNPGM("------Reset lcd_rts_settings from lcd_rts.cpp!-------");  
 }
 
 void loadSettings(const char * const buff) {
   memcpy(&lcd_rts_settings, buff, _MIN(sizeof(lcd_rts_settings), eeprom_data_size));
   #if ENABLED(LCD_RTS_DEBUG)  
-    SERIAL_ECHOLNPGM("Saved settings:");
+    SERIAL_ECHOLNPGM("Saved settings: ");
     SERIAL_ECHOLNPGM("settings_size: ", lcd_rts_settings.settings_size);
     SERIAL_ECHOLNPGM("settings_version: ", lcd_rts_settings.settings_version);
-    SERIAL_ECHOLNPGM("display_standby: ", lcd_rts_settings.display_standby);
-    SERIAL_ECHOLNPGM("display_sound: ", lcd_rts_settings.display_sound);
     SERIAL_ECHOLNPGM("screen_rotation: ", lcd_rts_settings.screen_rotation);
+    SERIAL_ECHOLNPGM("display_sound: ", lcd_rts_settings.display_sound);
     SERIAL_ECHOLNPGM("display_volume: ", lcd_rts_settings.display_volume);
-    SERIAL_ECHOLNPGM("standby_brightness: ", lcd_rts_settings.standby_brightness);
     SERIAL_ECHOLNPGM("screen_brightness: ", lcd_rts_settings.screen_brightness);
+    SERIAL_ECHOLNPGM("display_standby: ", lcd_rts_settings.display_standby);
+    SERIAL_ECHOLNPGM("standby_brightness: ", lcd_rts_settings.standby_brightness);
     SERIAL_ECHOLNPGM("standby_time_seconds: ", lcd_rts_settings.standby_time_seconds); 
     SERIAL_ECHOLNPGM("------------------");
-    SERIAL_ECHOLNPGM("bed_size_x:", lcd_rts_settings.bed_size_x);
-    SERIAL_ECHOLNPGM("bed_size_y:", lcd_rts_settings.bed_size_y);    
-    SERIAL_ECHOLNPGM("x_min_pos:", lcd_rts_settings.x_min_pos);
-    SERIAL_ECHOLNPGM("y_min_pos:", lcd_rts_settings.y_min_pos);
-    SERIAL_ECHOLNPGM("x_max_pos:", lcd_rts_settings.x_max_pos);
-    SERIAL_ECHOLNPGM("y_max_pos:", lcd_rts_settings.y_max_pos);
-    SERIAL_ECHOLNPGM("grid_max_points_x:", lcd_rts_settings.grid_max_points_x);
-    SERIAL_ECHOLNPGM("grid_max_points_y:", lcd_rts_settings.grid_max_points_y);  
-    SERIAL_ECHOLNPGM("abl_probe_margin:", lcd_rts_settings.abl_probe_margin);
-    SERIAL_ECHOLNPGM("ubl_probe_margin_l:", lcd_rts_settings.ubl_probe_margin_l);
-    SERIAL_ECHOLNPGM("ubl_probe_margin_r:", lcd_rts_settings.ubl_probe_margin_r);
-    SERIAL_ECHOLNPGM("ubl_probe_margin_f:", lcd_rts_settings.ubl_probe_margin_f);
-    SERIAL_ECHOLNPGM("ubl_probe_margin_b:", lcd_rts_settings.ubl_probe_margin_b);
+    //SERIAL_ECHOLNPGM("bed_size_x: ", lcd_rts_settings.bed_size_x);
+    //SERIAL_ECHOLNPGM("bed_size_y: ", lcd_rts_settings.bed_size_y);    
+    //SERIAL_ECHOLNPGM("x_min_pos: ", lcd_rts_settings.x_min_pos);
+    //SERIAL_ECHOLNPGM("y_min_pos: ", lcd_rts_settings.y_min_pos);
+    //SERIAL_ECHOLNPGM("x_max_pos: ", lcd_rts_settings.x_max_pos);
+    //SERIAL_ECHOLNPGM("y_max_pos: ", lcd_rts_settings.y_max_pos);
+    //SERIAL_ECHOLNPGM("z_max_pos: ", lcd_rts_settings.z_max_pos);    
+    //SERIAL_ECHOLNPGM("grid_max_points: ", lcd_rts_settings.grid_max_points);     
+    //SERIAL_ECHOLNPGM("abl_probe_margin: ", lcd_rts_settings.abl_probe_margin);
+    //SERIAL_ECHOLNPGM("ubl_probe_margin_l: ", lcd_rts_settings.ubl_probe_margin_l);
+    //SERIAL_ECHOLNPGM("ubl_probe_margin_r: ", lcd_rts_settings.ubl_probe_margin_r);
+    //SERIAL_ECHOLNPGM("ubl_probe_margin_f: ", lcd_rts_settings.ubl_probe_margin_f);
+    //SERIAL_ECHOLNPGM("ubl_probe_margin_b: ", lcd_rts_settings.ubl_probe_margin_b);
+    SERIAL_ECHOLNPGM("gcode_preview: ", lcd_rts_settings.gcode_preview);
+    SERIAL_ECHOLNPGM("lcd_rts_debug: ", lcd_rts_settings.lcd_rts_debug);
     SERIAL_ECHOLNPGM("------Load lcd_rts_settings from lcd_rts.cpp!-------");    
   #endif
 }
@@ -318,30 +326,32 @@ void loadSettings(const char * const buff) {
 void saveSettings(char * const buff) {
   memcpy(buff, &lcd_rts_settings, _MIN(sizeof(lcd_rts_settings), eeprom_data_size));
   #if ENABLED(LCD_RTS_DEBUG)  
-    SERIAL_ECHOLNPGM("Saved settings:");
+    SERIAL_ECHOLNPGM("Saved settings: ");
     SERIAL_ECHOLNPGM("settings_size: ", lcd_rts_settings.settings_size);
     SERIAL_ECHOLNPGM("settings_version: ", lcd_rts_settings.settings_version);
-    SERIAL_ECHOLNPGM("display_standby: ", lcd_rts_settings.display_standby);
-    SERIAL_ECHOLNPGM("display_sound: ", lcd_rts_settings.display_sound);
     SERIAL_ECHOLNPGM("screen_rotation: ", lcd_rts_settings.screen_rotation);
+    SERIAL_ECHOLNPGM("display_sound: ", lcd_rts_settings.display_sound);
     SERIAL_ECHOLNPGM("display_volume: ", lcd_rts_settings.display_volume);
-    SERIAL_ECHOLNPGM("standby_brightness: ", lcd_rts_settings.standby_brightness);
     SERIAL_ECHOLNPGM("screen_brightness: ", lcd_rts_settings.screen_brightness);
-    SERIAL_ECHOLNPGM("standby_time_seconds: ", lcd_rts_settings.standby_time_seconds);  
+    SERIAL_ECHOLNPGM("display_standby: ", lcd_rts_settings.display_standby);
+    SERIAL_ECHOLNPGM("standby_brightness: ", lcd_rts_settings.standby_brightness);
+    SERIAL_ECHOLNPGM("standby_time_seconds: ", lcd_rts_settings.standby_time_seconds); 
     SERIAL_ECHOLNPGM("------------------");
-    SERIAL_ECHOLNPGM("bed_size_x:", lcd_rts_settings.bed_size_x);
-    SERIAL_ECHOLNPGM("bed_size_y:", lcd_rts_settings.bed_size_y);    
-    SERIAL_ECHOLNPGM("x_min_pos:", lcd_rts_settings.x_min_pos);
-    SERIAL_ECHOLNPGM("y_min_pos:", lcd_rts_settings.y_min_pos);
-    SERIAL_ECHOLNPGM("x_max_pos:", lcd_rts_settings.x_max_pos);
-    SERIAL_ECHOLNPGM("y_max_pos:", lcd_rts_settings.y_max_pos);
-    SERIAL_ECHOLNPGM("grid_max_points_x:", lcd_rts_settings.grid_max_points_x);
-    SERIAL_ECHOLNPGM("grid_max_points_y:", lcd_rts_settings.grid_max_points_y);   
-    SERIAL_ECHOLNPGM("abl_probe_margin:", lcd_rts_settings.abl_probe_margin);
-    SERIAL_ECHOLNPGM("ubl_probe_margin_l:", lcd_rts_settings.ubl_probe_margin_l);
-    SERIAL_ECHOLNPGM("ubl_probe_margin_r:", lcd_rts_settings.ubl_probe_margin_r);
-    SERIAL_ECHOLNPGM("ubl_probe_margin_f:", lcd_rts_settings.ubl_probe_margin_f);
-    SERIAL_ECHOLNPGM("ubl_probe_margin_b:", lcd_rts_settings.ubl_probe_margin_b);
+    //SERIAL_ECHOLNPGM("bed_size_x: ", lcd_rts_settings.bed_size_x);
+    //SERIAL_ECHOLNPGM("bed_size_y: ", lcd_rts_settings.bed_size_y);    
+    //SERIAL_ECHOLNPGM("x_min_pos: ", lcd_rts_settings.x_min_pos);
+    //SERIAL_ECHOLNPGM("y_min_pos: ", lcd_rts_settings.y_min_pos);
+    //SERIAL_ECHOLNPGM("x_max_pos: ", lcd_rts_settings.x_max_pos);
+    //SERIAL_ECHOLNPGM("y_max_pos: ", lcd_rts_settings.y_max_pos);
+    //SERIAL_ECHOLNPGM("z_max_pos: ", lcd_rts_settings.z_max_pos);    
+    //SERIAL_ECHOLNPGM("grid_max_points: ", lcd_rts_settings.grid_max_points);    
+    //SERIAL_ECHOLNPGM("abl_probe_margin: ", lcd_rts_settings.abl_probe_margin);
+    //SERIAL_ECHOLNPGM("ubl_probe_margin_l: ", lcd_rts_settings.ubl_probe_margin_l);
+    //SERIAL_ECHOLNPGM("ubl_probe_margin_r: ", lcd_rts_settings.ubl_probe_margin_r);
+    //SERIAL_ECHOLNPGM("ubl_probe_margin_f: ", lcd_rts_settings.ubl_probe_margin_f);
+    //SERIAL_ECHOLNPGM("ubl_probe_margin_b: ", lcd_rts_settings.ubl_probe_margin_b);
+    SERIAL_ECHOLNPGM("gcode_preview: ", lcd_rts_settings.gcode_preview);
+    SERIAL_ECHOLNPGM("lcd_rts_debug: ", lcd_rts_settings.lcd_rts_debug);    
     SERIAL_ECHOLNPGM("------Save lcd_rts_settings from lcd_rts.cpp!-------");
   #endif
 }

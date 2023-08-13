@@ -1672,7 +1672,9 @@ void MarlinSettings::postprocess() {
       char lcd_rts_settings[eeprom_data_size] = { 0 };
       saveSettings(lcd_rts_settings);
       EEPROM_WRITE(lcd_rts_settings);
-      SERIAL_ECHOLNPGM("lcd_rts_settings write size past:", sizeof(lcd_rts_settings));
+      #if ENABLED(LCD_RTS_DEBUG)
+        SERIAL_ECHOLNPGM("lcd_rts_settings write size: ", sizeof(lcd_rts_settings));
+      #endif
     }
     #endif
 
@@ -2758,7 +2760,9 @@ void MarlinSettings::postprocess() {
         const char lcd_rts_settings[eeprom_data_size] = { 0 };
         _FIELD_TEST(lcd_rts_settings);
         EEPROM_READ(lcd_rts_settings);
-        //SERIAL_ECHOLNPGM("lcd_rts_size read size past:", sizeof(lcd_rts_settings));
+        #if ENABLED(LCD_RTS_DEBUG)
+          SERIAL_ECHOLNPGM("lcd_rts_settings read size: ", sizeof(lcd_rts_settings));
+        #endif
         if (!validating) loadSettings(lcd_rts_settings);
       }
       #endif
@@ -3961,23 +3965,23 @@ void MarlinSettings::reset() {
       //
       // TMC Stepper driver current
       //
-      //gcode.M906_report(forReplay);
+      gcode.M906_report(forReplay);
 
       //
       // TMC Hybrid Threshold
       //
-      //TERN_(HYBRID_THRESHOLD, gcode.M913_report(forReplay));
+      TERN_(HYBRID_THRESHOLD, gcode.M913_report(forReplay));
 
       //
       // TMC Sensorless homing thresholds
       //
-      //TERN_(USE_SENSORLESS, gcode.M914_report(forReplay));
-    #endif
+      TERN_(USE_SENSORLESS, gcode.M914_report(forReplay));
 
     //
     // TMC stepping mode
     //
-    //TERN_(HAS_STEALTHCHOP, gcode.M569_report(forReplay));
+    TERN_(HAS_STEALTHCHOP, gcode.M569_report(forReplay));
+    #endif
 
     //
     // Fixed-Time Motion
@@ -4038,11 +4042,12 @@ void MarlinSettings::reset() {
     TERN_(HAS_MULTI_LANGUAGE, gcode.M414_report(forReplay));
 
     #if ENABLED(E3S1PRO_RTS)
+      SERIAL_ECHO_MSG("  lcd_rts_settings size: ", sizeof(lcd_rts_settings));
       SERIAL_ECHO_MSG("  Screen brightness: ", lcd_rts_settings.screen_brightness);
       SERIAL_ECHO_MSG("  Screen standby brightness: ", lcd_rts_settings.standby_brightness);      
+      SERIAL_ECHO_MSG("  Screen standby time: ", lcd_rts_settings.standby_time_seconds);            
       SERIAL_ECHO_MSG("  Display sound: ", lcd_rts_settings.display_sound);
       SERIAL_ECHO_MSG("  Display volume: ", lcd_rts_settings.display_volume);
-
     #endif
 
     //

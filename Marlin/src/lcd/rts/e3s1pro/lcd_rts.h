@@ -2,10 +2,11 @@
 #define LCD_RTS_H
 #include "../../../sd/cardreader.h"
 #include "string.h"
-#include <arduino.h>
+//#include <arduino.h>
 #include "../../../libs/BL24CXX.h"
-#include "../../../inc/MarlinConfigPre.h"
+//#include "../../../inc/MarlinConfigPre.h"
 #include "../../../inc/MarlinConfig.h"
+//#include "lcd_rts_defines.h"
 
 extern bool power_off_type_yes;
 
@@ -179,9 +180,6 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define POWERCONTINUE_CONTROL_ICON_VP      0x116E
 
 #define PRINT_FINISH_ICON_VP               0x1170
-//#define PRINT_FINISH_ICON_VP               0x1174
-//#define PRINT_MAIN_PAGE_TIME_VP            0x1175
-
 #define MOTOR_FREE_ICON_VP                 0x1200
 #define FILE1_SELECT_ICON_VP               0x1221
 #define FILE2_SELECT_ICON_VP               0x1222
@@ -558,28 +556,31 @@ struct RecData2 {
 struct lcd_rts_settings_t { // use bit fields to save space, max 48 bytes
 size_t settings_size;
 uint8_t settings_version;
-bool display_standby;
-bool display_sound;
 int8_t screen_rotation;
+bool display_sound;
 int16_t display_volume;
-uint8_t standby_brightness;
 uint8_t screen_brightness;
+bool display_standby;
+uint8_t standby_brightness;
 int16_t standby_time_seconds;  
-float bed_size_x;
-float bed_size_y;
-float x_min_pos;
-float y_min_pos;
-float x_max_pos;
-float y_max_pos;
-uint8_t grid_max_points_x;
-uint8_t grid_max_points_y;
-uint8_t abl_probe_margin;
-uint8_t ubl_probe_margin_l;
-uint8_t ubl_probe_margin_r;
-uint8_t ubl_probe_margin_f;
-uint8_t ubl_probe_margin_b;
+//float bed_size_x;
+//float bed_size_y;
+//float x_min_pos;
+//float y_min_pos;
+//float x_max_pos;
+//float y_max_pos;
+//float z_max_pos;
+//uint8_t grid_max_points;
+//uint8_t abl_probe_margin;
+//uint8_t ubl_probe_margin_l;
+//uint8_t ubl_probe_margin_r;
+//uint8_t ubl_probe_margin_f;
+//uint8_t ubl_probe_margin_b;
+bool gcode_preview;
+bool lcd_rts_debug;
 };
 static constexpr size_t eeprom_data_size = sizeof(lcd_rts_settings_t);
+//static constexpr size_t eeprom_data_size = sizeof(lcd_rts_settings_t) + sizeof(lcd_rts_data_t);
 
 class RTSSHOW
 {
