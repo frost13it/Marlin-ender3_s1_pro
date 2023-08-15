@@ -2090,10 +2090,9 @@ void RTSSHOW::RTS_HandleData(void)
       hal.watchdog_refresh();
       break;  
 
-    case XoffsetEnterKey:
+    case XoffsetEnterKey: {
       last_xoffset = xprobe_xoffset;
-      if(recdat.data[0] >= 32768)
-      {
+      if (recdat.data[0] >= 32768) {
         xprobe_xoffset = ((float)recdat.data[0] - 65536) / 100;
         xprobe_xoffset -= 0.001;
       }
@@ -2101,21 +2100,21 @@ void RTSSHOW::RTS_HandleData(void)
       {
         xprobe_xoffset = ((float)recdat.data[0]) / 100;
         xprobe_xoffset += 0.001;
-      }
-      if(WITHIN((xprobe_xoffset), -100, 100))
-      {
-        babystep.add_mm(X_AXIS, xprobe_xoffset - last_xoffset);
-        //SERIAL_ECHO_MSG("babystep.add_mm():", xprobe_xoffset - last_xoffset);
-      }
+      }      
+      float x_offset_change = xprobe_xoffset - last_xoffset;
+      if (WITHIN((xprobe_xoffset), -100, 100)) {
+        float babystep_x_offset = -x_offset_change;
+        babystep.add_mm(X_AXIS, babystep_x_offset);
+      }     
       probe.offset.x = xprobe_xoffset;
       RTS_SndData(xprobe_xoffset * 100, HOTEND_X_ZOFFSET_VP);
       hal.watchdog_refresh();
       break;
+    }
 
-    case YoffsetEnterKey:
+    case YoffsetEnterKey: {
       last_yoffset = yprobe_yoffset;
-      if(recdat.data[0] >= 32768)
-      {
+      if (recdat.data[0] >= 32768) {
         yprobe_yoffset = ((float)recdat.data[0] - 65536) / 100;
         yprobe_yoffset -= 0.001;
       }
@@ -2123,16 +2122,17 @@ void RTSSHOW::RTS_HandleData(void)
       {
         yprobe_yoffset = ((float)recdat.data[0]) / 100;
         yprobe_yoffset += 0.001;
-      }
-      if(WITHIN((yprobe_yoffset), -100, 100))
-      {
-        babystep.add_mm(Y_AXIS, yprobe_yoffset - last_yoffset);
-        //SERIAL_ECHO_MSG("babystep.add_mm():", yprobe_yoffset - last_yoffset);
+      }    
+      float y_offset_change = yprobe_yoffset - last_yoffset;
+      if (WITHIN((yprobe_yoffset), -100, 100)) {
+        float babystep_y_offset = -y_offset_change;
+        babystep.add_mm(Y_AXIS, babystep_y_offset);
       }
       probe.offset.y = yprobe_yoffset;
       RTS_SndData(yprobe_yoffset * 100, HOTEND_Y_ZOFFSET_VP);
       hal.watchdog_refresh();
-      break;      
+      break;
+    }
 
     case TempControlKey:
       if(recdat.data[0] == 2)
