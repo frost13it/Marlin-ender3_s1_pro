@@ -4,9 +4,8 @@
 #include "string.h"
 //#include <arduino.h>
 #include "../../../libs/BL24CXX.h"
-//#include "../../../inc/MarlinConfigPre.h"
 #include "../../../inc/MarlinConfig.h"
-//#include "lcd_rts_defines.h"
+#include "lcd_rts_defines.h"
 
 extern bool power_off_type_yes;
 
@@ -172,12 +171,12 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define AUTO_BED_LEVEL_24POINT_VP          0x111C
 #define AUTO_BED_LEVEL_25POINT_VP          0x111E
 
-#define CHANGE_SDCARD_ICON_VP              0x1168
 #define MOVEAXIS_UNIT_ICON_VP              0x116A
 #define PREHAEAT_NOZZLE_ICON_VP            0x116B
 #define PREHAEAT_HOTBED_ICON_VP            0x116C
 #define FILAMENT_CONTROL_ICON_VP           0x116D
 #define POWERCONTINUE_CONTROL_ICON_VP      0x116E
+#define CHANGE_SDCARD_ICON_VP              0x116F
 
 #define PRINT_FINISH_ICON_VP               0x1170
 #define MOTOR_FREE_ICON_VP                 0x1200
@@ -488,9 +487,9 @@ const uint16_t DGUS_VERSION = 0x000F;
   #define HOME_LASER_ENGRAVE_VP             0x138A
   #define PREPARE_ADJUST_FOCUS_VP           0x138B
   #define PREPARE_SWITCH_FDM_VP             0x138C
-  #define  FIRST_DEVICE_FDM                 0x138D
-  #define  FIRST_DEVICE_LASER               0x138E
-  #define  FOCUS_SET_FOCUS_TIPS             0x138F 
+  #define FIRST_DEVICE_FDM                  0x138D
+  #define FIRST_DEVICE_LASER                0x138E
+  #define FOCUS_SET_FOCUS_TIPS              0x138F
   #define SW_FOCUS_Z_VP                     0x2207
 #endif
 
@@ -502,6 +501,11 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define VolumeIcon                          0x1150
 #define SoundIcon                           0x1152
 #define BrightnessIcon                      0x1154
+#define SET_GRID_MAX_POINTS_VP              0x1156
+#define SET_ABL_PROBE_MARGIN_VP             0x1158
+#define SET_ABL_PROBE_MARGIN_TEXT_VP        0x1160
+#define SET_MESH_SIZE_TEXT_VP               0x1972
+#define SET_MESH_SIZE_SIZE_TEXT_VP          0x196A
 
 /************struct**************/
 typedef struct DataBuf
@@ -570,17 +574,22 @@ int16_t standby_time_seconds;
 //float x_max_pos;
 //float y_max_pos;
 //float z_max_pos;
-//uint8_t grid_max_points;
-//uint8_t abl_probe_margin;
-//uint8_t ubl_probe_margin_l;
-//uint8_t ubl_probe_margin_r;
-//uint8_t ubl_probe_margin_f;
-//uint8_t ubl_probe_margin_b;
+uint8_t max_points;
+#if ENABLED(AUTO_BED_LEVELING_BILINEAR)
+  uint8_t grid_limit;
+  uint8_t abl_probe_margin;
+#endif
+#if ENABLED(AUTO_BED_LEVELING_UBL)
+uint8_t ubl_probe_margin_l;
+uint8_t ubl_probe_margin_r;
+uint8_t ubl_probe_margin_f;
+uint8_t ubl_probe_margin_b;
+#endif
 bool gcode_preview;
 bool lcd_rts_debug;
 };
-static constexpr size_t eeprom_data_size = sizeof(lcd_rts_settings_t);
-//static constexpr size_t eeprom_data_size = sizeof(lcd_rts_settings_t) + sizeof(lcd_rts_data_t);
+
+static constexpr size_t eeprom_data_size = sizeof(lcd_rts_settings_t) + sizeof(lcd_rts_data_t);
 
 class RTSSHOW
 {
@@ -735,7 +744,9 @@ typedef enum PROC_COM : int8_t {
    DisplayBrightness        = 84,
    DisplayStandbyBrightness = 85,
    VolumeDisplay            = 86,   
-   DisplayStandbySeconds    = 87
+   DisplayStandbySeconds    = 87,
+   SetGridMaxPoints         = 88,
+   SetAblProbeMargin        = 89
 } proc_command_t; 
 
 const unsigned long Addrbuf[] = 
@@ -830,6 +841,8 @@ const unsigned long Addrbuf[] =
    0x1144, // Screen Standby Brightness
    0x1146, // VolumeDisplayEnableIndicator
    0x1148, // DisplayStandbySeconds
+   0x1156, // SetGridMaxPoints
+   0x1158, // SetAblProbeMargin   
   0
 };
 

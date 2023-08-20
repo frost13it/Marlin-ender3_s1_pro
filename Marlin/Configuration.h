@@ -69,7 +69,7 @@
 //#define ENDER_3S1_PRO
 //#define ENDER_3S1_PLUS
 //#define ENDER_3S1
-#define FORK_VERSION "v006"
+#define FORK_VERSION "v007"
 
 // Choose the name from boards.h that matches your setup
 #define USER_STM32F401  1
@@ -1452,7 +1452,7 @@
 
 #define LIMITED_MAX_FR_EDITING        // Limit edit via M203 or LCD to DEFAULT_MAX_FEEDRATE * 2
 #if ENABLED(LIMITED_MAX_FR_EDITING)
-  #define MAX_FEEDRATE_EDIT_VALUES    { 3000, 3000, 100, 3000 } // ...or, set your own edit limits
+  #define MAX_FEEDRATE_EDIT_VALUES    { 9999, 9999, 100, 3000 } // ...or, set your own edit limits
 #endif
 
 /**
@@ -1465,7 +1465,7 @@
 
 #define LIMITED_MAX_ACCEL_EDITING     // Limit edit via M201 or LCD to DEFAULT_MAX_ACCELERATION * 2
 #if ENABLED(LIMITED_MAX_ACCEL_EDITING)
-  #define MAX_ACCEL_EDIT_VALUES       { 3000, 3000, 200, 10000 } // ...or, set your own edit limits
+  #define MAX_ACCEL_EDIT_VALUES       { 9999, 9999, 200, 10000 } // ...or, set your own edit limits
 #endif
 
 /**

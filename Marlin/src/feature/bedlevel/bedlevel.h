@@ -63,7 +63,11 @@ class TemporaryBedLevelingState {
 
 #if HAS_MESH
 
-  typedef float bed_mesh_t[GRID_MAX_POINTS_X][GRID_MAX_POINTS_Y];
+  #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
+    typedef float bed_mesh_t[GRID_LIMIT][GRID_LIMIT];
+  #elif ENABLED(AUTO_BED_LEVELING_UBL)
+    typedef float bed_mesh_t[GRID_MAX_POINTS_X][GRID_MAX_POINTS_Y];
+  #endif
 
   #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
     #include "abl/bbl.h"

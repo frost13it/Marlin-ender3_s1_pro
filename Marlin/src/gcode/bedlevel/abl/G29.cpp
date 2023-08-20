@@ -121,7 +121,7 @@ public:
   #elif ENABLED(AUTO_BED_LEVELING_3POINT)
     static constexpr grid_count_t abl_points = 3;
   #elif ABL_USES_GRID
-    static constexpr grid_count_t abl_points = GRID_MAX_POINTS;
+    const grid_count_t abl_points = lcd_rts_settings.max_points * lcd_rts_settings.max_points;
   #endif
 
   #if ABL_USES_GRID
@@ -137,7 +137,7 @@ public:
       bool                topography_map;
       xy_uint8_t          grid_points;
     #else // Bilinear
-      static constexpr xy_uint8_t grid_points = { GRID_MAX_POINTS_X, GRID_MAX_POINTS_Y };
+      xy_uint8_t grid_points = { lcd_rts_settings.max_points, lcd_rts_settings.max_points };
     #endif
 
     #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
@@ -155,8 +155,10 @@ public:
 };
 
 #if ABL_USES_GRID && ANY(AUTO_BED_LEVELING_3POINT, AUTO_BED_LEVELING_BILINEAR)
-  constexpr xy_uint8_t G29_State::grid_points;
-  constexpr grid_count_t G29_State::abl_points;
+  #if DISABLED(E3S1PRO_RTS)
+    constexpr xy_uint8_t G29_State::grid_points;
+    constexpr grid_count_t G29_State::abl_points;
+  #endif
 #endif
 
 /**
@@ -326,13 +328,13 @@ G29_TYPE GcodeSuite::G29() {
           // Get nearest i / j from rx / ry
           i = (rx - bedlevel.grid_start.x) / bedlevel.grid_spacing.x + 0.5f;
           j = (ry - bedlevel.grid_start.y) / bedlevel.grid_spacing.y + 0.5f;
-          LIMIT(i, 0, (GRID_MAX_POINTS_X) - 1);
-          LIMIT(j, 0, (GRID_MAX_POINTS_Y) - 1);
+          LIMIT(i, 0, (lcd_rts_settings.max_points) - 1);
+          LIMIT(j, 0, (lcd_rts_settings.max_points) - 1);
         }
 
         #pragma GCC diagnostic pop
 
-        if (WITHIN(i, 0, (GRID_MAX_POINTS_X) - 1) && WITHIN(j, 0, (GRID_MAX_POINTS_Y) - 1)) {
+        if (WITHIN(i, 0, (lcd_rts_settings.max_points) - 1) && WITHIN(j, 0, (lcd_rts_settings.max_points) - 1)) {
           set_bed_leveling_enabled(false);
           bedlevel.z_values[i][j] = rz;
           bedlevel.refresh_bed_level();
@@ -374,17 +376,17 @@ G29_TYPE GcodeSuite::G29() {
       // X and Y specify points in each direction, overriding the default
       // These values may be saved with the completed mesh
       abl.grid_points.set(
-        parser.byteval('X', GRID_MAX_POINTS_X),
-        parser.byteval('Y', GRID_MAX_POINTS_Y)
+        parser.byteval('X', lcd_rts_settings.max_points),
+        parser.byteval('Y', lcd_rts_settings.max_points)
       );
       if (parser.seenval('P')) abl.grid_points.x = abl.grid_points.y = parser.value_int();
 
-      if (!WITHIN(abl.grid_points.x, 2, GRID_MAX_POINTS_X)) {
-        SERIAL_ECHOLNPGM("?Probe points (X) implausible (2-" STRINGIFY(GRID_MAX_POINTS_X) ").");
+      if (!WITHIN(abl.grid_points.x, 2, lcd_rts_settings.max_points)) {
+        SERIAL_ECHOLNPGM("?Probe points (X) implausible (2-" STRINGIFY(lcd_rts_settings.max_points) ").");
         G29_RETURN(false, false);
       }
-      if (!WITHIN(abl.grid_points.y, 2, GRID_MAX_POINTS_Y)) {
-        SERIAL_ECHOLNPGM("?Probe points (Y) implausible (2-" STRINGIFY(GRID_MAX_POINTS_Y) ").");
+      if (!WITHIN(abl.grid_points.y, 2, lcd_rts_settings.max_points)) {
+        SERIAL_ECHOLNPGM("?Probe points (Y) implausible (2-" STRINGIFY(lcd_rts_settings.max_points) ").");
         G29_RETURN(false, false);
       }
 
@@ -805,30 +807,30 @@ G29_TYPE GcodeSuite::G29() {
               if(!IS_SD_PRINTING())
               {
                   if(old_leveling == 1){
-                  rtscheck.RTS_SndData((uint16_t)((100.0 / (GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y) * pt_index) / 2) , AUTO_BED_LEVEL_TITLE_VP);
-                  rtscheck.RTS_SndData((uint16_t)(100.0 / (GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y) * pt_index), AUTO_LEVELING_PERCENT_DATA_VP);
+                  rtscheck.RTS_SndData((uint16_t)((100.0 / (lcd_rts_settings.max_points * lcd_rts_settings.max_points) * pt_index) / 2) , AUTO_BED_LEVEL_TITLE_VP);
+                  rtscheck.RTS_SndData((uint16_t)(100.0 / (lcd_rts_settings.max_points * lcd_rts_settings.max_points) * pt_index), AUTO_LEVELING_PERCENT_DATA_VP);
                   rtscheck.RTS_SndData(ExchangePageBase + 26, ExchangepageAddr);
                   change_page_font = 26;
                   }else{
                   rtscheck.RTS_SndData(showcount + 1, AUTO_BED_LEVEL_CUR_POINT_VP);
                   rtscheck.RTS_SndData(z*1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
                   showcount ++;
-                  #if GRID_MAX_POINTS_X == 5
+                  if (lcd_rts_settings.max_points == 5){
                     rtscheck.RTS_SndData(ExchangePageBase + 81, ExchangepageAddr);
                     change_page_font = 81;
-                  #endif
-                  #if GRID_MAX_POINTS_X == 7
+                  }
+                  if (lcd_rts_settings.max_points == 7){
                     rtscheck.RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
                     change_page_font = 94;
-                  #endif
-                  #if GRID_MAX_POINTS_X == 9
+                  }
+                  if (lcd_rts_settings.max_points == 9){
                     rtscheck.RTS_SndData(ExchangePageBase + 96, ExchangepageAddr);
                     change_page_font = 96;
-                  #endif                    
-                  #if GRID_MAX_POINTS_X == 10
+                  }
+                  if (lcd_rts_settings.max_points == 10){
                     rtscheck.RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
                     change_page_font = 95;
-                  #endif 
+                  }
                   }
               }
             #endif

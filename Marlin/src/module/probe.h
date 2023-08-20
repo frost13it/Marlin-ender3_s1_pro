@@ -36,6 +36,10 @@
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../core/debug_out.h"
 
+#if ENABLED(E3S1PRO_RTS) && ENABLED(AUTO_BED_LEVELING_BILINEAR)
+  #include "../lcd/rts/e3s1pro/lcd_rts.h"
+#endif
+
 #if HAS_BED_PROBE
   enum ProbePtRaise : uint8_t {
     PROBE_PT_NONE,      // No raise or stow after run_z_probe
@@ -98,23 +102,47 @@ public:
     #if IS_KINEMATIC
 
       #if HAS_PROBE_XY_OFFSET
-        // Return true if the both nozzle and the probe can reach the given point.
-        // Note: This won't work on SCARA since the probe offset rotates with the arm.
-        static bool can_reach(const_float_t rx, const_float_t ry, const bool probe_relative=true) {
-          if (probe_relative) {
-            return position_is_reachable(rx - offset_xy.x, ry - offset_xy.y) // The nozzle can go where it needs to go?
-                && position_is_reachable(rx, ry, PROBING_MARGIN);            // Can the probe also go near there?
+        #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
+          // Return true if the both nozzle and the probe can reach the given point.
+          // Note: This won't work on SCARA since the probe offset rotates with the arm.
+          static bool can_reach(const_float_t rx, const_float_t ry, const bool probe_relative=true) {
+            if (probe_relative) {
+              return position_is_reachable(rx - offset_xy.x, ry - offset_xy.y) // The nozzle can go where it needs to go?
+                  && position_is_reachable(rx, ry, ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.abl_probe_margin : PROBING_MARGIN);            // Can the probe also go near there?
+            }
+            else {
+              return position_is_reachable(rx, ry)
+                  && position_is_reachable(rx + offset_xy.x, ry + offset_xy.y, ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.abl_probe_margin : PROBING_MARGIN);
+            }
           }
-          else {
-            return position_is_reachable(rx, ry)
-                && position_is_reachable(rx + offset_xy.x, ry + offset_xy.y, PROBING_MARGIN);
+        #endif
+        #if ENABLED(AUTO_BED_LEVELING_UBL) 
+          // Return true if the both nozzle and the probe can reach the given point.
+          // Note: This won't work on SCARA since the probe offset rotates with the arm.
+          static bool can_reach(const_float_t rx, const_float_t ry, const bool probe_relative=true) {
+            if (probe_relative) {
+              return position_is_reachable(rx - offset_xy.x, ry - offset_xy.y) // The nozzle can go where it needs to go?
+                  && position_is_reachable(rx, ry, PROBING_MARGIN);            // Can the probe also go near there?
+            }
+            else {
+              return position_is_reachable(rx, ry)
+                  && position_is_reachable(rx + offset_xy.x, ry + offset_xy.y, PROBING_MARGIN);
+            }
           }
-        }
+        #endif
       #else
-        static bool can_reach(const_float_t rx, const_float_t ry, const bool=true) {
-          return position_is_reachable(rx, ry)
-              && position_is_reachable(rx, ry, PROBING_MARGIN);
-        }
+        #if ENABLED(AUTO_BED_LEVELING_BILINEAR)      
+          static bool can_reach(const_float_t rx, const_float_t ry, const bool=true) {
+            return position_is_reachable(rx, ry)
+                && position_is_reachable(rx, ry, ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.abl_probe_margin : PROBING_MARGIN);
+          }
+        #endif
+        #if ENABLED(AUTO_BED_LEVELING_UBL) 
+          static bool can_reach(const_float_t rx, const_float_t ry, const bool=true) {
+            return position_is_reachable(rx, ry)
+                && position_is_reachable(rx, ry, PROBING_MARGIN);
+          }
+        #endif                
       #endif
 
     #else // !IS_KINEMATIC
@@ -242,6 +270,33 @@ public:
      * close it can get the RIGHT edge of the bed (unless the nozzle is able move
      * far enough past the right edge).
      */
+#if ENABLED(AUTO_BED_LEVELING_BILINEAR)    
+    TERN(E3S1PRO_RTS, static, static constexpr) float _min_x(const xy_pos_t &probe_offset_xy=offset_xy) {
+      return TERN(IS_KINEMATIC,
+        (X_CENTER) - probe_radius(probe_offset_xy),
+        _MAX((X_MIN_BED) + (ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.abl_probe_margin : PROBING_MARGIN_LEFT), (X_MIN_POS) + probe_offset_xy.x)
+      );
+    }
+    TERN(E3S1PRO_RTS, static, static constexpr) float _max_x(const xy_pos_t &probe_offset_xy=offset_xy) {
+      return TERN(IS_KINEMATIC,
+        (X_CENTER) + probe_radius(probe_offset_xy),
+        _MIN((X_MAX_BED) - (ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.abl_probe_margin : PROBING_MARGIN_RIGHT), (X_MAX_POS) + probe_offset_xy.x)
+      );
+    }
+    TERN(E3S1PRO_RTS, static, static constexpr)  float _min_y(const xy_pos_t &probe_offset_xy=offset_xy) {
+      return TERN(IS_KINEMATIC,
+        (Y_CENTER) - probe_radius(probe_offset_xy),
+        _MAX((Y_MIN_BED) + (ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.abl_probe_margin : PROBING_MARGIN_FRONT), (Y_MIN_POS) + probe_offset_xy.y)
+      );
+    }
+    TERN(E3S1PRO_RTS, static, static constexpr) float _max_y(const xy_pos_t &probe_offset_xy=offset_xy) {
+      return TERN(IS_KINEMATIC,
+        (Y_CENTER) + probe_radius(probe_offset_xy),
+        _MIN((Y_MAX_BED) - (ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.abl_probe_margin : PROBING_MARGIN_BACK), (Y_MAX_POS) + probe_offset_xy.y)
+      );
+    }
+#endif
+#if ENABLED(AUTO_BED_LEVELING_UBL) 
     static constexpr float _min_x(const xy_pos_t &probe_offset_xy=offset_xy) {
       return TERN(IS_KINEMATIC,
         (X_CENTER) - probe_radius(probe_offset_xy),
@@ -266,6 +321,7 @@ public:
         _MIN((Y_MAX_BED) - (PROBING_MARGIN_BACK), (Y_MAX_POS) + probe_offset_xy.y)
       );
     }
+#endif
 
     static float min_x() { return _min_x() TERN_(NOZZLE_AS_PROBE, TERN_(HAS_HOME_OFFSET, - home_offset.x)); }
     static float max_x() { return _max_x() TERN_(NOZZLE_AS_PROBE, TERN_(HAS_HOME_OFFSET, - home_offset.x)); }
@@ -284,16 +340,30 @@ public:
       static constexpr xy_pos_t default_probe_xy_offset = xy_pos_t({ default_probe_xyz_offset.x,  default_probe_xyz_offset.y });
 
     public:
-      static constexpr bool can_reach(float x, float y) {
-        #if IS_KINEMATIC
-          return HYPOT2(x, y) <= sq(probe_radius(default_probe_xy_offset));
-        #else
-          return COORDINATE_OKAY(x, _min_x(default_probe_xy_offset) - fslop, _max_x(default_probe_xy_offset) + fslop)
-              && COORDINATE_OKAY(y, _min_y(default_probe_xy_offset) - fslop, _max_y(default_probe_xy_offset) + fslop);
-        #endif
-      }
+      #if ENABLED(AUTO_BED_LEVELING_BILINEAR)  
+        TERN(E3S1PRO_RTS, static, static constexpr) bool can_reach(float x, float y) {
+          #if IS_KINEMATIC
+            return HYPOT2(x, y) <= sq(probe_radius(default_probe_xy_offset));
+          #else
+            return COORDINATE_OKAY(x, _min_x(default_probe_xy_offset) - fslop, _max_x(default_probe_xy_offset) + fslop)
+                && COORDINATE_OKAY(y, _min_y(default_probe_xy_offset) - fslop, _max_y(default_probe_xy_offset) + fslop);
+          #endif
+        }
 
-      static constexpr bool can_reach(const xy_pos_t &point) { return can_reach(point.x, point.y); }
+        TERN(E3S1PRO_RTS, static, static constexpr) bool can_reach(const xy_pos_t &point) { return can_reach(point.x, point.y); }
+      #endif
+      #if ENABLED(AUTO_BED_LEVELING_UBL) 
+        static constexpr bool can_reach(float x, float y) {
+          #if IS_KINEMATIC
+            return HYPOT2(x, y) <= sq(probe_radius(default_probe_xy_offset));
+          #else
+            return COORDINATE_OKAY(x, _min_x(default_probe_xy_offset) - fslop, _max_x(default_probe_xy_offset) + fslop)
+                && COORDINATE_OKAY(y, _min_y(default_probe_xy_offset) - fslop, _max_y(default_probe_xy_offset) + fslop);
+          #endif
+        }
+
+        static constexpr bool can_reach(const xy_pos_t &point) { return can_reach(point.x, point.y); }
+      #endif
     };
 
     #if NEEDS_THREE_PROBE_POINTS

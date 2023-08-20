@@ -1598,11 +1598,18 @@ void Planner::check_axes_activity() {
 #endif
 
 #if HAS_LEVELING
-
+  #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
+  TERN(E3S1PRO_RTS, ,constexpr) xy_pos_t level_fulcrum = {
+    TERN(Z_SAFE_HOMING, Z_SAFE_HOMING_X_POINT, X_HOME_POS),
+    TERN(Z_SAFE_HOMING, Z_SAFE_HOMING_Y_POINT, Y_HOME_POS)
+  };
+  #endif
+  #if ENABLED(AUTO_BED_LEVELING_UBL)
   constexpr xy_pos_t level_fulcrum = {
     TERN(Z_SAFE_HOMING, Z_SAFE_HOMING_X_POINT, X_HOME_POS),
     TERN(Z_SAFE_HOMING, Z_SAFE_HOMING_Y_POINT, Y_HOME_POS)
   };
+  #endif
 
   /**
    * rx, ry, rz - Cartesian positions in mm
