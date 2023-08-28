@@ -900,7 +900,7 @@ volatile bool Temperature::raw_temps_ready = false;
                 change_page_font = 31;
               #endif
 
-              _TEMP_ERROR(heater_id, FPSTR(str_t_heating_failed), MSG_HEATING_FAILED_LCD, current_temp);        
+              _TEMP_ERROR(heater_id, FPSTR(str_t_heating_failed), MSG_ERR_HEATING_FAILED, current_temp);        
               }
             }
             else if (current_temp < target - (MAX_OVERSHOOT_PID_AUTOTUNE)) { // Heated, then temperature fell too far?
@@ -910,7 +910,7 @@ volatile bool Temperature::raw_temps_ready = false;
                   change_page_font = 31;
                 #endif 
 
-              _TEMP_ERROR(heater_id, FPSTR(str_t_thermal_runaway), MSG_THERMAL_RUNAWAY, current_temp);
+              _TEMP_ERROR(heater_id, FPSTR(str_t_thermal_runaway), MSG_ERR_THERMAL_RUNAWAY, current_temp);
             }
           }
         #endif
