@@ -506,6 +506,10 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define SET_ABL_PROBE_MARGIN_TEXT_VP        0x1160
 #define SET_MESH_SIZE_TEXT_VP               0x1972
 #define SET_MESH_SIZE_SIZE_TEXT_VP          0x196A
+#define SET_UBL_PROBE_MARGIN_MINX_VP        0x1982
+#define SET_UBL_PROBE_MARGIN_MAXX_VP        0x1984
+#define SET_UBL_PROBE_MARGIN_MINY_VP        0x1986
+#define SET_UBL_PROBE_MARGIN_MAXY_VP        0x1988
 
 /************struct**************/
 typedef struct DataBuf
@@ -580,10 +584,10 @@ uint8_t max_points;
   uint8_t abl_probe_margin;
 #endif
 #if ENABLED(AUTO_BED_LEVELING_UBL)
-uint8_t ubl_probe_margin_l;
-uint8_t ubl_probe_margin_r;
-uint8_t ubl_probe_margin_f;
-uint8_t ubl_probe_margin_b;
+  int16_t ubl_probe_margin_l;
+  int16_t ubl_probe_margin_r;
+  int16_t ubl_probe_margin_f;
+  int16_t ubl_probe_margin_b;
 #endif
 bool gcode_preview;
 bool lcd_rts_debug;
@@ -746,7 +750,11 @@ typedef enum PROC_COM : int8_t {
    VolumeDisplay            = 86,   
    DisplayStandbySeconds    = 87,
    SetGridMaxPoints         = 88,
-   SetAblProbeMargin        = 89
+   SetAblProbeMargin        = 89,
+   SetUblProbeMarginMinX    = 90,
+   SetUblProbeMarginMaxX    = 91,
+   SetUblProbeMarginMinY    = 92,
+   SetUblProbeMarginMaxY    = 93
 } proc_command_t; 
 
 const unsigned long Addrbuf[] = 
@@ -842,7 +850,11 @@ const unsigned long Addrbuf[] =
    0x1146, // VolumeDisplayEnableIndicator
    0x1148, // DisplayStandbySeconds
    0x1156, // SetGridMaxPoints
-   0x1158, // SetAblProbeMargin   
+   0x1158, // SetAblProbeMargin
+   0x1982, // SetUblProbeMarginMinX
+   0x1984, // SetUblProbeMarginMaxX
+   0x1986, // SetUblProbeMarginMinY
+   0x1988, // SetUblProbeMarginMaxY
   0
 };
 

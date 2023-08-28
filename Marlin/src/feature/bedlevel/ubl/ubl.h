@@ -37,10 +37,15 @@ enum MeshPointType : char { INVALID, REAL, SET_IN_BITMAP, CLOSEST };
 // External references
 
 struct mesh_index_pair;
-
-#define MESH_X_DIST (float((MESH_MAX_X) - (MESH_MIN_X)) / (GRID_MAX_CELLS_X))
-#define MESH_Y_DIST (float((MESH_MAX_Y) - (MESH_MIN_Y)) / (GRID_MAX_CELLS_Y))
-
+//#if ENABLED(E3S1PRO_RTS)
+//  #define MESH_X_DIST (float(lcd_rts_settings.ubl_probe_margin_r - lcd_rts_settings.ubl_probe_margin_l) / GRID_MAX_CELLS_X)
+//  #define MESH_Y_DIST (float(lcd_rts_settings.ubl_probe_margin_b - lcd_rts_settings.ubl_probe_margin_f) / GRID_MAX_CELLS_Y)
+//  #define MESH_X_DIST (float((lcd_rts_settings.ubl_probe_margin_r) - (lcd_rts_settings.ubl_probe_margin_l)) / (GRID_MAX_CELLS_X))
+//  #define MESH_Y_DIST (float((lcd_rts_settings.ubl_probe_margin_b) - (lcd_rts_settings.ubl_probe_margin_f)) / (GRID_MAX_CELLS_Y))
+//#else
+  #define MESH_X_DIST (float((MESH_MAX_X) - (MESH_MIN_X)) / (GRID_MAX_CELLS_X))
+  #define MESH_Y_DIST (float((MESH_MAX_Y) - (MESH_MIN_Y)) / (GRID_MAX_CELLS_Y))
+//#endif
 #if ENABLED(OPTIMIZED_MESH_STORAGE)
   typedef int16_t mesh_store_t[GRID_MAX_POINTS_X][GRID_MAX_POINTS_Y];
 #endif
@@ -116,8 +121,11 @@ public:
     static void set_store_from_mesh(const bed_mesh_t &in_values, mesh_store_t &stored_values);
     static void set_mesh_from_store(const mesh_store_t &stored_values, bed_mesh_t &out_values);
   #endif
-  static const float _mesh_index_to_xpos[GRID_MAX_POINTS_X],
-                     _mesh_index_to_ypos[GRID_MAX_POINTS_Y];
+
+  //#if DISABLED(E3S1PRO_RTS)
+    static const float _mesh_index_to_xpos[GRID_MAX_POINTS_X],
+                       _mesh_index_to_ypos[GRID_MAX_POINTS_Y];
+  //#endif
 
   #if HAS_MARLINUI_MENU
     static bool lcd_map_control;
@@ -131,15 +139,23 @@ public:
   unified_bed_leveling();
 
   FORCE_INLINE static void set_z(const int8_t px, const int8_t py, const_float_t z) { z_values[px][py] = z; }
+  #if ENABLED(E3S1PRO_RTS)
+    static int8_t cell_index_x_raw(const_float_t x) {
+      return FLOOR((x - (lcd_rts_settings.ubl_probe_margin_l)) * RECIPROCAL(MESH_X_DIST));
+    }
 
-  static int8_t cell_index_x_raw(const_float_t x) {
-    return FLOOR((x - (MESH_MIN_X)) * RECIPROCAL(MESH_X_DIST));
-  }
+    static int8_t cell_index_y_raw(const_float_t y) {
+      return FLOOR((y - (lcd_rts_settings.ubl_probe_margin_f)) * RECIPROCAL(MESH_Y_DIST));
+    }
+  #else
+    static int8_t cell_index_x_raw(const_float_t x) {
+      return FLOOR((x - (MESH_MIN_X)) * RECIPROCAL(MESH_X_DIST));
+    }
 
-  static int8_t cell_index_y_raw(const_float_t y) {
-    return FLOOR((y - (MESH_MIN_Y)) * RECIPROCAL(MESH_Y_DIST));
-  }
-
+    static int8_t cell_index_y_raw(const_float_t y) {
+      return FLOOR((y - (MESH_MIN_Y)) * RECIPROCAL(MESH_Y_DIST));
+    }
+  #endif
   static bool cell_index_x_valid(const_float_t x) {
     return WITHIN(cell_index_x_raw(x), 0, GRID_MAX_CELLS_X - 1);
   }
@@ -161,14 +177,26 @@ public:
   }
   static xy_uint8_t cell_indexes(const xy_pos_t &xy) { return cell_indexes(xy.x, xy.y); }
 
-  static int8_t closest_x_index(const_float_t x) {
-    const int8_t px = (x - (MESH_MIN_X) + (MESH_X_DIST) * 0.5) * RECIPROCAL(MESH_X_DIST);
-    return WITHIN(px, 0, (GRID_MAX_POINTS_X) - 1) ? px : -1;
-  }
-  static int8_t closest_y_index(const_float_t y) {
-    const int8_t py = (y - (MESH_MIN_Y) + (MESH_Y_DIST) * 0.5) * RECIPROCAL(MESH_Y_DIST);
-    return WITHIN(py, 0, (GRID_MAX_POINTS_Y) - 1) ? py : -1;
-  }
+  #if ENABLED(E3S1PRO_RTS)
+    static int8_t closest_x_index(const_float_t x) {
+      const int8_t px = (x -  (lcd_rts_settings.ubl_probe_margin_l) + (MESH_X_DIST) * 0.5) * RECIPROCAL(MESH_X_DIST);
+      return WITHIN(px, 0, (GRID_MAX_POINTS_X) - 1) ? px : -1;
+    }
+    static int8_t closest_y_index(const_float_t y) {
+      const int8_t py = (y - (lcd_rts_settings.ubl_probe_margin_f) + (MESH_Y_DIST) * 0.5) * RECIPROCAL(MESH_Y_DIST);
+      return WITHIN(py, 0, (GRID_MAX_POINTS_Y) - 1) ? py : -1;
+    }
+  #else
+    static int8_t closest_x_index(const_float_t x) {
+      const int8_t px = (x -  (MESH_MIN_X) + (MESH_X_DIST) * 0.5) * RECIPROCAL(MESH_X_DIST);
+      return WITHIN(px, 0, (GRID_MAX_POINTS_X) - 1) ? px : -1;
+    }
+    static int8_t closest_y_index(const_float_t y) {
+      const int8_t py = (y - (MESH_MIN_Y) + (MESH_Y_DIST) * 0.5) * RECIPROCAL(MESH_Y_DIST);
+      return WITHIN(py, 0, (GRID_MAX_POINTS_Y) - 1) ? py : -1;
+    }
+  #endif
+
   static xy_int8_t closest_indexes(const xy_pos_t &xy) {
     return { closest_x_index(xy.x), closest_y_index(xy.y) };
   }
@@ -258,9 +286,16 @@ public:
      * Check if the requested location is off the mesh.  If so, and
      * UBL_Z_RAISE_WHEN_OFF_MESH is specified, that value is returned.
      */
-    #ifdef UBL_Z_RAISE_WHEN_OFF_MESH
-      if (!WITHIN(rx0, MESH_MIN_X, MESH_MAX_X) || !WITHIN(ry0, MESH_MIN_Y, MESH_MAX_Y))
-        return UBL_Z_RAISE_WHEN_OFF_MESH;
+    #if ENABLED(E3S1PRO_RTS)
+      #ifdef UBL_Z_RAISE_WHEN_OFF_MESH
+        if (!WITHIN(rx0, lcd_rts_settings.ubl_probe_margin_l, lcd_rts_settings.ubl_probe_margin_r) || !WITHIN(ry0, cd_rts_settings.ubl_probe_margin_f, lcd_rts_settings.ubl_probe_margin_b))
+          return UBL_Z_RAISE_WHEN_OFF_MESH;
+      #endif
+    #else
+      #ifdef UBL_Z_RAISE_WHEN_OFF_MESH
+        if (!WITHIN(rx0, MESH_MIN_X, MESH_MAX_X) || !WITHIN(ry0, MESH_MIN_Y, MESH_MAX_Y))
+          return UBL_Z_RAISE_WHEN_OFF_MESH;
+      #endif
     #endif
 
     const uint8_t mx = _MIN(cx, (GRID_MAX_POINTS_X) - 2) + 1, my = _MIN(cy, (GRID_MAX_POINTS_Y) - 2) + 1;
@@ -287,13 +322,17 @@ public:
 
   static constexpr float get_z_offset() { return 0.0f; }
 
+//#if ENABLED(E3S1PRO_RTS)
+//  static float get_mesh_x(const uint8_t i);
+//  static float get_mesh_y(const uint8_t i);
+//#else
   static float get_mesh_x(const uint8_t i) {
     return i < (GRID_MAX_POINTS_X) ? pgm_read_float(&_mesh_index_to_xpos[i]) : MESH_MIN_X + i * (MESH_X_DIST);
   }
   static float get_mesh_y(const uint8_t i) {
     return i < (GRID_MAX_POINTS_Y) ? pgm_read_float(&_mesh_index_to_ypos[i]) : MESH_MIN_Y + i * (MESH_Y_DIST);
   }
-
+//#endif
   #if UBL_SEGMENTED
     static bool line_to_destination_segmented(const_feedRate_t scaled_fr_mm_s);
   #else

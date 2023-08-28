@@ -41,29 +41,14 @@ constexpr int16_t DEF_Z_MAX_POS = Z_MAX_POS;
 #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
   constexpr int8_t DEF_GRID_MAX_POINTS = GRID_MAX_POINTS_X;
 #endif
-
-//#ifndef MESH_INSET
-//  #define MESH_INSET 25
-//#endif
-//#ifndef MESH_MIN_X
-//  #define MESH_MIN_X MESH_INSET
-//#endif
-//#ifndef MESH_MIN_Y
-//  #define MESH_MIN_Y MESH_INSET
-//#endif
-//#ifndef MESH_MAX_X
-//  #define MESH_MAX_X  X_BED_SIZE - (MESH_INSET)
-//#endif
-//#ifndef MESH_MAX_Y
-//  #define MESH_MAX_Y  Y_BED_SIZE - (MESH_INSET)
-//#endif
-//constexpr int16_t DEF_MESH_MIN_X = MESH_MIN_X;
-//constexpr int16_t DEF_MESH_MAX_X = MESH_MAX_X;
-//constexpr int16_t DEF_MESH_MIN_Y = MESH_MIN_Y;
-//constexpr int16_t DEF_MESH_MAX_Y = MESH_MAX_Y;
+#if ENABLED(AUTO_BED_LEVELING_UBL)  
+ constexpr int16_t DEF_MESH_MIN_X = MESH_MIN_X;
+ constexpr int16_t DEF_MESH_MAX_X = MESH_MAX_X;
+ constexpr int16_t DEF_MESH_MIN_Y = MESH_MIN_Y;
+ constexpr int16_t DEF_MESH_MAX_Y = MESH_MAX_Y;
 //#define MIN_MESH_INSET TERN(HAS_BED_PROBE, PROBING_MARGIN, 5)
 //#define MAX_MESH_INSET X_BED_SIZE
-
+#endif
 #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
   #ifndef PROBING_MARGIN
     #define PROBING_MARGIN 45
@@ -92,10 +77,12 @@ typedef struct {
   #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
     uint8_t grid_max_points = DEF_GRID_MAX_POINTS;
   #endif
-  //float mesh_min_x = DEF_MESH_MIN_X;
-  //float mesh_max_x = DEF_MESH_MAX_X;
-  //float mesh_min_y = DEF_MESH_MIN_Y;
-  //float mesh_max_y = DEF_MESH_MAX_Y;
+  #if ENABLED(AUTO_BED_LEVELING_UBL)  
+   mutable int16_t mesh_min_x = DEF_MESH_MIN_X;
+   mutable int16_t mesh_max_x = DEF_MESH_MAX_X;
+   mutable int16_t mesh_min_y = DEF_MESH_MIN_Y;
+   mutable int16_t mesh_max_y = DEF_MESH_MAX_Y;
+  #endif
   uint8_t multiple_probing = MULTIPLE_PROBING;
   #if ENABLED(AUTO_BED_LEVELING_BILINEAR)  
     mutable uint8_t probing_margin = DEF_PROBING_MARGIN;

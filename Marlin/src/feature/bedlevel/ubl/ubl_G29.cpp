@@ -434,8 +434,14 @@ void unified_bed_leveling::G29() {
       save_ubl_active_state_and_disable();
       tilt_mesh_based_on_probed_grid(param.J_grid_size == 0); // Zero size does 3-Point
       restore_ubl_active_state_and_leave();
-      #if ENABLED(UBL_G29_J_RECENTER)
-        do_blocking_move_to_xy(0.5f * ((MESH_MIN_X) + (MESH_MAX_X)), 0.5f * ((MESH_MIN_Y) + (MESH_MAX_Y)));
+      #if ENABLED(E3S1PRO_RTS)
+        #if ENABLED(UBL_G29_J_RECENTER)
+          do_blocking_move_to_xy(0.5f * ((lcd_rts_settings.ubl_probe_margin_l) + (lcd_rts_settings.ubl_probe_margin_r)), 0.5f * ((lcd_rts_settings.ubl_probe_margin_f) + (lcd_rts_settings.ubl_probe_margin_b)));
+        #endif
+      #else
+        #if ENABLED(UBL_G29_J_RECENTER)
+          do_blocking_move_to_xy(0.5f * ((MESH_MIN_X) + (MESH_MAX_X)), 0.5f * ((MESH_MIN_Y) + (MESH_MAX_Y)));
+        #endif
       #endif
       report_current_position();
       probe_deployed = true;
@@ -855,22 +861,22 @@ void unified_bed_leveling::shift_mesh_height() {
             rtscheck.RTS_SndData(GRID_MAX_POINTS, AUTO_BED_LEVEL_END_POINT);
             rtscheck.RTS_SndData(point_num, AUTO_BED_LEVEL_CUR_POINT_VP);
             rtscheck.RTS_SndData(measured_z * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + (point_num_real - 1) * 2);
-            #if GRID_MAX_POINTS_X == 5
+            if (lcd_rts_settings.max_points == 5){
               rtscheck.RTS_SndData(ExchangePageBase + 81, ExchangepageAddr);
               change_page_font = 81;
-            #endif
-            #if GRID_MAX_POINTS_X == 7
+            }
+            if (lcd_rts_settings.max_points == 7){
               rtscheck.RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
               change_page_font = 94;
-            #endif
-            #if GRID_MAX_POINTS_X == 9
+            }
+            if (lcd_rts_settings.max_points == 9){
               rtscheck.RTS_SndData(ExchangePageBase + 96, ExchangepageAddr);
               change_page_font = 96;
-            #endif              
-            #if GRID_MAX_POINTS_X == 10
+            }              
+            if (lcd_rts_settings.max_points == 10){
               rtscheck.RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
               change_page_font = 95;
-            #endif 
+            }
           }       
           #endif
       }
@@ -899,11 +905,18 @@ void unified_bed_leveling::shift_mesh_height() {
     probe.move_z_after_probing();
 
     restore_ubl_active_state_and_leave();
-
-    do_blocking_move_to_xy(
-      constrain(nearby.x - probe.offset_xy.x, MESH_MIN_X, MESH_MAX_X),
-      constrain(nearby.y - probe.offset_xy.y, MESH_MIN_Y, MESH_MAX_Y)
-    );
+    
+    #if ENABLED(E3S1PRO_RTS)
+      do_blocking_move_to_xy(
+        constrain(nearby.x - probe.offset_xy.x, lcd_rts_settings.ubl_probe_margin_l, lcd_rts_settings.ubl_probe_margin_r),
+        constrain(nearby.y - probe.offset_xy.y, lcd_rts_settings.ubl_probe_margin_f, lcd_rts_settings.ubl_probe_margin_b)
+      );
+    #else
+      do_blocking_move_to_xy(
+        constrain(nearby.x - probe.offset_xy.x, MESH_MIN_X, MESH_MAX_X),
+        constrain(nearby.y - probe.offset_xy.y, MESH_MIN_Y, MESH_MAX_Y)
+      );
+    #endif
 
     TERN_(EXTENSIBLE_UI, ExtUI::onLevelingDone());
     TERN_(DWIN_LCD_PROUI, dwinLevelingDone());
@@ -966,33 +979,61 @@ void set_message_with_feedback(FSTR_P const fstr) {
   float unified_bed_leveling::measure_business_card_thickness() {
     ui.capture();
     save_ubl_active_state_and_disable();   // Disable bed level correction for probing
-
-    do_blocking_move_to(
-      xyz_pos_t({
-        0.5f * ((MESH_MAX_X) - (MESH_MIN_X)),
-        0.5f * ((MESH_MAX_Y) - (MESH_MIN_Y)),
-        MANUAL_PROBE_START_Z
-        #ifdef SAFE_BED_LEVELING_START_I
-          , SAFE_BED_LEVELING_START_I
-        #endif
-        #ifdef SAFE_BED_LEVELING_START_J
-          , SAFE_BED_LEVELING_START_J
-        #endif
-        #ifdef SAFE_BED_LEVELING_START_K
-          , SAFE_BED_LEVELING_START_K
-        #endif
-        #ifdef SAFE_BED_LEVELING_START_U
-          , SAFE_BED_LEVELING_START_U
-        #endif
-        #ifdef SAFE_BED_LEVELING_START_V
-          , SAFE_BED_LEVELING_START_V
-        #endif
-        #ifdef SAFE_BED_LEVELING_START_W
-          , SAFE_BED_LEVELING_START_W
-        #endif
-      })
-      //, _MIN(planner.settings.max_feedrate_mm_s[X_AXIS], planner.settings.max_feedrate_mm_s[Y_AXIS]) * 0.5f
-    );
+    #if ENABLED(E3S1PRO_RTS)
+      do_blocking_move_to(
+        xyz_pos_t({
+          0.5f * ((lcd_rts_settings.ubl_probe_margin_r) - (lcd_rts_settings.ubl_probe_margin_l)),
+          0.5f * ((lcd_rts_settings.ubl_probe_margin_b) - (lcd_rts_settings.ubl_probe_margin_f)),
+          MANUAL_PROBE_START_Z
+          #ifdef SAFE_BED_LEVELING_START_I
+            , SAFE_BED_LEVELING_START_I
+          #endif
+          #ifdef SAFE_BED_LEVELING_START_J
+            , SAFE_BED_LEVELING_START_J
+          #endif
+          #ifdef SAFE_BED_LEVELING_START_K
+            , SAFE_BED_LEVELING_START_K
+          #endif
+          #ifdef SAFE_BED_LEVELING_START_U
+            , SAFE_BED_LEVELING_START_U
+          #endif
+          #ifdef SAFE_BED_LEVELING_START_V
+            , SAFE_BED_LEVELING_START_V
+          #endif
+          #ifdef SAFE_BED_LEVELING_START_W
+            , SAFE_BED_LEVELING_START_W
+          #endif
+        })
+        //, _MIN(planner.settings.max_feedrate_mm_s[X_AXIS], planner.settings.max_feedrate_mm_s[Y_AXIS]) * 0.5f
+      );
+    #else
+      do_blocking_move_to(
+        xyz_pos_t({
+          0.5f * ((MESH_MAX_X) - (MESH_MIN_X)),
+          0.5f * ((MESH_MAX_Y) - (MESH_MIN_Y)),
+          MANUAL_PROBE_START_Z
+          #ifdef SAFE_BED_LEVELING_START_I
+            , SAFE_BED_LEVELING_START_I
+          #endif
+          #ifdef SAFE_BED_LEVELING_START_J
+            , SAFE_BED_LEVELING_START_J
+          #endif
+          #ifdef SAFE_BED_LEVELING_START_K
+            , SAFE_BED_LEVELING_START_K
+          #endif
+          #ifdef SAFE_BED_LEVELING_START_U
+            , SAFE_BED_LEVELING_START_U
+          #endif
+          #ifdef SAFE_BED_LEVELING_START_V
+            , SAFE_BED_LEVELING_START_V
+          #endif
+          #ifdef SAFE_BED_LEVELING_START_W
+            , SAFE_BED_LEVELING_START_W
+          #endif
+        })
+        //, _MIN(planner.settings.max_feedrate_mm_s[X_AXIS], planner.settings.max_feedrate_mm_s[Y_AXIS]) * 0.5f
+      );
+    #endif
     planner.synchronize();
 
     SERIAL_ECHOPGM("Place shim under nozzle");
@@ -1608,13 +1649,21 @@ void unified_bed_leveling::smart_fill_mesh() {
       #ifndef G29J_MESH_TILT_MARGIN
         #define G29J_MESH_TILT_MARGIN 0
       #endif
-      const float x_min = _MAX((X_MIN_POS) + (G29J_MESH_TILT_MARGIN), MESH_MIN_X, probe.min_x()),
-                  x_max = _MIN((X_MAX_POS) - (G29J_MESH_TILT_MARGIN), MESH_MAX_X, probe.max_x()),
-                  y_min = _MAX((Y_MIN_POS) + (G29J_MESH_TILT_MARGIN), MESH_MIN_Y, probe.min_y()),
-                  y_max = _MIN((Y_MAX_POS) - (G29J_MESH_TILT_MARGIN), MESH_MAX_Y, probe.max_y()),
-                  dx = (x_max - x_min) / (param.J_grid_size - 1),
-                  dy = (y_max - y_min) / (param.J_grid_size - 1);
-
+      #if ENABLED(E3S1PRO_RTS)
+        const float x_min = _MAX((X_MIN_POS) + (G29J_MESH_TILT_MARGIN), lcd_rts_settings.ubl_probe_margin_l, probe.min_x()),
+                    x_max = _MIN((X_MAX_POS) - (G29J_MESH_TILT_MARGIN), lcd_rts_settings.ubl_probe_margin_r, probe.max_x()),
+                    y_min = _MAX((Y_MIN_POS) + (G29J_MESH_TILT_MARGIN), lcd_rts_settings.ubl_probe_margin_f, probe.min_y()),
+                    y_max = _MIN((Y_MAX_POS) - (G29J_MESH_TILT_MARGIN), lcd_rts_settings.ubl_probe_margin_b, probe.max_y()),
+                    dx = (x_max - x_min) / (param.J_grid_size - 1),
+                    dy = (y_max - y_min) / (param.J_grid_size - 1);
+      #else
+        const float x_min = _MAX((X_MIN_POS) + (G29J_MESH_TILT_MARGIN), MESH_MIN_X, probe.min_x()),
+                    x_max = _MIN((X_MAX_POS) - (G29J_MESH_TILT_MARGIN), MESH_MAX_X, probe.max_x()),
+                    y_min = _MAX((Y_MIN_POS) + (G29J_MESH_TILT_MARGIN), MESH_MIN_Y, probe.min_y()),
+                    y_max = _MIN((Y_MAX_POS) - (G29J_MESH_TILT_MARGIN), MESH_MAX_Y, probe.max_y()),
+                    dx = (x_max - x_min) / (param.J_grid_size - 1),
+                    dy = (y_max - y_min) / (param.J_grid_size - 1);
+      #endif
       bool zig_zag = false;
 
       const uint16_t total_points = sq(param.J_grid_size);
@@ -1833,10 +1882,10 @@ void unified_bed_leveling::smart_fill_mesh() {
       SERIAL_ECHOLNPGM("Probe Offset M851 Z", p_float_t(probe.offset.z, 7));
     #endif
 
-    SERIAL_ECHOLNPGM("MESH_MIN_X  " STRINGIFY(MESH_MIN_X) "=", MESH_MIN_X); serial_delay(50);
-    SERIAL_ECHOLNPGM("MESH_MIN_Y  " STRINGIFY(MESH_MIN_Y) "=", MESH_MIN_Y); serial_delay(50);
-    SERIAL_ECHOLNPGM("MESH_MAX_X  " STRINGIFY(MESH_MAX_X) "=", MESH_MAX_X); serial_delay(50);
-    SERIAL_ECHOLNPGM("MESH_MAX_Y  " STRINGIFY(MESH_MAX_Y) "=", MESH_MAX_Y); serial_delay(50);
+    SERIAL_ECHOLNPGM("MESH_MIN_X  " STRINGIFY(MESH_MIN_X) "=", (ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.ubl_probe_margin_l : MESH_MIN_X)); serial_delay(50);
+    SERIAL_ECHOLNPGM("MESH_MIN_Y  " STRINGIFY(MESH_MIN_Y) "=", (ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.ubl_probe_margin_f : MESH_MIN_Y)); serial_delay(50);
+    SERIAL_ECHOLNPGM("MESH_MAX_X  " STRINGIFY(MESH_MAX_X) "=", (ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.ubl_probe_margin_r : MESH_MAX_X)); serial_delay(50);
+    SERIAL_ECHOLNPGM("MESH_MAX_Y  " STRINGIFY(MESH_MAX_Y) "=", (ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.ubl_probe_margin_b : MESH_MAX_Y)); serial_delay(50);
     SERIAL_ECHOLNPGM("GRID_MAX_POINTS_X  ", GRID_MAX_POINTS_X);             serial_delay(50);
     SERIAL_ECHOLNPGM("GRID_MAX_POINTS_Y  ", GRID_MAX_POINTS_Y);             serial_delay(50);
     SERIAL_ECHOLNPGM("MESH_X_DIST  ", MESH_X_DIST);
