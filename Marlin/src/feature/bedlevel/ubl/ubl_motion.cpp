@@ -413,17 +413,10 @@
       // Inner loop will exit each time (because out of cell bounds) but will come back
       // in top of loop and again re-find same adjacent cell and use it, just less efficient
       // for mesh inset area.
-      #if ENABLED(E3S1PRO_RTS)
-        xy_int8_t icell = {
-          int8_t((raw.x - (lcd_rts_settings.ubl_probe_margin_l)) * RECIPROCAL(MESH_X_DIST)),
-          int8_t((raw.y - (lcd_rts_settings.ubl_probe_margin_f)) * RECIPROCAL(MESH_Y_DIST))
-        };
-      #else
-        xy_int8_t icell = {
-          int8_t((raw.x - (MESH_MIN_X)) * RECIPROCAL(MESH_X_DIST)),
-          int8_t((raw.y - (MESH_MIN_Y)) * RECIPROCAL(MESH_Y_DIST))
-        };
-      #endif      
+      xy_int8_t icell = {
+        int8_t((raw.x - (MESH_MIN_X)) * RECIPROCAL(MESH_X_DIST)),
+        int8_t((raw.y - (MESH_MIN_Y)) * RECIPROCAL(MESH_Y_DIST))
+      };    
       LIMIT(icell.x, 0, GRID_MAX_CELLS_X);
       LIMIT(icell.y, 0, GRID_MAX_CELLS_Y);
 

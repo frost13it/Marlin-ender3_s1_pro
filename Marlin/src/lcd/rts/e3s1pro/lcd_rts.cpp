@@ -214,7 +214,7 @@ enum{
 };
 
 int temp_preheat_nozzle = 0, temp_preheat_bed = 0, temp_grid_max_points = 0, temp_abl_probe_margin = 0;
-int temp_ubl_probe_margin_l = 0, temp_ubl_probe_margin_r = 0, temp_ubl_probe_margin_f = 0, temp_ubl_probe_margin_b = 0;
+//int temp_ubl_probe_margin_l = 0, temp_ubl_probe_margin_r = 0, temp_ubl_probe_margin_f = 0, temp_ubl_probe_margin_b = 0;
 uint8_t preheat_flag = PREHEAT_PLA; // 0=PLA，1=ABS, 2=PETG, 3=CUST
 
 uint8_t  last_progress_percent = 0;
@@ -286,10 +286,10 @@ void resetSettings() {
     lcd_rts_settings.abl_probe_margin = PROBING_MARGIN;
   #endif
   #if ENABLED(AUTO_BED_LEVELING_UBL)  
-    lcd_rts_settings.ubl_probe_margin_l = MESH_MIN_X;
-    lcd_rts_settings.ubl_probe_margin_r = MESH_MAX_X;
-    lcd_rts_settings.ubl_probe_margin_f = MESH_MIN_Y;
-    lcd_rts_settings.ubl_probe_margin_b = MESH_MAX_X;
+  //  lcd_rts_settings.ubl_probe_margin_l = MESH_MIN_X;
+  //  lcd_rts_settings.ubl_probe_margin_r = MESH_MAX_X;
+  //  lcd_rts_settings.ubl_probe_margin_f = MESH_MIN_Y;
+  //  lcd_rts_settings.ubl_probe_margin_b = MESH_MAX_X;
   #endif
   lcd_rts_settings.gcode_preview = false;
   lcd_rts_settings.lcd_rts_debug = false;
@@ -325,10 +325,10 @@ void loadSettings(const char * const buff) {
       SERIAL_ECHOLNPGM("probing_margin: ", lcd_rts_data.probing_margin);
     #endif
     #if ENABLED(AUTO_BED_LEVELING_UBL)      
-      SERIAL_ECHOLNPGM("ubl_probe_margin_l: ", lcd_rts_settings.ubl_probe_margin_l);
-      SERIAL_ECHOLNPGM("ubl_probe_margin_r: ", lcd_rts_settings.ubl_probe_margin_r);
-      SERIAL_ECHOLNPGM("ubl_probe_margin_f: ", lcd_rts_settings.ubl_probe_margin_f);
-      SERIAL_ECHOLNPGM("ubl_probe_margin_b: ", lcd_rts_settings.ubl_probe_margin_b);
+    //  SERIAL_ECHOLNPGM("ubl_probe_margin_l: ", lcd_rts_settings.ubl_probe_margin_l);
+    //  SERIAL_ECHOLNPGM("ubl_probe_margin_r: ", lcd_rts_settings.ubl_probe_margin_r);
+    //  SERIAL_ECHOLNPGM("ubl_probe_margin_f: ", lcd_rts_settings.ubl_probe_margin_f);
+    //  SERIAL_ECHOLNPGM("ubl_probe_margin_b: ", lcd_rts_settings.ubl_probe_margin_b);
     #endif
     SERIAL_ECHOLNPGM("gcode_preview: ", lcd_rts_settings.gcode_preview);
     SERIAL_ECHOLNPGM("lcd_rts_debug: ", lcd_rts_settings.lcd_rts_debug);
@@ -365,10 +365,10 @@ void saveSettings(char * const buff) {
       SERIAL_ECHOLNPGM("probing_margin: ", lcd_rts_data.probing_margin);
     #endif
     #if ENABLED(AUTO_BED_LEVELING_UBL)      
-      SERIAL_ECHOLNPGM("ubl_probe_margin_l: ", lcd_rts_settings.ubl_probe_margin_l);
-      SERIAL_ECHOLNPGM("ubl_probe_margin_r: ", lcd_rts_settings.ubl_probe_margin_r);
-      SERIAL_ECHOLNPGM("ubl_probe_margin_f: ", lcd_rts_settings.ubl_probe_margin_f);
-      SERIAL_ECHOLNPGM("ubl_probe_margin_b: ", lcd_rts_settings.ubl_probe_margin_b);
+    //  SERIAL_ECHOLNPGM("ubl_probe_margin_l: ", lcd_rts_settings.ubl_probe_margin_l);
+    //  SERIAL_ECHOLNPGM("ubl_probe_margin_r: ", lcd_rts_settings.ubl_probe_margin_r);
+    //  SERIAL_ECHOLNPGM("ubl_probe_margin_f: ", lcd_rts_settings.ubl_probe_margin_f);
+    //  SERIAL_ECHOLNPGM("ubl_probe_margin_b: ", lcd_rts_settings.ubl_probe_margin_b);
     #endif
     SERIAL_ECHOLNPGM("gcode_preview: ", lcd_rts_settings.gcode_preview);
     SERIAL_ECHOLNPGM("lcd_rts_debug: ", lcd_rts_settings.lcd_rts_debug);    
@@ -855,10 +855,10 @@ void RTSSHOW::RTS_Init(void)
     char text_size[10]; // Make sure it's large enough to hold the result
     sprintf(text_size, "%dx%d", lcd_rts_settings.max_points, lcd_rts_settings.max_points);
     RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);
-    RTS_SndData(lcd_rts_settings.ubl_probe_margin_l, SET_UBL_PROBE_MARGIN_MINX_VP);
-    RTS_SndData(lcd_rts_settings.ubl_probe_margin_r, SET_UBL_PROBE_MARGIN_MAXX_VP);
-    RTS_SndData(lcd_rts_settings.ubl_probe_margin_f, SET_UBL_PROBE_MARGIN_MINY_VP);
-    RTS_SndData(lcd_rts_settings.ubl_probe_margin_b, SET_UBL_PROBE_MARGIN_MAXY_VP);                  
+    //RTS_SndData(lcd_rts_settings.ubl_probe_margin_l, SET_UBL_PROBE_MARGIN_MINX_VP);
+    //RTS_SndData(lcd_rts_settings.ubl_probe_margin_r, SET_UBL_PROBE_MARGIN_MAXX_VP);
+    //RTS_SndData(lcd_rts_settings.ubl_probe_margin_f, SET_UBL_PROBE_MARGIN_MINY_VP);
+    //RTS_SndData(lcd_rts_settings.ubl_probe_margin_b, SET_UBL_PROBE_MARGIN_MAXY_VP);                  
   #endif
 
   if (lcd_rts_settings.max_points >= 7){
@@ -3045,10 +3045,10 @@ void RTSSHOW::RTS_HandleData(void)
             sprintf(text_size, "%dx%d", lcd_rts_settings.max_points, lcd_rts_settings.max_points);
             RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);                      
             RTS_SndData(lcd_rts_settings.max_points, SET_GRID_MAX_POINTS_VP);
-            RTS_SndData(lcd_rts_settings.ubl_probe_margin_l, SET_UBL_PROBE_MARGIN_MINX_VP);
-            RTS_SndData(lcd_rts_settings.ubl_probe_margin_r, SET_UBL_PROBE_MARGIN_MAXX_VP);
-            RTS_SndData(lcd_rts_settings.ubl_probe_margin_f, SET_UBL_PROBE_MARGIN_MINY_VP);
-            RTS_SndData(lcd_rts_settings.ubl_probe_margin_b, SET_UBL_PROBE_MARGIN_MAXY_VP);            
+            //RTS_SndData(lcd_rts_settings.ubl_probe_margin_l, SET_UBL_PROBE_MARGIN_MINX_VP);
+            //RTS_SndData(lcd_rts_settings.ubl_probe_margin_r, SET_UBL_PROBE_MARGIN_MAXX_VP);
+            //RTS_SndData(lcd_rts_settings.ubl_probe_margin_f, SET_UBL_PROBE_MARGIN_MINY_VP);
+            //RTS_SndData(lcd_rts_settings.ubl_probe_margin_b, SET_UBL_PROBE_MARGIN_MAXY_VP);            
           #endif
 
           if (lcd_rts_settings.max_points == 5){
@@ -3708,51 +3708,51 @@ void RTSSHOW::RTS_HandleData(void)
     #endif
 
     #if ENABLED(AUTO_BED_LEVELING_UBL)
-      case SetUblProbeMarginMinX: {
-        temp_ubl_probe_margin_l = recdat.data[0];
-        lcd_rts_settings.ubl_probe_margin_l = temp_ubl_probe_margin_l;
-        lcd_rts_data.mesh_min_x = temp_ubl_probe_margin_l;      
-        RTS_SndData(temp_ubl_probe_margin_l, SET_UBL_PROBE_MARGIN_MINX_VP);
+      //case SetUblProbeMarginMinX: {
+      //  temp_ubl_probe_margin_l = recdat.data[0];
+      //  lcd_rts_settings.ubl_probe_margin_l = temp_ubl_probe_margin_l;
+      //  lcd_rts_data.mesh_min_x = temp_ubl_probe_margin_l;      
+      //  RTS_SndData(temp_ubl_probe_margin_l, SET_UBL_PROBE_MARGIN_MINX_VP);
         //setTouchScreenConfiguration();  
-        settings.save();
-      }    
-        break;      
+      //  settings.save();
+      //}    
+      //  break;      
     #endif
 
     #if ENABLED(AUTO_BED_LEVELING_UBL)
-      case SetUblProbeMarginMaxX: {
-        temp_ubl_probe_margin_r = recdat.data[0];
-        lcd_rts_settings.ubl_probe_margin_r = temp_ubl_probe_margin_r;
-        lcd_rts_data.mesh_max_x = temp_ubl_probe_margin_r;      
-        RTS_SndData(temp_ubl_probe_margin_r, SET_UBL_PROBE_MARGIN_MAXX_VP);
+      //case SetUblProbeMarginMaxX: {
+      //  temp_ubl_probe_margin_r = recdat.data[0];
+      //  lcd_rts_settings.ubl_probe_margin_r = temp_ubl_probe_margin_r;
+      //  lcd_rts_data.mesh_max_x = temp_ubl_probe_margin_r;      
+      //  RTS_SndData(temp_ubl_probe_margin_r, SET_UBL_PROBE_MARGIN_MAXX_VP);
         //setTouchScreenConfiguration();  
-        settings.save();
-      }    
-        break;      
+      //  settings.save();
+      //}    
+      //  break;      
     #endif
 
     #if ENABLED(AUTO_BED_LEVELING_UBL)
-      case SetUblProbeMarginMinY: {
-        temp_ubl_probe_margin_f = recdat.data[0];
-        lcd_rts_settings.ubl_probe_margin_f = temp_ubl_probe_margin_f;
-        lcd_rts_data.mesh_min_y = temp_ubl_probe_margin_f;      
-        RTS_SndData(temp_ubl_probe_margin_f, SET_UBL_PROBE_MARGIN_MINY_VP);
-        //setTouchScreenConfiguration();  
-        settings.save();
-      }    
-        break;      
+      //case SetUblProbeMarginMinY: {
+      //  temp_ubl_probe_margin_f = recdat.data[0];
+      //  lcd_rts_settings.ubl_probe_margin_f = temp_ubl_probe_margin_f;
+      //  lcd_rts_data.mesh_min_y = temp_ubl_probe_margin_f;      
+       // RTS_SndData(temp_ubl_probe_margin_f, SET_UBL_PROBE_MARGIN_MINY_VP);
+      ////  //setTouchScreenConfiguration();  
+      //  settings.save();
+      //}    
+      //  break;      
     #endif
 
     #if ENABLED(AUTO_BED_LEVELING_UBL)
-      case SetUblProbeMarginMaxY: {
-        temp_ubl_probe_margin_b = recdat.data[0];
-        lcd_rts_settings.ubl_probe_margin_b = temp_ubl_probe_margin_b;
-        lcd_rts_data.mesh_max_y = temp_ubl_probe_margin_b;      
-        RTS_SndData(temp_ubl_probe_margin_b, SET_UBL_PROBE_MARGIN_MAXY_VP);
-        //setTouchScreenConfiguration();  
-        settings.save();
-      }    
-        break;      
+      //case SetUblProbeMarginMaxY: {
+      //  temp_ubl_probe_margin_b = recdat.data[0];
+      //  lcd_rts_settings.ubl_probe_margin_b = temp_ubl_probe_margin_b;
+      //  lcd_rts_data.mesh_max_y = temp_ubl_probe_margin_b;      
+      //  RTS_SndData(temp_ubl_probe_margin_b, SET_UBL_PROBE_MARGIN_MAXY_VP);
+      //  //setTouchScreenConfiguration();  
+      //  settings.save();
+      //}    
+      //  break;      
     #endif        
 
     case StoreMemoryKey:
@@ -4339,6 +4339,7 @@ void RTSSHOW::RTS_HandleData(void)
               gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, false);
             } else {
               gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, true);
+              rtscheck.RTS_SndData(0, VP_OVERLAY_PIC_PTINT);                                          
             }          
           #endif
           

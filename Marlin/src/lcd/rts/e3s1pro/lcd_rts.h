@@ -506,10 +506,10 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define SET_ABL_PROBE_MARGIN_TEXT_VP        0x1160
 #define SET_MESH_SIZE_TEXT_VP               0x1972
 #define SET_MESH_SIZE_SIZE_TEXT_VP          0x196A
-#define SET_UBL_PROBE_MARGIN_MINX_VP        0x1982
-#define SET_UBL_PROBE_MARGIN_MAXX_VP        0x1984
-#define SET_UBL_PROBE_MARGIN_MINY_VP        0x1986
-#define SET_UBL_PROBE_MARGIN_MAXY_VP        0x1988
+//#define SET_UBL_PROBE_MARGIN_MINX_VP        0x1982
+//#define SET_UBL_PROBE_MARGIN_MAXX_VP        0x1984
+//#define SET_UBL_PROBE_MARGIN_MINY_VP        0x1986
+//#define SET_UBL_PROBE_MARGIN_MAXY_VP        0x1988
 
 /************struct**************/
 typedef struct DataBuf
@@ -584,10 +584,10 @@ uint8_t max_points;
   uint8_t abl_probe_margin;
 #endif
 #if ENABLED(AUTO_BED_LEVELING_UBL)
-  int16_t ubl_probe_margin_l;
-  int16_t ubl_probe_margin_r;
-  int16_t ubl_probe_margin_f;
-  int16_t ubl_probe_margin_b;
+//  int16_t ubl_probe_margin_l;
+//  int16_t ubl_probe_margin_r;
+//  int16_t ubl_probe_margin_f;
+//  int16_t ubl_probe_margin_b;
 #endif
 bool gcode_preview;
 bool lcd_rts_debug;

@@ -297,25 +297,25 @@ public:
     }
 #endif
 #if ENABLED(AUTO_BED_LEVELING_UBL) 
-    TERN(E3S1PRO_RTS, static, static constexpr) float _min_x(const xy_pos_t &probe_offset_xy=offset_xy) {
+    static constexpr float _min_x(const xy_pos_t &probe_offset_xy=offset_xy) {
       return TERN(IS_KINEMATIC,
         (X_CENTER) - probe_radius(probe_offset_xy),
         _MAX((X_MIN_BED) + (PROBING_MARGIN_LEFT), (X_MIN_POS) + probe_offset_xy.x)
       );
     }
-    TERN(E3S1PRO_RTS, static, static constexpr) float _max_x(const xy_pos_t &probe_offset_xy=offset_xy) {
+    static constexpr float _max_x(const xy_pos_t &probe_offset_xy=offset_xy) {
       return TERN(IS_KINEMATIC,
         (X_CENTER) + probe_radius(probe_offset_xy),
         _MIN((X_MAX_BED) - (PROBING_MARGIN_RIGHT), (X_MAX_POS) + probe_offset_xy.x)
       );
     }
-    TERN(E3S1PRO_RTS, static, static constexpr) float _min_y(const xy_pos_t &probe_offset_xy=offset_xy) {
+    static constexpr float _min_y(const xy_pos_t &probe_offset_xy=offset_xy) {
       return TERN(IS_KINEMATIC,
         (Y_CENTER) - probe_radius(probe_offset_xy),
         _MAX((Y_MIN_BED) + (PROBING_MARGIN_FRONT), (Y_MIN_POS) + probe_offset_xy.y)
       );
     }
-    TERN(E3S1PRO_RTS, static, static constexpr) float _max_y(const xy_pos_t &probe_offset_xy=offset_xy) {
+    static constexpr float _max_y(const xy_pos_t &probe_offset_xy=offset_xy) {
       return TERN(IS_KINEMATIC,
         (Y_CENTER) + probe_radius(probe_offset_xy),
         _MIN((Y_MAX_BED) - (PROBING_MARGIN_BACK), (Y_MAX_POS) + probe_offset_xy.y)
@@ -353,7 +353,7 @@ public:
         TERN(E3S1PRO_RTS, static, static constexpr) bool can_reach(const xy_pos_t &point) { return can_reach(point.x, point.y); }
       #endif
       #if ENABLED(AUTO_BED_LEVELING_UBL) 
-        TERN(E3S1PRO_RTS, static, static constexpr) bool can_reach(float x, float y) {
+        static constexpr bool can_reach(float x, float y) {
           #if IS_KINEMATIC
             return HYPOT2(x, y) <= sq(probe_radius(default_probe_xy_offset));
           #else
@@ -362,7 +362,7 @@ public:
           #endif
         }
 
-        TERN(E3S1PRO_RTS, static, static constexpr) bool can_reach(const xy_pos_t &point) { return can_reach(point.x, point.y); }
+        static constexpr bool can_reach(const xy_pos_t &point) { return can_reach(point.x, point.y); }
       #endif
     };
 
@@ -385,9 +385,9 @@ public:
             points[1] = xy_float_t({ (X_CENTER) + probe_radius() * COS120, (Y_CENTER) + probe_radius() * SIN120 });
             points[2] = xy_float_t({ (X_CENTER) + probe_radius() * COS240, (Y_CENTER) + probe_radius() * SIN240 });
           #elif ENABLED(AUTO_BED_LEVELING_UBL)
-            points[0] = xy_float_t({ _MAX(float(lcd_rts_settings.ubl_probe_margin_l), min_x()), _MAX(float(lcd_rts_settings.ubl_probe_margin_f), min_y()) });
-            points[1] = xy_float_t({ _MIN(float(lcd_rts_settings.ubl_probe_margin_r), max_x()), _MAX(float(lcd_rts_settings.ubl_probe_margin_f), min_y()) });
-            points[2] = xy_float_t({ (_MAX(float(lcd_rts_settings.ubl_probe_margin_l), min_x()) + _MIN(float(lcd_rts_settings.ubl_probe_margin_r), max_x())) / 2, _MIN(float(lcd_rts_settings.ubl_probe_margin_b), max_y()) });
+            points[0] = xy_float_t({ _MAX(float(MESH_MIN_X), min_x()), _MAX(float(MESH_MIN_Y), min_y()) });
+            points[1] = xy_float_t({ _MIN(float(MESH_MAX_X), max_x()), _MAX(float(MESH_MIN_Y), min_y()) });
+            points[2] = xy_float_t({ (_MAX(float(MESH_MIN_X), min_x()) + _MIN(float(MESH_MAX_X), max_x())) / 2, _MIN(float(MESH_MAX_Y), max_y()) });
           #else
             points[0] = xy_float_t({ min_x(), min_y() });
             points[1] = xy_float_t({ max_x(), min_y() });

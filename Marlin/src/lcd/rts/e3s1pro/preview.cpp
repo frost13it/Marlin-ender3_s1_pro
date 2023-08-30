@@ -435,27 +435,19 @@ char gcodePicExistjudge(char *fileName, unsigned int targitPicAddr, const char t
                 {
                     ret = card.get();   // 从U盘中获取一个字符
                     if (ret != ';' && strStartFg == false) { // 读到';'为一行的开始
-                    SERIAL_ECHO("preview.cpp GET_STRING_ON_GCODE continue card.get");                      
                         continue;
                     } else{
-                    SERIAL_ECHO("preview.cpp GET_STRING_ON_GCODE strStartFg = true;");                                              
                         strStartFg = true;
                     }                        
                     if ((ret == '\r' || ret == '\n') && bufIndex != 0) break;   // 读到换行符，退出
                     strBuf[bufIndex++] = ret;
                 }
                 if (strLenMax >= STRING_MAX_LEN) {
-                    SERIAL_ECHO_MSG("strLenMax: ", strLenMax);  
-                    SERIAL_ECHO_MSG("STRING_MAX_LEN :", STRING_MAX_LEN);
-                    SERIAL_ECHO_MSG("current srting lenth more than STRING_MAX_LEN(60)");
-                    SERIAL_ECHO("preview.cpp PIC_MISS_ERR STRING_MAX_LEN");                    
                     return PIC_MISS_ERR;
                 }
                 curBufLen = sizeof(strBuf);
                 if (inquireYimes++ >= 5)
                 {
-                    SERIAL_ECHO_MSG("inquireYimes more than5 times");
-                    SERIAL_ECHO("preview.cpp PIC_MISS_ERR inquireYimes more than5 times");                                        
                     return PIC_MISS_ERR;
                 }
             }while(curBufLen < 20);
@@ -472,8 +464,6 @@ char gcodePicExistjudge(char *fileName, unsigned int targitPicAddr, const char t
         if (strstr((const char *)strBuf, FORMAT_JPG_HEADER) == NULL) {
             if (strstr((const char *)strBuf, FORMAT_JPG_HEADER_PRUSA) == NULL) {
                 if (strstr((const char *)strBuf, FORMAT_JPG_HEADER_CURA) == NULL) {
-                    SERIAL_ECHO_MSG("strbuf: ", (const char *)strBuf);
-                    SERIAL_ECHO_MSG("preview.cpp PIC_MISS_ERR FORMAT_JPG_HEADER1\n");
                     return PIC_MISS_ERR;
                 }
             }
@@ -482,7 +472,6 @@ char gcodePicExistjudge(char *fileName, unsigned int targitPicAddr, const char t
     else
     {
         if ( strstr((const char *)strBuf, FORMAT_JPG_HEADER ) == NULL){
-                    SERIAL_ECHO("preview.cpp PIC_MISS_ERR FORMAT_JPG_HEADER2 ");         
             return PIC_MISS_ERR;
         }
     }
@@ -494,8 +483,6 @@ char gcodePicExistjudge(char *fileName, unsigned int targitPicAddr, const char t
 
         if ( picMsgP == NULL )
         {
-            SERIAL_ECHO_MSG("fine the lPicFormar err!");
-            SERIAL_ECHO("preview.cpp PIC_MISS_ERR ocMsgP NULL");             
             return PIC_MISS_ERR;
         }
 
