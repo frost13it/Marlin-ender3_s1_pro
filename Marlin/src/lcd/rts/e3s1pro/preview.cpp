@@ -18,14 +18,18 @@
 #include "utf8_unicode.h"
 #include "lcd_rts.h"
 #include "preview.h"
-#define BRIGHTNESS_PRINT_HIGH    300        // 进度条的总高度
-#define BRIGHTNESS_PRINT_WIDTH   300        // 进度条的总宽度
-#define BRIGHTNESS_PRINT_LEFT_HIGH_X    186  // 进度条的左上角-X
-#define BRIGHTNESS_PRINT_LEFT_HIGH_Y    70  // 进度条的左上角-Y
+#define BRIGHTNESS_PRINT_HIGH    200        // 进度条的总高度
+#define BRIGHTNESS_PRINT_WIDTH   200        // 进度条的总宽度
+#define BRIGHTNESS_PRINT_LEFT_HIGH_X   140  // 进度条的左上角-X
+#define BRIGHTNESS_PRINT_LEFT_HIGH_Y   286  // 进度条的左上角-Y
 #define BRIGHTNESS_PRINT    120             // 亮度值（0最暗）
 #define FORMAT_JPG_HEADER "jpg begin"
+#define FORMAT_JPG_HEADER_PRUSA "thumbnail_JPG begin"
+#define FORMAT_JPG_HEADER_CURA "thumbnail begin"
 #define FORMAT_PNG_HEADER "png begin"
 #define FORMAT_JPG "jpg"
+#define FORMAT_JPG_PRUSA "thumbnail_JPG"
+#define FORMAT_JPG_CURA "thumbnail"
 #define FORMAT_PNG "png"
 DwinBrightness_t printBri; // 预览图结构体
 #define JPG_BYTES_PER_FRAME 240   // 每一帧发送的字节数（图片数据）
@@ -138,7 +142,7 @@ void DWIN_SendJpegDate(char *jpeg, unsigned long size, unsigned long jpgAddr)
         {
           // 取一个数据
           receivedbyte = LCDSERIAL.read();
-          SERIAL_ECHO_MSG("receivedbyte = ", receivedbyte);
+          //SERIAL_ECHO_MSG("receivedbyte = ", receivedbyte);
           if(cmd_pos == 0 && receivedbyte != 0x5A)      //指令的第一个字节必须是帧头
           {
               continue;
@@ -417,8 +421,8 @@ char gcodePicExistjudge(char *fileName, unsigned int targitPicAddr, const char t
     unsigned int picHigh = 0;	    // 图片模型高度
     
 
-    // 读取一个字符串，以空格隔开
-    #define GET_STRING_ON_GCODE()
+// 读取一个字符串，以空格隔开
+ #define GET_STRING_ON_GCODE()
         {
             // 读取一行，以换行符隔开
             memset(strBuf, 0, sizeof(strBuf));
@@ -464,12 +468,15 @@ char gcodePicExistjudge(char *fileName, unsigned int targitPicAddr, const char t
     GET_STRING_ON_GCODE();
 
     // 2、进行图片的格式判断（jpg、png），如果不符合，直接退出
-    if ( targitPicFormat == PIC_FORMAT_JPG)
-    {
-        if ( strstr((const char *)strBuf, FORMAT_JPG_HEADER ) == NULL){
-            SERIAL_ECHO_MSG("strbuf: ", (const char*)strBuf);         
-            SERIAL_ECHO("preview.cpp PIC_MISS_ERR FORMAT_JPG_HEADER1 ");                                                
-            return PIC_MISS_ERR;
+    if (targitPicFormat == PIC_FORMAT_JPG) {
+        if (strstr((const char *)strBuf, FORMAT_JPG_HEADER) == NULL) {
+            if (strstr((const char *)strBuf, FORMAT_JPG_HEADER_PRUSA) == NULL) {
+                if (strstr((const char *)strBuf, FORMAT_JPG_HEADER_CURA) == NULL) {
+                    SERIAL_ECHO_MSG("strbuf: ", (const char *)strBuf);
+                    SERIAL_ECHO_MSG("preview.cpp PIC_MISS_ERR FORMAT_JPG_HEADER1\n");
+                    return PIC_MISS_ERR;
+                }
+            }
         }
     }
     else
@@ -493,7 +500,7 @@ char gcodePicExistjudge(char *fileName, unsigned int targitPicAddr, const char t
         }
 
         if (picMsgP != NULL && \
-           (strstr((const char *)picMsgP, FORMAT_JPG) != NULL || strstr((const char *)picMsgP, FORMAT_PNG) != NULL)) break;
+           (strstr((const char *)picMsgP, FORMAT_JPG) != NULL || strstr((const char *)picMsgP, FORMAT_PNG) != NULL || strstr((const char *)picMsgP, FORMAT_JPG_PRUSA) != NULL || strstr((const char *)picMsgP, FORMAT_JPG_CURA) != NULL)) break;
 
         picMsgP = strtok(NULL, (const char *)" ");
     }while(1);
@@ -523,7 +530,7 @@ char gcodePicExistjudge(char *fileName, unsigned int targitPicAddr, const char t
             picResolution = PIC_RESOLITION_96_96;
         } else if (strcmp(picMsgP, RESOLITION_144_144) == 0) {
             picResolution = PIC_RESOLITION_144_144;
-        } else if (strcmp(picMsgP, RESOLITION_200_200) == 0) {
+        } else if (strcmp(picMsgP, RESOLITION_200_200) == 0 || strcmp(picMsgP, RESOLITION_200_200_PRUSA) == 0) {
             picResolution = PIC_RESOLITION_200_200;
         } else if (strcmp(picMsgP, RESOLITION_300_300) == 0) {
             picResolution = PIC_RESOLITION_300_300;
@@ -627,6 +634,185 @@ char gcodePicExistjudge(char *fileName, unsigned int targitPicAddr, const char t
 	return PIC_OK;
 }
 
+/*
+static uint32_t msTest;
+char gcodePicExistjudge(char *fileName, unsigned int targitPicAddr, const char targitPicFormat, const char targitPicResolution)
+{
+    #define STRING_MAX_LEN      80
+    unsigned char picResolution = PIC_RESOLITION_MAX;
+    unsigned char ret;
+
+    unsigned char strBuf[STRING_MAX_LEN] = {0};
+    char *picMsgP;
+    char lPicFormar[20];
+    char lPicHeder[20];
+    unsigned long picLen = 0;
+    unsigned int picStartLine = 0;
+    unsigned int picEndLine = 0;
+    unsigned int picHigh = 0;
+
+    #define GET_STRING_ON_GCODE() \
+    { \
+        bool headerFound = false; \
+        while (!headerFound) \
+        { \
+            int strLen = 0; \
+            memset(strBuf, 0, sizeof(strBuf)); \
+            while (strLen < 20) \
+            { \
+                ret = card.get(); \
+                if (ret == ';' || ret == '\r' || ret == '\n' || ret == -1) break; \
+                strBuf[strLen++] = ret; \
+            } \
+            if (strstr((const char*)strBuf, FORMAT_JPG_HEADER) || strstr((const char*)strBuf, FORMAT_JPG_HEADER_PRUSA)) { \
+                headerFound = true; \
+            } \
+            if (ret == -1) break; \
+        } \
+        if (!headerFound) { \
+            SERIAL_ECHOLN("preview.cpp PIC_MISS_ERR FORMAT_JPG_HEADER1"); \
+            return PIC_MISS_ERR; \
+        } \
+    }
+
+    // Usage
+    GET_STRING_ON_GCODE();
+
+    if (targitPicFormat == PIC_FORMAT_JPG) {
+        if (strstr((const char *)strBuf, FORMAT_JPG_HEADER) == NULL) {
+            if (strstr((const char *)strBuf, FORMAT_JPG_HEADER_PRUSA) == NULL) {
+                SERIAL_ECHO_MSG("strbuf: ", (const char *)strBuf);
+                SERIAL_ECHO_MSG("preview.cpp PIC_MISS_ERR FORMAT_JPG_HEADER1\n");
+                return PIC_MISS_ERR;
+            }
+        }
+    } else {
+        if (strstr((const char *)strBuf, FORMAT_JPG_HEADER) == NULL) {
+            return PIC_MISS_ERR;
+        }
+    }
+
+    picMsgP = strtok((char *)strBuf, (const char *)" ");
+    do {
+        if (ENABLED(USER_LOGIC_DEUBG)) {
+            SERIAL_ECHO_MSG("3.picMsgP = ", picMsgP);
+        }
+
+        if (picMsgP == NULL) {
+            SERIAL_ECHO_MSG("fine the lPicFormar err!");
+            return PIC_MISS_ERR;
+        }
+
+        if (picMsgP != NULL && \
+            (strstr((const char *)picMsgP, FORMAT_JPG) != NULL || strstr((const char *)picMsgP, FORMAT_PNG) != NULL || strstr((const char *)picMsgP, FORMAT_JPG_PRUSA) != NULL)) break;
+
+        picMsgP = strtok(NULL, (const char *)" ");
+    } while(1);
+
+    picMsgP = strtok(NULL, (const char *)" ");
+    if (ENABLED(USER_LOGIC_DEUBG)) {
+        SERIAL_ECHO_MSG("4.picMsgP = ", picMsgP, " strlen(picMsgP) = ", strlen(picMsgP));
+    }
+    if (picMsgP != NULL) {
+        memset(lPicHeder, 0, sizeof(lPicHeder));
+        memcpy(lPicHeder, picMsgP, strlen(picMsgP));
+    }
+
+    picMsgP = strtok(NULL, (const char *)" ");
+    if (ENABLED(USER_LOGIC_DEUBG)) {
+        SERIAL_ECHO_MSG("5.picMsgP = ", picMsgP, " strlen(picMsgP) = ", strlen(picMsgP));
+    }
+    if (picMsgP != NULL) {
+        picResolution = PIC_RESOLITION_MAX;
+        if (strcmp(picMsgP, RESOLITION_36_36) == 0) {
+            picResolution = PIC_RESOLITION_36_36;
+        } else if (strcmp(picMsgP, RESOLITION_48_48) == 0) {
+            picResolution = PIC_RESOLITION_48_48;         
+        } else if (strcmp(picMsgP, RESOLITION_64_64) == 0) {
+            picResolution = PIC_RESOLITION_64_64;
+        } else if (strcmp(picMsgP, RESOLITION_96_96) == 0) {
+            picResolution = PIC_RESOLITION_96_96;
+        } else if (strcmp(picMsgP, RESOLITION_144_144) == 0) {
+            picResolution = PIC_RESOLITION_144_144;
+        } else if (strcmp(picMsgP, RESOLITION_200_200) == 0 || strcmp(picMsgP, RESOLITION_200_200_PRUSA) == 0) {
+            picResolution = PIC_RESOLITION_200_200;
+        } else if (strcmp(picMsgP, RESOLITION_300_300) == 0) {
+            picResolution = PIC_RESOLITION_300_300;
+        } else if (strcmp(picMsgP, RESOLITION_600_600) == 0) {
+            picResolution = PIC_RESOLITION_600_600;
+        }
+    }
+
+    picMsgP = strtok(NULL, (const char *)" ");
+    if (ENABLED(USER_LOGIC_DEUBG)) {
+        SERIAL_ECHO_MSG("6.picMsgP = ", picMsgP);
+    }
+    if (picMsgP != NULL) {
+        picLen = atoi(picMsgP);
+    }
+
+    picMsgP = strtok(NULL, (const char *)" ");
+    if (ENABLED(USER_LOGIC_DEUBG)) {
+        SERIAL_ECHO_MSG("7.picMsgP = ", picMsgP);
+    }
+    if (picMsgP != NULL) {
+        picStartLine = atoi(picMsgP);
+    }
+
+    picMsgP = strtok(NULL, (const char *)" ");
+    if (ENABLED(USER_LOGIC_DEUBG)) {
+        SERIAL_ECHO_MSG("8.picMsgP = ", picMsgP);
+    }
+    if (picMsgP != NULL) {
+        picEndLine = atoi(picMsgP);
+    }
+
+    picMsgP = strtok(NULL, (const char *)" ");
+    if (ENABLED(USER_LOGIC_DEUBG)) {
+        SERIAL_ECHO_MSG("9.picMsgP = ", picMsgP);
+    }
+    if (picMsgP != NULL) {
+        picHigh = atoi(picMsgP);
+    }
+
+    if (ENABLED(USER_LOGIC_DEUBG)) {
+        SERIAL_ECHO_MSG("lPicFormar = ", lPicFormar);
+        SERIAL_ECHO_MSG("lPicHeder = ", lPicHeder);
+        SERIAL_ECHO_MSG("picResolution = ", picResolution);
+        SERIAL_ECHO_MSG("picLen = ", picLen);
+        SERIAL_ECHO_MSG("picStartLine = ", picStartLine);
+        SERIAL_ECHO_MSG("picEndLine = ", picEndLine);
+        SERIAL_ECHO_MSG("picHigh = ", picHigh);
+    }
+
+    if (ENABLED(USER_LOGIC_DEUBG)) {
+        msTest = millis();
+    }
+
+    if (picResolution == targitPicResolution) {
+        gcodePicDataRead(picLen, true, targitPicAddr);
+    } else {
+        uint32_t index1 = card.getFileCurPosition();
+        uint32_t targitPicpicLen = (picLen % 3 == 0) ? picLen / 3 * 4 : (picLen / 3 + 1) * 4;
+        uint32_t indexAdd = (targitPicpicLen / 76) * 3 + targitPicpicLen + 10;
+        if ((targitPicpicLen % 76) != 0) {
+            indexAdd += 3;
+        }
+
+        card.setIndex((index1 + indexAdd));
+
+        if (picResolution != targitPicResolution) {
+            return PIC_RESOLITION_ERR;
+        } else {
+            return PIC_FORMAT_ERR;
+        }
+    }
+
+    msTest = millis();
+    return PIC_OK;
+}
+*/
+
 /**
  * @功能   gcode预览图发送到迪文
  * @Author Creality
@@ -655,7 +841,6 @@ char gcodePicDataSendToDwin(char *fileName, unsigned int jpgAddr, unsigned char 
         if (ret == PIC_MISS_ERR) // 当gcode中没有pic时，直接返回
         {
             card.closefile();
-            SERIAL_ECHO("preview.cpp file closed");
             return PIC_MISS_ERR;
         }
         else if ((ret == PIC_FORMAT_ERR) || (ret == PIC_RESOLITION_ERR)) // 当格式或大小错误，继续往下判断
@@ -663,7 +848,6 @@ char gcodePicDataSendToDwin(char *fileName, unsigned int jpgAddr, unsigned char 
             if (++returyCnt >= 3)
             {
                 card.closefile();
-            SERIAL_ECHO("preview.cpp file closed pic format error");                
                 return PIC_MISS_ERR;
             }
             else
@@ -672,7 +856,6 @@ char gcodePicDataSendToDwin(char *fileName, unsigned int jpgAddr, unsigned char 
         else 
         {
             card.closefile();
-            SERIAL_ECHO("preview.cpp file pic ok");                            
             return PIC_OK;
         }
     }

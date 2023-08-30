@@ -13,8 +13,10 @@ enum{
 	PIC_FORMAT_JPG    = 0x00, // jpg格式图片
 	PIC_FORMAT_PNG    = 0x01, // png格式图片	
 	PIC_FORMAT_MAX    = 0x02, // 
+	PIC_FORMAT_JPG_PRUSA    = 0x03, // jpg格式图片    
 };
 #define FORMAT_JPG "jpg"
+#define FORMAT_JPG_PRUSA "thumbnail_JPG"
 #define FORMAT_PNG "png"
 // 分辨率(长度1字节)
 // #define PIC_RESOLITION_LEN		1		// 图片分辨率长度（字节）
@@ -45,6 +47,7 @@ typedef struct
 #define RESOLITION_96_96    "96*96"
 #define RESOLITION_144_144  "144*144"
 #define RESOLITION_200_200  "200*200"
+#define RESOLITION_200_200_PRUSA  "200x200"
 #define RESOLITION_300_300  "300*300"
 #define RESOLITION_600_600  "600*600"
 #define VP_BRIGHTNESS_PRINT               0x8800
@@ -70,9 +73,9 @@ enum{
 };
       
 #define PRIWIEW_PIC_FORMAT_NEED         PIC_FORMAT_JPG
-#define PRIWIEW_PIC_RESOLITION_NEED     PIC_RESOLITION_96_96
+#define PRIWIEW_PIC_RESOLITION_NEED     PIC_RESOLITION_48_48
 #define PRINT_PIC_FORMAT_NEED           PIC_FORMAT_JPG
-#define PRINT_PIC_RESOLITION_NEED       PIC_RESOLITION_300_300
+#define PRINT_PIC_RESOLITION_NEED       PIC_RESOLITION_200_200
 
 #define DACAI_PRIWIEW_PIC_ADDR1  "3:/20.jpg"        // 大彩文件选择预览图1
 #define DACAI_PRIWIEW_PIC_ADDR2  "3:/22.jpg"        // 大彩文件选择预览图2

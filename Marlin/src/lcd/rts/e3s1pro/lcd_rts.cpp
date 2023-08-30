@@ -5,7 +5,7 @@
  */
 
 // GCODE_PREVIEW requires some fixing..
-//#define GCODE_PREVIEW_ENABLED
+#define GCODE_PREVIEW_ENABLED
 
 //#define LCD_RTS_DEBUG
 
@@ -3606,7 +3606,7 @@ void RTSSHOW::RTS_HandleData(void)
 
           #if ENABLED(GCODE_PREVIEW_ENABLED)
             gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, false);
-            int32_t ret = gcodePicDataSendToDwin(recovery.info.sd_filename,VP_OVERLAY_PIC_PTINT,PIC_FORMAT_JPG, PIC_RESOLITION_300_300);
+            int32_t ret = gcodePicDataSendToDwin(recovery.info.sd_filename,VP_OVERLAY_PIC_PTINT,PIC_FORMAT_JPG, PIC_RESOLITION_200_200);
             if (ret == PIC_OK) {
               gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, false);
             } else {
@@ -4333,8 +4333,8 @@ void RTSSHOW::RTS_HandleData(void)
           
           #if ENABLED(GCODE_PREVIEW_ENABLED)
             char ret;
-            gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, false);
-            ret = gcodePicDataSendToDwin(CardRecbuf.Cardfilename[CardRecbuf.recordcount],VP_OVERLAY_PIC_PTINT,PIC_FORMAT_JPG, PIC_RESOLITION_300_300);
+            gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, true);
+            ret = gcodePicDataSendToDwin(CardRecbuf.Cardfilename[CardRecbuf.recordcount],VP_OVERLAY_PIC_PTINT,PIC_FORMAT_JPG, PIC_RESOLITION_200_200);
             if (ret == PIC_OK) {
               gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, false);
             } else {
@@ -4345,8 +4345,9 @@ void RTSSHOW::RTS_HandleData(void)
           rts_start_print = true;
           delay(5);
           RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], SELECT_FILE_TEXT_VP);
-          RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
-          change_page_font = 1;
+          RefreshBrightnessAtPrint(0);
+          //RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
+          //change_page_font = 1;
         }
       }
       break;
