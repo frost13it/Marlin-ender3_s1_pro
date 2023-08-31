@@ -44,6 +44,10 @@
   #include "../../../feature/spindle_laser.h"
 #endif
 
+#if ENABLED(GCODE_PREVIEW_ENABLED)
+  #include "preview.h"
+#endif
+
 #ifdef LCD_SERIAL_PORT
   #define LCDSERIAL LCD_SERIAL
 #elif SERIAL_PORT_2
@@ -1147,7 +1151,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
           #if ENABLED(GCODE_PREVIEW_ENABLED)
             char ret;
             gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, false);
-            ret = gcodePicDataSendToDwin(CardRecbuf.Cardfilename[CardRecbuf.recordcount],VP_OVERLAY_PIC_PTINT,PIC_FORMAT_JPG, PIC_RESOLITION_300_300);
+            ret = gcodePicDataSendToDwin(CardRecbuf.Cardfilename[CardRecbuf.recordcount],VP_OVERLAY_PIC_PTINT,PIC_FORMAT_JPG, PIC_RESOLITION_200_200);
             if (ret == PIC_OK) {
               gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, false);
             } else {
