@@ -5,7 +5,7 @@
  */
 
 // GCODE_PREVIEW requires some fixing..
-#define GCODE_PREVIEW_ENABLED
+//#define GCODE_PREVIEW_ENABLED
 
 //#define LCD_RTS_DEBUG
 
@@ -4333,7 +4333,7 @@ void RTSSHOW::RTS_HandleData(void)
           
           #if ENABLED(GCODE_PREVIEW_ENABLED)
             char ret;
-            gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, true);
+            gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, false);
             ret = gcodePicDataSendToDwin(CardRecbuf.Cardfilename[CardRecbuf.recordcount],VP_OVERLAY_PIC_PTINT,PIC_FORMAT_JPG, PIC_RESOLITION_200_200);
             if (ret == PIC_OK) {
               gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, false);
@@ -4346,9 +4346,9 @@ void RTSSHOW::RTS_HandleData(void)
           rts_start_print = true;
           delay(5);
           RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], SELECT_FILE_TEXT_VP);
-          RefreshBrightnessAtPrint(0);
-          //RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
-          //change_page_font = 1;
+          #if ENABLED(GCODE_PREVIEW_ENABLED)          
+            RefreshBrightnessAtPrint(0);
+          #endif
         }
       }
       break;

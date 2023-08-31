@@ -71,8 +71,8 @@
   #define PROBING_MARGIN_FRONT (float)lcd_rts_data.probing_margin
   #define PROBING_MARGIN_BACK (float)lcd_rts_data.probing_margin
 #endif
-//#define GRID_MIN 3
-//#define GRID_MAX 10
+#define GRID_MIN 3
+#define GRID_MAX 10
 #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
   #define GRID_LIMIT lcd_rts_data.grid_max_points
   #define GRID_MAX_POINTS_X lcd_rts_data.grid_max_points
