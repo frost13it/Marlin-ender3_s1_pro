@@ -1878,4 +1878,4 @@ void HMI_Area_Move(void)
 
 }
 #endif
-#endif// #if ENABLE(LASER_FEATURE)
+#endif // #if ENABLE(LASER_FEATURE)
