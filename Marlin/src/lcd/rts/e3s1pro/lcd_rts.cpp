@@ -135,7 +135,7 @@ uint8_t startprogress = 0;
 
 CRec CardRecbuf; 
 int16_t temphot = 0;
-int16_t tempbed = 0;
+int8_t tempbed = 0;
 float temp_bed_display = 0;
 uint8_t afterprobe_fan0_speed = 0;
 
@@ -3606,7 +3606,7 @@ void RTSSHOW::RTS_HandleData(void)
 
           #if ENABLED(GCODE_PREVIEW_ENABLED)
             gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, false);
-            int32_t ret = gcodePicDataSendToDwin(recovery.info.sd_filename,VP_OVERLAY_PIC_PTINT,PIC_FORMAT_JPG, PIC_RESOLITION_200_200);
+            int32_t ret = gcodePicDataSendToDwin(recovery.info.sd_filename,VP_OVERLAY_PIC_PTINT,PIC_FORMAT_JPG, PIC_RESOLITION_250_250);
             if (ret == PIC_OK) {
               gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, false);
             } else {
@@ -4334,7 +4334,7 @@ void RTSSHOW::RTS_HandleData(void)
           #if ENABLED(GCODE_PREVIEW_ENABLED)
             char ret;
             gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, false);
-            ret = gcodePicDataSendToDwin(CardRecbuf.Cardfilename[CardRecbuf.recordcount],VP_OVERLAY_PIC_PTINT,PIC_FORMAT_JPG, PIC_RESOLITION_200_200);
+            ret = gcodePicDataSendToDwin(CardRecbuf.Cardfilename[CardRecbuf.recordcount],VP_OVERLAY_PIC_PTINT,PIC_FORMAT_JPG, PIC_RESOLITION_250_250);
             if (ret == PIC_OK) {
               gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, false);
             } else {
