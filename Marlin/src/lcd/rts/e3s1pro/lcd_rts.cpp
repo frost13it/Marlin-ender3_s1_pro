@@ -3740,24 +3740,27 @@ void RTSSHOW::RTS_HandleData(void)
         queue.enqueue_now_P(PSTR("M401 S1"));
       }
       RTS_SndData(temp_grid_max_points, SET_GRID_MAX_POINTS_VP);
-      //setTouchScreenConfiguration();  
       settings.save();
-    }    
+      }    
       break;
       
     #if ENABLED(AUTO_BED_LEVELING_BILINEAR) 
       case SetAblProbeMargin: {
         temp_abl_probe_margin = recdat.data[0];
+        #if ENABLED(ENDER_3S1_PLUS)
+          if(temp_abl_probe_margin <= 27){
+            temp_abl_probe_margin = 27;
+          }
+        #endif
         lcd_rts_settings.abl_probe_margin = temp_abl_probe_margin;
         lcd_rts_data.probing_margin = temp_abl_probe_margin;      
-        RTS_SndData(temp_abl_probe_margin, SET_ABL_PROBE_MARGIN_VP);
-        //setTouchScreenConfiguration();  
+        RTS_SndData(temp_abl_probe_margin, SET_ABL_PROBE_MARGIN_VP); 
         settings.save();
-      }    
+        }    
         break;      
     #endif
 
-    #if ENABLED(AUTO_BED_LEVELING_UBL)
+    //#if ENABLED(AUTO_BED_LEVELING_UBL)
       //case SetUblProbeMarginMinX: {
       //  temp_ubl_probe_margin_l = recdat.data[0];
       //  lcd_rts_settings.ubl_probe_margin_l = temp_ubl_probe_margin_l;
@@ -3767,9 +3770,9 @@ void RTSSHOW::RTS_HandleData(void)
       //  settings.save();
       //}    
       //  break;      
-    #endif
+    //#endif
 
-    #if ENABLED(AUTO_BED_LEVELING_UBL)
+    //#if ENABLED(AUTO_BED_LEVELING_UBL)
       //case SetUblProbeMarginMaxX: {
       //  temp_ubl_probe_margin_r = recdat.data[0];
       //  lcd_rts_settings.ubl_probe_margin_r = temp_ubl_probe_margin_r;
@@ -3779,9 +3782,9 @@ void RTSSHOW::RTS_HandleData(void)
       //  settings.save();
       //}    
       //  break;      
-    #endif
+    //#endif
 
-    #if ENABLED(AUTO_BED_LEVELING_UBL)
+    //#if ENABLED(AUTO_BED_LEVELING_UBL)
       //case SetUblProbeMarginMinY: {
       //  temp_ubl_probe_margin_f = recdat.data[0];
       //  lcd_rts_settings.ubl_probe_margin_f = temp_ubl_probe_margin_f;
@@ -3791,9 +3794,9 @@ void RTSSHOW::RTS_HandleData(void)
       //  settings.save();
       //}    
       //  break;      
-    #endif
+    //#endif
 
-    #if ENABLED(AUTO_BED_LEVELING_UBL)
+    //#if ENABLED(AUTO_BED_LEVELING_UBL)
       //case SetUblProbeMarginMaxY: {
       //  temp_ubl_probe_margin_b = recdat.data[0];
       //  lcd_rts_settings.ubl_probe_margin_b = temp_ubl_probe_margin_b;
@@ -3803,7 +3806,7 @@ void RTSSHOW::RTS_HandleData(void)
       //  settings.save();
       //}    
       //  break;      
-    #endif        
+    //#endif        
 
     case StoreMemoryKey:
       if(recdat.data[0] == 1)

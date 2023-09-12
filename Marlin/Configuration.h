@@ -2324,10 +2324,10 @@
     //                                     X0,Y0    X1,Y1    X2,Y2  X3,Y3   X4 Y4   X5,Y5  X6,Y6   X7,Y7   X8,Y8
     //                                Point: (1)     (6)      (7)    (8)     (9)     (2)    (3)     (4)     (5)
     #define MANUALL_BED_LEVEING_5POSITION {155,157, 45,45, 265,45, 45,270, 265,270, 15,15, 295,15, 15,300, 295,300}  
-    #define MANUALL_BED_CRTOUCH_5POSITION {155,157, 45,45, 265,45, 45,270, 265,270, 25,25, 283,25, 25,270, 283,270}
+    #define MANUALL_BED_CRTOUCH_5POSITION {155,157, 45,45, 265,45, 45,270, 265,270, 27,27, 283,27, 27,270, 283,270}
   #else
     #define MANUALL_BED_LEVEING_5POSITION {155,157, 45,45, 265,45, 45,270, 265,270, 15,15, 295,15, 15,300, 295,300}
-    #define MANUALL_BED_CRTOUCH_5POSITION {155,157, 45,45, 265,45, 45,270, 265,270, 25,25, 283,25, 25,270, 283,270}
+    #define MANUALL_BED_CRTOUCH_5POSITION {155,157, 45,45, 265,45, 45,270, 265,270, 27,27, 283,27, 27,270, 283,270}
   #endif
 #elif ENABLED(ENDER_3) 
     //                                     X0,Y0    X1,Y1    X2,Y2  X3,Y3   X4 Y4   X5,Y5  X6,Y6   X7,Y7   X8,Y8
