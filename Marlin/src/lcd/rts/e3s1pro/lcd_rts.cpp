@@ -205,6 +205,7 @@ bool home_flag = false;
 bool rts_start_print = false;  
 
 const int manual_level_5position[9][2] = MANUALL_BED_LEVEING_5POSITION;
+const int manual_crtouch_5position[9][2] = MANUALL_BED_CRTOUCH_5POSITION;
 
 enum{
   PREHEAT_PLA = 0,
@@ -2462,6 +2463,14 @@ void RTSSHOW::RTS_HandleData(void)
       break;
 
     case BedLevelKey:
+      #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
+        int min_margin_y;
+        if(lcd_rts_settings.abl_probe_margin <= 45){
+          min_margin_y = 45;
+        }else{
+          min_margin_y = lcd_rts_settings.abl_probe_margin;
+        }
+      #endif
       if(recdat.data[0] == 1)
       {
         planner.synchronize();
@@ -2612,8 +2621,14 @@ void RTSSHOW::RTS_HandleData(void)
             queue.enqueue_now_P(PSTR("G1 F600 Z0"));
             rtscheck.RTS_SndData(10 * 0, AXIS_Z_COORD_VP);
             }
-            if (bltouch_tramming == 1){         
-            sprintf_P(cmd, "G30 X%d Y%d", manual_level_5position[1][0],manual_level_5position[1][1]);
+            if (bltouch_tramming == 1){
+            // Cr-Touch measuring point 6
+            #if ENABLED(AUTO_BED_LEVELING_BILINEAR)            
+            sprintf_P(cmd, "G30 X%d Y%d", lcd_rts_settings.abl_probe_margin,lcd_rts_settings.abl_probe_margin);
+            #endif
+            #if ENABLED(AUTO_BED_LEVELING_UBL)
+            sprintf_P(cmd, "G30 X%d Y%d", manual_crtouch_5position[5][0],manual_crtouch_5position[5][1]);
+            #endif
             queue.enqueue_now_P(cmd);         
             RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
             change_page_font = 89;                      
@@ -2649,8 +2664,14 @@ void RTSSHOW::RTS_HandleData(void)
             queue.enqueue_now_P(PSTR("G1 F600 Z0"));
             rtscheck.RTS_SndData(10 * 0, AXIS_Z_COORD_VP);
             }
-            if (bltouch_tramming == 1){         
-            sprintf_P(cmd, "G30 X%d Y%d", manual_level_5position[2][0],manual_level_5position[2][1]);
+            if (bltouch_tramming == 1){
+            // Cr-Touch measuring point 7
+            #if ENABLED(AUTO_BED_LEVELING_BILINEAR) 
+              sprintf_P(cmd, "G30 X%d Y%d", (X_BED_SIZE - lcd_rts_settings.abl_probe_margin),lcd_rts_settings.abl_probe_margin);
+            #endif
+            #if ENABLED(AUTO_BED_LEVELING_UBL)
+              sprintf_P(cmd, "G30 X%d Y%d", manual_crtouch_5position[6][0],manual_crtouch_5position[6][1]);
+            #endif            
             queue.enqueue_now_P(cmd);         
             RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
             change_page_font = 89;                      
@@ -2687,8 +2708,14 @@ void RTSSHOW::RTS_HandleData(void)
             queue.enqueue_now_P(PSTR("G1 F600 Z0"));
             rtscheck.RTS_SndData(10 * 0, AXIS_Z_COORD_VP);
             }
-            if (bltouch_tramming == 1){         
-            sprintf_P(cmd, "G30 X%d Y%d", manual_level_5position[3][0],manual_level_5position[3][1]);
+            if (bltouch_tramming == 1){
+            // Cr-Touch measuring point 8
+            #if ENABLED(AUTO_BED_LEVELING_BILINEAR)            
+              sprintf_P(cmd, "G30 X%d Y%d", lcd_rts_settings.abl_probe_margin,(Y_BED_SIZE - min_margin_y));
+            #endif
+            #if ENABLED(AUTO_BED_LEVELING_UBL)
+              sprintf_P(cmd, "G30 X%d Y%d", manual_crtouch_5position[7][0],manual_crtouch_5position[7][1]);
+            #endif            
             queue.enqueue_now_P(cmd);         
             RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
             change_page_font = 89;                      
@@ -2725,8 +2752,14 @@ void RTSSHOW::RTS_HandleData(void)
             queue.enqueue_now_P(PSTR("G1 F600 Z0"));
             rtscheck.RTS_SndData(10 * 0, AXIS_Z_COORD_VP);
             }
-            if (bltouch_tramming == 1){         
-            sprintf_P(cmd, "G30 X%d Y%d", manual_level_5position[4][0],manual_level_5position[4][1]);
+            if (bltouch_tramming == 1){
+            // Cr-Touch measuring point 9
+            #if ENABLED(AUTO_BED_LEVELING_BILINEAR)               
+              sprintf_P(cmd, "G30 X%d Y%d", (X_BED_SIZE - lcd_rts_settings.abl_probe_margin),(Y_BED_SIZE - min_margin_y));
+            #endif
+            #if ENABLED(AUTO_BED_LEVELING_UBL)
+              sprintf_P(cmd, "G30 X%d Y%d", manual_crtouch_5position[8][0],manual_crtouch_5position[8][1]);
+            #endif            
             queue.enqueue_now_P(cmd);        
             RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
             change_page_font = 89;                      
@@ -2762,12 +2795,6 @@ void RTSSHOW::RTS_HandleData(void)
             queue.enqueue_now_P(PSTR("G1 F600 Z0"));
             rtscheck.RTS_SndData(10 * 0, AXIS_Z_COORD_VP);
             }
-            if (bltouch_tramming == 1){         
-            sprintf_P(cmd, "G30 X%d Y%d", manual_level_5position[5][0],manual_level_5position[5][1]);
-            queue.enqueue_now_P(cmd);         
-            RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
-            change_page_font = 89;                      
-            }  
             waitway = 0;
           }
         }                
@@ -2799,13 +2826,6 @@ void RTSSHOW::RTS_HandleData(void)
             queue.enqueue_now_P(PSTR("G1 F600 Z0"));
             rtscheck.RTS_SndData(10 * 0, AXIS_Z_COORD_VP);
             }
-
-            if (bltouch_tramming == 1){         
-            sprintf_P(cmd, "G30 X%d Y%d", manual_level_5position[6][0],manual_level_5position[6][1]);
-            queue.enqueue_now_P(cmd);      
-            RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
-            change_page_font = 89;                      
-            }  
             waitway = 0;
           }
         }                
@@ -2836,13 +2856,7 @@ void RTSSHOW::RTS_HandleData(void)
             rtscheck.RTS_SndData(10 * manual_level_5position[7][1], AXIS_Y_COORD_VP);
             queue.enqueue_now_P(PSTR("G1 F600 Z0"));
             rtscheck.RTS_SndData(10 * 0, AXIS_Z_COORD_VP);
-            }
-            if (bltouch_tramming == 1){         
-            sprintf_P(cmd, "G30 X%d Y%d", manual_level_5position[7][0],manual_level_5position[7][1]);
-            queue.enqueue_now_P(cmd);         
-            RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
-            change_page_font = 89;                      
-            }           
+            }    
             waitway = 0;          
           }
         }                
@@ -2873,13 +2887,7 @@ void RTSSHOW::RTS_HandleData(void)
             rtscheck.RTS_SndData(10 * manual_level_5position[8][1], AXIS_Y_COORD_VP);
             queue.enqueue_now_P(PSTR("G1 F600 Z0"));
             rtscheck.RTS_SndData(10 * 0, AXIS_Z_COORD_VP);
-            }
-            if (bltouch_tramming == 1){         
-            sprintf_P(cmd, "G30 X%d Y%d", manual_level_5position[8][0],manual_level_5position[8][1]);
-            queue.enqueue_now_P(cmd);       
-            RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
-            change_page_font = 89;                      
-            }          
+            }      
             waitway = 0;
           }
         }                
@@ -3082,23 +3090,64 @@ void RTSSHOW::RTS_HandleData(void)
       }
       else if (recdat.data[0] == 166) 
       { // 00A6 
+        if (leveling_running == 0){
           if (bltouch_tramming == 1){
-            // Point 6  
-            char cmd6[20];
-            sprintf_P(cmd6, "G30 X%d Y%d", manual_level_5position[1][0],manual_level_5position[1][1]);
-            queue.enqueue_now_P(cmd6);
-            // Point 7
-            char cmd7[20];
-            sprintf_P(cmd7, "G30 X%d Y%d", manual_level_5position[2][0],manual_level_5position[2][1]);
-            queue.enqueue_now_P(cmd7);
-            // Point 8
-            char cmd8[20];
-            sprintf_P(cmd8, "G30 X%d Y%d", manual_level_5position[3][0],manual_level_5position[3][1]);
-            queue.enqueue_now_P(cmd8);
-            // Point 9
-            char cmd9[20];
-            sprintf_P(cmd9, "G30 X%d Y%d", manual_level_5position[4][0],manual_level_5position[4][1]);
-            queue.enqueue_now_P(cmd9);
+            leveling_running = 1;
+            #if ENABLED(AUTO_BED_LEVELING_BILINEAR)            
+              if (lcd_rts_settings.abl_probe_margin == 45 || (temp_abl_probe_margin == 45)){
+                // Point 6  
+                char cmd6[20];
+                sprintf_P(cmd6, "G30 X%d Y%d", manual_crtouch_5position[1][0],manual_crtouch_5position[1][1]);
+                queue.enqueue_now_P(cmd6);
+                // Point 7
+                char cmd7[20];
+                sprintf_P(cmd7, "G30 X%d Y%d", manual_crtouch_5position[2][0],manual_crtouch_5position[2][1]);
+                queue.enqueue_now_P(cmd7);
+                // Point 8
+                char cmd8[20];
+                sprintf_P(cmd8, "G30 X%d Y%d", manual_crtouch_5position[3][0],manual_crtouch_5position[3][1]);
+                queue.enqueue_now_P(cmd8);
+                // Point 9
+                char cmd9[20];
+                sprintf_P(cmd9, "G30 X%d Y%d", manual_crtouch_5position[4][0],manual_crtouch_5position[4][1]);
+                queue.enqueue_now_P(cmd9);
+              }else{
+                // Point 6  
+                char cmd6[20];
+                sprintf_P(cmd6, "G30 X%d Y%d", lcd_rts_settings.abl_probe_margin,lcd_rts_settings.abl_probe_margin);
+                queue.enqueue_now_P(cmd6);
+                // Point 7
+                char cmd7[20];
+                sprintf_P(cmd7, "G30 X%d Y%d", (X_BED_SIZE - lcd_rts_settings.abl_probe_margin),lcd_rts_settings.abl_probe_margin);
+                queue.enqueue_now_P(cmd7);
+                // Point 8
+                char cmd8[20];
+                sprintf_P(cmd8, "G30 X%d Y%d", lcd_rts_settings.abl_probe_margin,(Y_BED_SIZE - min_margin_y));
+                queue.enqueue_now_P(cmd8);
+                // Point 9
+                char cmd9[20];
+                sprintf_P(cmd9, "G30 X%d Y%d", (X_BED_SIZE - lcd_rts_settings.abl_probe_margin),(Y_BED_SIZE - min_margin_y));
+                queue.enqueue_now_P(cmd9);
+              }
+            #endif
+            #if ENABLED(AUTO_BED_LEVELING_UBL)           
+                // Point 6  
+                char cmd6[20];
+                sprintf_P(cmd6, "G30 X%d Y%d", manual_crtouch_5position[5][0],manual_crtouch_5position[5][1]);
+                queue.enqueue_now_P(cmd6);
+                // Point 7
+                char cmd7[20];
+                sprintf_P(cmd7, "G30 X%d Y%d", manual_crtouch_5position[6][0],manual_crtouch_5position[6][1]);
+                queue.enqueue_now_P(cmd7);
+                // Point 8
+                char cmd8[20];
+                sprintf_P(cmd8, "G30 X%d Y%d", manual_crtouch_5position[7][0],manual_crtouch_5position[7][1]);
+                queue.enqueue_now_P(cmd8);
+                // Point 9
+                char cmd9[20];
+                sprintf_P(cmd9, "G30 X%d Y%d", manual_crtouch_5position[8][0],manual_crtouch_5position[8][1]);
+                queue.enqueue_now_P(cmd9);
+            #endif
             // Finally center
             #if ENABLED(ENDER_3S1_PRO) || ENABLED(ENDER_3S1)
               queue.enqueue_now_P(PSTR("G30 X117.5 Y117.5")); 
@@ -3106,12 +3155,13 @@ void RTSSHOW::RTS_HandleData(void)
               queue.enqueue_now_P(PSTR("G30 X155 Y157.5")); 
             #else     
               char cmd1[20];       
-              sprintf_P(cmd1, "G30 X%d Y%d", manual_level_5position[0][0],manual_level_5position[0][1]);
+              sprintf_P(cmd1, "G30 X%d Y%d", manual_crtouch_5position[0][0],manual_crtouch_5position[0][1]);
               queue.enqueue_now_P(cmd1);
             #endif  
             RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
             change_page_font = 89;                      
           }
+        }
       }
       else if (recdat.data[0] == 167) 
       {

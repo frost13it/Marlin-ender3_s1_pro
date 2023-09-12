@@ -94,30 +94,51 @@ void GcodeSuite::G30() {
       #if ANY(DWIN_LCD_PROUI, DWIN_CREALITY_LCD_JYERSUI)
         ui.set_status(msg);
       #endif
+
       #if ENABLED(E3S1PRO_RTS)
         struct TrammingPoint {
           float x;
           float y;
           int vp;
         };
-  
-        TrammingPoint trammingPoints[] = {
+        // Create an array of TrammingPoint objects for all ten points
+        TrammingPoint trammingPoints[9] = {
+          // Center definition
           {117.50, 117.50, CRTOUCH_TRAMMING_POINT_1_VP},
           {155.00, 157.50, CRTOUCH_TRAMMING_POINT_1_VP},
-          {45.00, 45.00, CRTOUCH_TRAMMING_POINT_6_VP},
-          {190.00, 45.00, CRTOUCH_TRAMMING_POINT_7_VP},
-          {265.00, 45.00, CRTOUCH_TRAMMING_POINT_7_VP},
-          {45.00, 190.00, CRTOUCH_TRAMMING_POINT_8_VP},
-          {45.00, 270.00, CRTOUCH_TRAMMING_POINT_8_VP},
-          {190.00, 190.00, CRTOUCH_TRAMMING_POINT_9_VP},
-          {265.00, 270.00, CRTOUCH_TRAMMING_POINT_9_VP}
         };
-
-        for (const auto& point : trammingPoints) {
+        #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
+        int min_margin_y;
+        if (lcd_rts_settings.abl_probe_margin <= 45) {
+          min_margin_y = 45;
+        } else {
+          min_margin_y = lcd_rts_settings.abl_probe_margin;
+        }
+        trammingPoints[2] = {static_cast<float>(lcd_rts_settings.abl_probe_margin), static_cast<float>(lcd_rts_settings.abl_probe_margin), CRTOUCH_TRAMMING_POINT_6_VP};
+        trammingPoints[3] = {(X_BED_SIZE - static_cast<float>(lcd_rts_settings.abl_probe_margin)), static_cast<float>(lcd_rts_settings.abl_probe_margin), CRTOUCH_TRAMMING_POINT_7_VP};
+        trammingPoints[4] = {static_cast<float>(lcd_rts_settings.abl_probe_margin), (Y_BED_SIZE - static_cast<float>(min_margin_y)), CRTOUCH_TRAMMING_POINT_8_VP};
+        trammingPoints[5] = {(X_BED_SIZE - static_cast<float>(lcd_rts_settings.abl_probe_margin)), (Y_BED_SIZE - static_cast<float>(min_margin_y)), CRTOUCH_TRAMMING_POINT_9_VP};
+        #endif
+        #if ENABLED(AUTO_BED_LEVELING_UBL)
+        trammingPoints[2] = {25.00, 25.00, CRTOUCH_TRAMMING_POINT_6_VP};
+        trammingPoints[3] = {210.00, 25.00, CRTOUCH_TRAMMING_POINT_7_VP};
+        trammingPoints[4] = {283.00, 25.00, CRTOUCH_TRAMMING_POINT_7_VP};
+        trammingPoints[5] = {25.00, 190.00, CRTOUCH_TRAMMING_POINT_8_VP};
+        trammingPoints[6] = {25.00, 270.00, CRTOUCH_TRAMMING_POINT_8_VP};
+        trammingPoints[7] = {210.00, 190.00, CRTOUCH_TRAMMING_POINT_9_VP};
+        trammingPoints[8] = {283.00, 270.00, CRTOUCH_TRAMMING_POINT_9_VP};
+        #endif
+        int POINTS[9] = {0};
+        for (int i = 0; i < 9; i++) {
+          const auto& point = trammingPoints[i];
           if (probepos.x == point.x && probepos.y == point.y) {
             rtscheck.RTS_SndData(measured_z * 1000, point.vp);
+            POINTS[i] = 1;
           }
-        }             
+        }
+        if (POINTS[0] == 1 || POINTS[1] == 1) {
+          leveling_running = 0;
+        }
       #endif
 
     }

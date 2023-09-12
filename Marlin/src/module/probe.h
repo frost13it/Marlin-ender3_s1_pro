@@ -257,7 +257,12 @@ public:
   #if HAS_BED_PROBE || HAS_LEVELING
     #if IS_KINEMATIC
       static constexpr float probe_radius(const xy_pos_t &probe_offset_xy=offset_xy) {
-        return float(PRINTABLE_RADIUS) - _MAX(PROBING_MARGIN, HYPOT(probe_offset_xy.x, probe_offset_xy.y));
+        #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
+          return float(PRINTABLE_RADIUS) - _MAX(ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.abl_probe_margin : PROBING_MARGIN, HYPOT(probe_offset_xy.x, probe_offset_xy.y));
+        #endif
+        #if ENABLED(AUTO_BED_LEVELING_UBL)
+          return float(PRINTABLE_RADIUS) - _MAX(PROBING_MARGIN, HYPOT(probe_offset_xy.x, probe_offset_xy.y));
+        #endif
       }
     #endif
 
@@ -270,58 +275,58 @@ public:
      * close it can get the RIGHT edge of the bed (unless the nozzle is able move
      * far enough past the right edge).
      */
-#if ENABLED(AUTO_BED_LEVELING_BILINEAR)    
-    TERN(E3S1PRO_RTS, static, static constexpr) float _min_x(const xy_pos_t &probe_offset_xy=offset_xy) {
-      return TERN(IS_KINEMATIC,
-        (X_CENTER) - probe_radius(probe_offset_xy),
-        _MAX((X_MIN_BED) + (ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.abl_probe_margin : PROBING_MARGIN_LEFT), (X_MIN_POS) + probe_offset_xy.x)
-      );
-    }
-    TERN(E3S1PRO_RTS, static, static constexpr) float _max_x(const xy_pos_t &probe_offset_xy=offset_xy) {
-      return TERN(IS_KINEMATIC,
-        (X_CENTER) + probe_radius(probe_offset_xy),
-        _MIN((X_MAX_BED) - (ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.abl_probe_margin : PROBING_MARGIN_RIGHT), (X_MAX_POS) + probe_offset_xy.x)
-      );
-    }
-    TERN(E3S1PRO_RTS, static, static constexpr) float _min_y(const xy_pos_t &probe_offset_xy=offset_xy) {
-      return TERN(IS_KINEMATIC,
-        (Y_CENTER) - probe_radius(probe_offset_xy),
-        _MAX((Y_MIN_BED) + (ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.abl_probe_margin : PROBING_MARGIN_FRONT), (Y_MIN_POS) + probe_offset_xy.y)
-      );
-    }
-    TERN(E3S1PRO_RTS, static, static constexpr) float _max_y(const xy_pos_t &probe_offset_xy=offset_xy) {
-      return TERN(IS_KINEMATIC,
-        (Y_CENTER) + probe_radius(probe_offset_xy),
-        _MIN((Y_MAX_BED) - (ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.abl_probe_margin : PROBING_MARGIN_BACK), (Y_MAX_POS) + probe_offset_xy.y)
-      );
-    }
-#endif
-#if ENABLED(AUTO_BED_LEVELING_UBL) 
-    static constexpr float _min_x(const xy_pos_t &probe_offset_xy=offset_xy) {
-      return TERN(IS_KINEMATIC,
-        (X_CENTER) - probe_radius(probe_offset_xy),
-        _MAX((X_MIN_BED) + (PROBING_MARGIN_LEFT), (X_MIN_POS) + probe_offset_xy.x)
-      );
-    }
-    static constexpr float _max_x(const xy_pos_t &probe_offset_xy=offset_xy) {
-      return TERN(IS_KINEMATIC,
-        (X_CENTER) + probe_radius(probe_offset_xy),
-        _MIN((X_MAX_BED) - (PROBING_MARGIN_RIGHT), (X_MAX_POS) + probe_offset_xy.x)
-      );
-    }
-    static constexpr float _min_y(const xy_pos_t &probe_offset_xy=offset_xy) {
-      return TERN(IS_KINEMATIC,
-        (Y_CENTER) - probe_radius(probe_offset_xy),
-        _MAX((Y_MIN_BED) + (PROBING_MARGIN_FRONT), (Y_MIN_POS) + probe_offset_xy.y)
-      );
-    }
-    static constexpr float _max_y(const xy_pos_t &probe_offset_xy=offset_xy) {
-      return TERN(IS_KINEMATIC,
-        (Y_CENTER) + probe_radius(probe_offset_xy),
-        _MIN((Y_MAX_BED) - (PROBING_MARGIN_BACK), (Y_MAX_POS) + probe_offset_xy.y)
-      );
-    }
-#endif
+    #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
+      TERN(E3S1PRO_RTS, static, static constexpr) float _min_x(const xy_pos_t &probe_offset_xy=offset_xy) {
+        return TERN(IS_KINEMATIC,
+          (X_CENTER) - probe_radius(probe_offset_xy),
+          _MAX((X_MIN_BED) + (ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.abl_probe_margin : PROBING_MARGIN_LEFT), (X_MIN_POS) + probe_offset_xy.x)
+        );
+      }
+      TERN(E3S1PRO_RTS, static, static constexpr) float _max_x(const xy_pos_t &probe_offset_xy=offset_xy) {
+        return TERN(IS_KINEMATIC,
+          (X_CENTER) + probe_radius(probe_offset_xy),
+          _MIN((X_MAX_BED) - (ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.abl_probe_margin : PROBING_MARGIN_RIGHT), (X_MAX_POS) + probe_offset_xy.x)
+        );
+      }
+      TERN(E3S1PRO_RTS, static, static constexpr) float _min_y(const xy_pos_t &probe_offset_xy=offset_xy) {
+        return TERN(IS_KINEMATIC,
+          (Y_CENTER) - probe_radius(probe_offset_xy),
+          _MAX((Y_MIN_BED) + (ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.abl_probe_margin : PROBING_MARGIN_FRONT), (Y_MIN_POS) + probe_offset_xy.y)
+        );
+      }
+      TERN(E3S1PRO_RTS, static, static constexpr) float _max_y(const xy_pos_t &probe_offset_xy=offset_xy) {
+        return TERN(IS_KINEMATIC,
+          (Y_CENTER) + probe_radius(probe_offset_xy),
+          _MIN((Y_MAX_BED) - (ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.abl_probe_margin : PROBING_MARGIN_BACK), (Y_MAX_POS) + probe_offset_xy.y)
+        );
+      }
+    #endif
+    #if ENABLED(AUTO_BED_LEVELING_UBL) 
+      static constexpr float _min_x(const xy_pos_t &probe_offset_xy=offset_xy) {
+        return TERN(IS_KINEMATIC,
+          (X_CENTER) - probe_radius(probe_offset_xy),
+          _MAX((X_MIN_BED) + (PROBING_MARGIN_LEFT), (X_MIN_POS) + probe_offset_xy.x)
+        );
+      }
+      static constexpr float _max_x(const xy_pos_t &probe_offset_xy=offset_xy) {
+        return TERN(IS_KINEMATIC,
+          (X_CENTER) + probe_radius(probe_offset_xy),
+          _MIN((X_MAX_BED) - (PROBING_MARGIN_RIGHT), (X_MAX_POS) + probe_offset_xy.x)
+        );
+      }
+      static constexpr float _min_y(const xy_pos_t &probe_offset_xy=offset_xy) {
+        return TERN(IS_KINEMATIC,
+          (Y_CENTER) - probe_radius(probe_offset_xy),
+          _MAX((Y_MIN_BED) + (PROBING_MARGIN_FRONT), (Y_MIN_POS) + probe_offset_xy.y)
+        );
+      }
+      static constexpr float _max_y(const xy_pos_t &probe_offset_xy=offset_xy) {
+        return TERN(IS_KINEMATIC,
+          (Y_CENTER) + probe_radius(probe_offset_xy),
+          _MIN((Y_MAX_BED) - (PROBING_MARGIN_BACK), (Y_MAX_POS) + probe_offset_xy.y)
+        );
+      }
+    #endif
 
     static float min_x() { return _min_x() TERN_(NOZZLE_AS_PROBE, TERN_(HAS_HOME_OFFSET, - home_offset.x)); }
     static float max_x() { return _max_x() TERN_(NOZZLE_AS_PROBE, TERN_(HAS_HOME_OFFSET, - home_offset.x)); }

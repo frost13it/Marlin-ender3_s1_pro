@@ -69,7 +69,7 @@
 //#define ENDER_3S1_PRO
 //#define ENDER_3S1_PLUS
 //#define ENDER_3S1
-#define FORK_VERSION "v008"
+#define FORK_VERSION "v009"
 
 // Choose the name from boards.h that matches your setup
 #define USER_STM32F401  1
@@ -2027,7 +2027,7 @@
   #define X_MIN_POS 0
   #define Y_MIN_POS 0
   #define Z_MIN_POS 0
-  #define X_MAX_POS X_BED_SIZE + 6
+  #define X_MAX_POS X_BED_SIZE + 7
   #define Y_MAX_POS Y_BED_SIZE
   #define Z_MAX_POS 270
 #endif
@@ -2305,8 +2305,10 @@
     //                                     X0,Y0    X1,Y1  X2,Y2   X3,Y3    X4 Y4   X5,Y5  X6,Y6   X7Y7     X8 Y8
     //                                Point: (1)     (6)      (7)    (8)     (9)      (2)    (3)     (4)     (5)
     #define MANUALL_BED_LEVEING_5POSITION {117,117, 45,45, 190,45, 45,190, 190,190, 10,10, 225,10, 10,225, 225,225}
+    #define MANUALL_BED_CRTOUCH_5POSITION {117,117, 45,45, 190,45, 45,190, 190,190, 25,25, 210,25, 25,190, 210,190}
   #else
     #define MANUALL_BED_LEVEING_5POSITION {117,117, 45,45, 190,45, 45,190, 190,190, 10,10, 225,10, 10,225, 225,225}
+    #define MANUALL_BED_CRTOUCH_5POSITION {117,117, 45,45, 190,45, 45,190, 190,190, 25,25, 210,25, 25,190, 210,190}    
   #endif
 #elif ENABLED(ENDER_3S1) 
   #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
@@ -2321,9 +2323,11 @@
   #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
     //                                     X0,Y0    X1,Y1    X2,Y2  X3,Y3   X4 Y4   X5,Y5  X6,Y6   X7,Y7   X8,Y8
     //                                Point: (1)     (6)      (7)    (8)     (9)     (2)    (3)     (4)     (5)
-    #define MANUALL_BED_LEVEING_5POSITION {155,155, 45,45, 265,45, 45,270, 265,270, 15,15, 295,15, 15,300, 295,300}
+    #define MANUALL_BED_LEVEING_5POSITION {155,157, 45,45, 265,45, 45,270, 265,270, 15,15, 295,15, 15,300, 295,300}  
+    #define MANUALL_BED_CRTOUCH_5POSITION {155,157, 45,45, 265,45, 45,270, 265,270, 25,25, 283,25, 25,270, 283,270}
   #else
     #define MANUALL_BED_LEVEING_5POSITION {155,157, 45,45, 265,45, 45,270, 265,270, 15,15, 295,15, 15,300, 295,300}
+    #define MANUALL_BED_CRTOUCH_5POSITION {155,157, 45,45, 265,45, 45,270, 265,270, 25,25, 283,25, 25,270, 283,270}
   #endif
 #elif ENABLED(ENDER_3) 
     //                                     X0,Y0    X1,Y1    X2,Y2  X3,Y3   X4 Y4   X5,Y5  X6,Y6   X7,Y7   X8,Y8
