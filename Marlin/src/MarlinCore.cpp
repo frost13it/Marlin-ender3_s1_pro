@@ -906,6 +906,9 @@ void idle(const bool no_stepper_sleep/*=false*/) {
     #endif
     {
       TERN(E3S1PRO_RTS, RTSUpdate(),ui.update());
+      #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
+        TERN_(E3S1PRO_RTS, RTSUpdate_SCROLLING());
+      #endif
     }
   #endif
 

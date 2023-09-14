@@ -31,7 +31,9 @@ extern bool power_off_type_yes;
 #define FHLENG  (0x06)
 #define TEXTBYTELEN     20
 #define MaxFileNumber   40
-
+#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL) 
+  #define MaxFilenameLength   128
+#endif
 #define VALUE_INVALID                       0xFFFF
 #define VALUE_INVALID_8BIT                  0xFF
 
@@ -511,6 +513,19 @@ const uint16_t DGUS_VERSION = 0x000F;
 //#define SET_UBL_PROBE_MARGIN_MINY_VP        0x1986
 //#define SET_UBL_PROBE_MARGIN_MAXY_VP        0x1988
 
+#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
+  #ifndef LCD_RTS_AUTOSCROLL_START_CYCLES
+    // Additional refresh cycles where strings beginnings are shown
+    #define LCD_RTS_AUTOSCROLL_START_CYCLES 10
+  #endif
+  #ifndef LCD_RTS_AUTOSCROLL_END_CYCLES
+    // Additional refresh cycles where strings endings are shown
+    #define LCD_RTS_AUTOSCROLL_END_CYCLES 1
+  #endif
+  #ifndef LCD_RTS_STATUS_EXPIRATION_MS
+    #define LCD_RTS_STATUS_EXPIRATION_MS 30000
+  #endif  
+#endif
 /************struct**************/
 typedef struct DataBuf
 {
@@ -529,6 +544,10 @@ typedef struct CardRecord
   int Filesum;
   unsigned long addr[FileNum];
   char Cardshowfilename[FileNum][FileNameLen];
+  #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)   
+    char* Cardshowlongfilename[FileNum];
+    int filenamelen[MaxFilenameLength];
+  #endif
   char Cardfilename[FileNum][FileNameLen];
   bool selectFlag;
 }CRec;
@@ -861,6 +880,9 @@ const unsigned long Addrbuf[] =
 extern int EndsWith(const char*, const char*);
 void ErrorHanding(void);
 extern void RTSUpdate(void);
+#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
+  extern void RTSUpdate_SCROLLING(void);
+#endif
 extern void RTSInit(void);
 #if HAS_CUTTER
   extern void RTSUpdateLaser(void);
@@ -928,6 +950,9 @@ extern uint8_t y_min_pos_eeprom;
 extern int8_t g_uiAutoPIDRuningDiff;
 extern int16_t g_uiCurveDataCnt;
 extern int leveling_running;
+#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
+  void lcd_rts_scrolling();
+#endif
 extern lcd_rts_settings_t lcd_rts_settings;
 void saveSettings(char * const buff);
 void loadSettings(const char * const buff);

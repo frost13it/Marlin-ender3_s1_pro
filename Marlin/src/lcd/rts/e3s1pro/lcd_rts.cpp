@@ -6,6 +6,8 @@
 
 // GCODE_PREVIEW requires some fixing..
 //#define GCODE_PREVIEW_ENABLED
+// LCD_RTS_SOFTWARE_AUTOSCROLL
+//#define LCD_RTS_SOFTWARE_AUTOSCROLL
 
 //#define LCD_RTS_DEBUG
 
@@ -254,6 +256,31 @@ int16_t advance_k_set = 0;
 uint8_t lcd_rts_settings_version = 1;
 lcd_rts_settings_t lcd_rts_settings;
 
+#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)  
+  static int scrollCount = 0;
+  bool scrollingAtEnd = false;
+  unsigned long previousScrollMillis = 0;
+  ssize_t currentScrollIndex = 0;
+  uint8_t displayWidth = 16;
+  int textLength = 16;
+  bool scrollingActive = false;
+  unsigned long displayAddr = SELECT_FILE_TEXT_VP;
+  uint8_t textSize = 16;
+  uint16_t scrollDelay = 100;
+  unsigned long scrollInterval = scrollDelay;
+  const char* textToScroll = ""; 
+  void startScrolling(const char* scrollText, unsigned long addr, uint8_t size, uint16_t delay) {
+    textToScroll = scrollText;
+    displayAddr = addr;
+    textSize = size;
+    scrollDelay = delay;
+    textLength = strlen(textToScroll);
+    scrollingActive = true;
+    scrollingAtEnd = false;
+    currentScrollIndex = -LCD_RTS_AUTOSCROLL_START_CYCLES;
+  }
+#endif
+
 /*************************************END***************************************/
 
 inline void RTS_line_to_current(AxisEnum axis)
@@ -414,8 +441,17 @@ static void RTS_line_to_filelist() {
   int num = 0;
   for (int16_t i = (file_current_page - 1) * 5; i < (file_current_page * 5); i++) {  
     card.selectFileByIndexSorted(i);
+    #if ENABLED(LCD_RTS_DEBUG)    
+      SERIAL_ECHO_MSG("card.longFilename ", card.longFilename); 
+    #endif
     char *pointFilename = card.longFilename;
     int filenamelen = strlen(card.longFilename);
+    #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)  
+      CardRecbuf.filenamelen[num] = filenamelen;
+      CardRecbuf.Cardshowlongfilename[num] = new char[filenamelen + 1]; 
+      strcpy(CardRecbuf.Cardshowlongfilename[num], card.longFilename);
+      //memcpy(CardRecbuf.Cardshowlongfilename[num], card.longFilename, filenamelen + 1);
+    #endif
     int j = 1;
     while ((strncmp(&pointFilename[j], ".gcode", 6) != 0 && strncmp(&pointFilename[j], ".GCODE", 6) != 0 && strncmp(&pointFilename[j], ".GCO", 4) != 0 && strncmp(&pointFilename[j], ".gco", 4) != 0) && (j++ < filenamelen));    
    
@@ -425,10 +461,10 @@ static void RTS_line_to_filelist() {
       j = TEXTBYTELEN - 1;
     }
     strncpy(CardRecbuf.Cardshowfilename[num], card.longFilename, j);
-        #if ENABLED(LCD_RTS_DEBUG)
-          SERIAL_ECHO("inside rts_line_to_filelist");
-          SERIAL_ECHOLN("");
-        #endif
+    #if ENABLED(LCD_RTS_DEBUG)
+      SERIAL_ECHO("inside rts_line_to_filelist");
+      SERIAL_ECHOLN("");
+    #endif
     strcpy(CardRecbuf.Cardfilename[num], card.filename);
     CardRecbuf.addr[num] = FILE1_TEXT_VP + (num * 20);
     rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[num], CardRecbuf.addr[num]);
@@ -1379,6 +1415,9 @@ void RTSSHOW::RTS_SDcard_Stop(void)
     // clean filename
     RTS_SndData(0, SELECT_FILE_TEXT_VP + j);
   }
+  #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)  
+    CardRecbuf.selectFlag = false;
+  #endif
   planner.synchronize();
   RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
   change_page_font = 1;
@@ -1417,6 +1456,15 @@ void RTSSHOW::RTS_HandleData(void)
   }
   #if ENABLED(LCD_RTS_DEBUG)
     SERIAL_ECHO_MSG("\nCheckkey=", Checkkey, "recdat.data[0]=", recdat.data[0]);
+  #endif
+  #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)  
+    if(Checkkey == 0 && scrollingActive){
+      scrollingActive = false;
+      rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], SELECT_FILE_TEXT_VP);
+    }
+    if (Checkkey == 0 && recdat.data[0] == 8 && CardRecbuf.selectFlag == true && CardRecbuf.filenamelen[CardRecbuf.recordcount] > 16) {
+      scrollingActive = true;
+    }
   #endif
   switch(Checkkey)
   {
@@ -4395,10 +4443,22 @@ void RTSSHOW::RTS_HandleData(void)
               rtscheck.RTS_SndData(0, VP_OVERLAY_PIC_PTINT);                                          
             }          
           #endif
-          
+
           rts_start_print = true;
           delay(5);
-          RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], SELECT_FILE_TEXT_VP);
+          #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)  
+            const char* textToScroll = CardRecbuf.Cardshowlongfilename[CardRecbuf.recordcount];
+            SERIAL_ECHO_MSG("CardRecbuf.Cardshowlongfilename[CardRecbuf.recordcount]", CardRecbuf.Cardshowlongfilename[CardRecbuf.recordcount]);          
+            if (strlen(textToScroll) > 16) {
+              startScrolling(textToScroll, displayAddr, textSize, scrollDelay);
+            } else {
+              // Show the filename directly if it's shorter than 16 characters
+              RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], SELECT_FILE_TEXT_VP);
+            }            
+          #else
+            // Old filename sending
+            RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], SELECT_FILE_TEXT_VP);
+          #endif
           #if ENABLED(GCODE_PREVIEW_ENABLED)          
             RefreshBrightnessAtPrint(0);
           #endif
@@ -5159,6 +5219,54 @@ void RTSUpdate(void)
   }
   hal.watchdog_refresh();
 }
+#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)  
+  void RTSUpdate_SCROLLING(void)
+  {
+      unsigned long currentMillis = millis();
+      if (scrollingActive && !scrollingAtEnd && change_page_font == 1){
+        if (currentMillis - previousScrollMillis >= scrollInterval) {
+          previousScrollMillis = currentMillis;
+          lcd_rts_scrolling();
+        }
+      }
+    hal.watchdog_refresh();    
+  }
+
+  void lcd_rts_scrolling() {
+    if (scrollingActive) {
+      // Calculate the current scroll position
+      int startIndex = max(0, currentScrollIndex);
+      int endIndex = min(textLength, startIndex + displayWidth);
+
+      // Extract the portion of text to display
+      char textSlice[displayWidth + 1]; // +1 for null-terminator
+      strncpy(textSlice, &textToScroll[startIndex], endIndex - startIndex);
+      textSlice[endIndex - startIndex] = '\0';
+
+      // Display the sliced text
+      rtscheck.RTS_SndText(textSlice, displayAddr, displayWidth);
+      // Increment the scroll index
+      currentScrollIndex++;
+
+      // Check if scrolling reached the end
+      if (currentScrollIndex > textLength) {
+        scrollCount++;
+        if (scrollCount >= 1) {
+        // Stop scrolling
+        scrollingActive = false;
+        currentScrollIndex = -LCD_RTS_AUTOSCROLL_START_CYCLES;
+        scrollCount = 0;
+        rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], SELECT_FILE_TEXT_VP);
+        } else {
+          // Reset the scroll index to restart scrolling
+          currentScrollIndex = 0;
+        }      
+      }
+    }else{
+    rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], SELECT_FILE_TEXT_VP);    
+    }
+  }
+#endif
 
 void RTS_PauseMoveAxisPage(void)
 {
