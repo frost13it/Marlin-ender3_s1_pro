@@ -516,7 +516,7 @@ const uint16_t DGUS_VERSION = 0x000F;
 #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
   #ifndef LCD_RTS_AUTOSCROLL_START_CYCLES
     // Additional refresh cycles where strings beginnings are shown
-    #define LCD_RTS_AUTOSCROLL_START_CYCLES 10
+    #define LCD_RTS_AUTOSCROLL_START_CYCLES 1
   #endif
   #ifndef LCD_RTS_AUTOSCROLL_END_CYCLES
     // Additional refresh cycles where strings endings are shown
@@ -891,7 +891,7 @@ extern int touchscreen_requested_mesh;
 extern float zprobe_zoffset;
 extern int16_t temphot;
 extern char waitway;
-extern int old_leveling;
+extern uint8_t old_leveling;
 extern int change_page_font;
 extern uint8_t language_change_font;
 extern uint8_t lang;
@@ -949,7 +949,7 @@ extern uint8_t x_min_pos_eeprom;
 extern uint8_t y_min_pos_eeprom;
 extern int8_t g_uiAutoPIDRuningDiff;
 extern int16_t g_uiCurveDataCnt;
-extern int leveling_running;
+extern uint8_t leveling_running;
 #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
   void lcd_rts_scrolling();
 #endif
