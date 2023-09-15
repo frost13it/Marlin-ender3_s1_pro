@@ -111,9 +111,9 @@ float y_zeta = 0.0;
 #endif
 
 bool power_off_type_yes = false;
-int old_leveling = 0;
-int bltouch_tramming = 0;
-int leveling_running = 0;
+uint8_t old_leveling = 0;
+uint8_t bltouch_tramming = 0;
+uint8_t leveling_running = 0;
 
 int touchscreen_requested_mesh = 0;
 
@@ -146,6 +146,9 @@ bool pause_action_flag = false;
 
 bool print_preheat_check = false;
 bool probe_offset_flag = false;
+float probe_offset_x_temp;
+uint16_t max_reachable_pos_y;
+uint16_t min_calc_margin_y_bedlevel;
 
 millis_t next_rts_update_ms      = 0;
 int PrintFlag = 0;
@@ -266,7 +269,7 @@ lcd_rts_settings_t lcd_rts_settings;
   bool scrollingActive = false;
   unsigned long displayAddr = SELECT_FILE_TEXT_VP;
   uint8_t textSize = 16;
-  uint16_t scrollDelay = 100;
+  uint8_t scrollDelay = 150;
   unsigned long scrollInterval = scrollDelay;
   const char* textToScroll = ""; 
   void startScrolling(const char* scrollText, unsigned long addr, uint8_t size, uint16_t delay) {
@@ -2512,11 +2515,22 @@ void RTSSHOW::RTS_HandleData(void)
 
     case BedLevelKey:
       #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-        int min_margin_y;
-        if(lcd_rts_settings.abl_probe_margin <= 45){
-          min_margin_y = 45;
+        uint8_t min_margin_y;          
+        float probe_offset_y_temp;  
+
+        if (probe.offset_xy.y < 0) {
+          probe_offset_y_temp = fabs(probe.offset_xy.y);
         }else{
-          min_margin_y = lcd_rts_settings.abl_probe_margin;
+          probe_offset_y_temp = -fabs(probe.offset_xy.y);
+        }
+
+        max_reachable_pos_y = Y_MAX_POS - (int)ceil(probe_offset_y_temp);       
+        min_calc_margin_y_bedlevel = Y_BED_SIZE - max_reachable_pos_y;      
+
+        if(min_calc_margin_y_bedlevel >= lcd_rts_settings.abl_probe_margin){
+          min_margin_y = static_cast<int>(std::ceil(min_calc_margin_y_bedlevel));
+        }else{
+          min_margin_y = static_cast<int>(std::ceil(lcd_rts_settings.abl_probe_margin));
         }
       #endif
       if(recdat.data[0] == 1)
@@ -2671,7 +2685,7 @@ void RTSSHOW::RTS_HandleData(void)
             }
             if (bltouch_tramming == 1){
             // Cr-Touch measuring point 6
-            #if ENABLED(AUTO_BED_LEVELING_BILINEAR)            
+            #if ENABLED(AUTO_BED_LEVELING_BILINEAR)  
             sprintf_P(cmd, "G30 X%d Y%d", lcd_rts_settings.abl_probe_margin,lcd_rts_settings.abl_probe_margin);
             #endif
             #if ENABLED(AUTO_BED_LEVELING_UBL)
@@ -2758,7 +2772,12 @@ void RTSSHOW::RTS_HandleData(void)
             }
             if (bltouch_tramming == 1){
             // Cr-Touch measuring point 8
-            #if ENABLED(AUTO_BED_LEVELING_BILINEAR)            
+            #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
+              #if ENABLED(LCD_RTS_DEBUG)
+                SERIAL_ECHO_MSG("min_margin_y ", min_margin_y);
+                SERIAL_ECHO_MSG("Y_BED_SIZE ", Y_BED_SIZE);                  
+                SERIAL_ECHO_MSG("lcd_rts_settings.abl_probe_margin ", lcd_rts_settings.abl_probe_margin);                     
+              #endif
               sprintf_P(cmd, "G30 X%d Y%d", lcd_rts_settings.abl_probe_margin,(Y_BED_SIZE - min_margin_y));
             #endif
             #if ENABLED(AUTO_BED_LEVELING_UBL)
@@ -2802,7 +2821,7 @@ void RTSSHOW::RTS_HandleData(void)
             }
             if (bltouch_tramming == 1){
             // Cr-Touch measuring point 9
-            #if ENABLED(AUTO_BED_LEVELING_BILINEAR)               
+            #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
               sprintf_P(cmd, "G30 X%d Y%d", (X_BED_SIZE - lcd_rts_settings.abl_probe_margin),(Y_BED_SIZE - min_margin_y));
             #endif
             #if ENABLED(AUTO_BED_LEVELING_UBL)
@@ -3127,7 +3146,37 @@ void RTSSHOW::RTS_HandleData(void)
         rtscheck.RTS_SndData(AutoHomeFirstPoint, AUTO_BED_LEVEL_CUR_POINT_VP);
         RTS_SndData(lang, AUTO_LEVELING_START_TITLE_VP);                  
         rtscheck.RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT);      
-        rtscheck.RTS_SndData(0 , AUTO_LEVELING_PERCENT_DATA_VP);  
+        rtscheck.RTS_SndData(0 , AUTO_LEVELING_PERCENT_DATA_VP);
+        #if ANY(AUTO_BED_LEVELING_BILINEAR, AUTO_BED_LEVELING_UBL)
+          bool zig = false;
+          int8_t inStart, inStop, inInc, showcount;
+          showcount = 0;
+          //settings.load();
+          for (int y = 0; y < lcd_rts_settings.max_points; y++)
+          {
+            // away from origin
+            if (zig)
+            {
+              inStart = lcd_rts_settings.max_points - 1;
+              inStop = -1;
+              inInc = -1;
+            }
+            else
+            {
+              // towards origin
+              inStart = 0;
+              inStop = lcd_rts_settings.max_points;
+              inInc = 1;
+            }
+            zig ^= true;
+            for (int x = inStart; x != inStop; x += inInc)
+            {
+              //SERIAL_ECHOLNPGM("value: ", bedlevel.z_values[x][y] * 1000);
+              RTS_SndData(bedlevel.z_values[x][y] * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
+              showcount++;
+            }
+          }
+        #endif
         Update_Time_Value = 0;
       }
       else if (recdat.data[0] == 165) 
@@ -3795,6 +3844,30 @@ void RTSSHOW::RTS_HandleData(void)
     #if ENABLED(AUTO_BED_LEVELING_BILINEAR) 
       case SetAblProbeMargin: {
         temp_abl_probe_margin = recdat.data[0];
+        #if ENABLED(LCD_RTS_DEBUG)          
+          SERIAL_ECHO_MSG("temp_abl_probe_margin ", temp_abl_probe_margin);
+        #endif
+        if (probe.offset_xy.x < 0) {
+          probe_offset_x_temp = fabs(probe.offset_xy.x);
+        }else{
+          probe_offset_x_temp = -fabs(probe.offset_xy.x);
+        }
+        #if ENABLED(LCD_RTS_DEBUG)          
+          SERIAL_ECHO_MSG("probe.offset_xy.x ", probe.offset_xy.x);
+          SERIAL_ECHO_MSG("X_MAX_POS ", X_MAX_POS);      
+        #endif
+        //float max_reachable_pos = X_MAX_POS - probe.offset_xy.x;
+        int max_reachable_pos_x = X_MAX_POS - (int)ceil(probe_offset_x_temp);
+        #if ENABLED(LCD_RTS_DEBUG)          
+          SERIAL_ECHO_MSG("max_reachable_pos_x ", max_reachable_pos_x);          
+        #endif
+        int min_calc_margin_x = X_BED_SIZE - max_reachable_pos_x;
+        #if ENABLED(LCD_RTS_DEBUG)  
+          SERIAL_ECHO_MSG("min_calc_margin_x ", min_calc_margin_x); 
+        #endif
+        if(min_calc_margin_x >= temp_abl_probe_margin){
+         temp_abl_probe_margin = min_calc_margin_x;
+        }
         #if ENABLED(ENDER_3S1_PLUS)
           if(temp_abl_probe_margin <= 27){
             temp_abl_probe_margin = 27;
