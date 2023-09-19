@@ -3315,7 +3315,7 @@
 
 // Number of VFAT entries used. Each entry has 13 UTF-16 characters
 #if ANY(SCROLL_LONG_FILENAMES, HAS_DWIN_E3V2, TFT_COLOR_UI)
-  #define VFAT_ENTRIES_LIMIT 5
+  #define VFAT_ENTRIES_LIMIT 6
 #else
   #define VFAT_ENTRIES_LIMIT 2
 #endif

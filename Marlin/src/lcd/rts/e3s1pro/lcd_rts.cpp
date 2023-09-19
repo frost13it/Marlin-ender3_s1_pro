@@ -261,15 +261,15 @@ lcd_rts_settings_t lcd_rts_settings;
 
 #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)  
   static int scrollCount = 0;
-  bool scrollingAtEnd = false;
   unsigned long previousScrollMillis = 0;
   ssize_t currentScrollIndex = 0;
   uint8_t displayWidth = 16;
   int textLength = 16;
   bool scrollingActive = false;
+  bool scrollingmanuallyDisabled = false;  
   unsigned long displayAddr = SELECT_FILE_TEXT_VP;
   uint8_t textSize = 16;
-  uint8_t scrollDelay = 150;
+  uint16_t scrollDelay = 200;
   unsigned long scrollInterval = scrollDelay;
   const char* textToScroll = ""; 
   void startScrolling(const char* scrollText, unsigned long addr, uint8_t size, uint16_t delay) {
@@ -279,7 +279,6 @@ lcd_rts_settings_t lcd_rts_settings;
     scrollDelay = delay;
     textLength = strlen(textToScroll);
     scrollingActive = true;
-    scrollingAtEnd = false;
     currentScrollIndex = -LCD_RTS_AUTOSCROLL_START_CYCLES;
   }
 #endif
@@ -1460,12 +1459,13 @@ void RTSSHOW::RTS_HandleData(void)
   #if ENABLED(LCD_RTS_DEBUG)
     SERIAL_ECHO_MSG("\nCheckkey=", Checkkey, "recdat.data[0]=", recdat.data[0]);
   #endif
-  #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)  
-    if(Checkkey == 0 && scrollingActive){
+  #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
+    if(Checkkey == 0 && recdat.data[0] != 8 && CardRecbuf.selectFlag == true && scrollingActive){
       scrollingActive = false;
+      scrollingmanuallyDisabled = true;
       rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], SELECT_FILE_TEXT_VP);
     }
-    if (Checkkey == 0 && recdat.data[0] == 8 && CardRecbuf.selectFlag == true && CardRecbuf.filenamelen[CardRecbuf.recordcount] > 16) {
+    if (Checkkey == 0 && recdat.data[0] == 8 && CardRecbuf.selectFlag == true && CardRecbuf.filenamelen[CardRecbuf.recordcount] > 16 && !scrollingmanuallyDisabled) {
       scrollingActive = true;
     }
   #endif
@@ -4523,6 +4523,7 @@ void RTSSHOW::RTS_HandleData(void)
             const char* textToScroll = CardRecbuf.Cardshowlongfilename[CardRecbuf.recordcount];
             SERIAL_ECHO_MSG("CardRecbuf.Cardshowlongfilename[CardRecbuf.recordcount]", CardRecbuf.Cardshowlongfilename[CardRecbuf.recordcount]);          
             if (strlen(textToScroll) > 16) {
+              scrollingmanuallyDisabled = false;
               startScrolling(textToScroll, displayAddr, textSize, scrollDelay);
             } else {
               // Show the filename directly if it's shorter than 16 characters
@@ -5296,13 +5297,10 @@ void RTSUpdate(void)
   void RTSUpdate_SCROLLING(void)
   {
       unsigned long currentMillis = millis();
-      if (scrollingActive && !scrollingAtEnd && change_page_font == 1){
-        if (currentMillis - previousScrollMillis >= scrollInterval) {
+      if (scrollingActive && change_page_font == 1 && currentMillis - previousScrollMillis >= scrollInterval){
           previousScrollMillis = currentMillis;
           lcd_rts_scrolling();
-        }
       }
-    hal.watchdog_refresh();    
   }
 
   void lcd_rts_scrolling() {
@@ -5315,12 +5313,10 @@ void RTSUpdate(void)
       char textSlice[displayWidth + 1]; // +1 for null-terminator
       strncpy(textSlice, &textToScroll[startIndex], endIndex - startIndex);
       textSlice[endIndex - startIndex] = '\0';
-
       // Display the sliced text
       rtscheck.RTS_SndText(textSlice, displayAddr, displayWidth);
       // Increment the scroll index
       currentScrollIndex++;
-
       // Check if scrolling reached the end
       if (currentScrollIndex > textLength) {
         scrollCount++;
