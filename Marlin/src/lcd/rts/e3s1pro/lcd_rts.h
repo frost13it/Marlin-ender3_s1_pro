@@ -504,8 +504,10 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define SoundIcon                           0x1152
 #define BrightnessIcon                      0x1154
 #define SET_GRID_MAX_POINTS_VP              0x1156
-#define SET_ABL_PROBE_MARGIN_VP             0x1158
-#define SET_ABL_PROBE_MARGIN_TEXT_VP        0x1160
+#define SET_ABL_PROBE_MARGIN_X_VP           0x1158
+#define SET_ABL_PROBE_MARGIN_X_TEXT_VP      0x1160
+#define SET_ABL_PROBE_MARGIN_Y_VP           0x1164
+#define SET_ABL_PROBE_MARGIN_Y_TEXT_VP      0x1166
 #define SET_MESH_SIZE_TEXT_VP               0x1972
 #define SET_MESH_SIZE_SIZE_TEXT_VP          0x196A
 //#define SET_UBL_PROBE_MARGIN_MINX_VP        0x1982
@@ -600,7 +602,10 @@ int16_t standby_time_seconds;
 uint8_t max_points;
 #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
   uint8_t grid_limit;
-  uint8_t abl_probe_margin;
+  uint8_t abl_probe_margin_x;
+  uint8_t abl_probe_min_margin_x;  
+  uint8_t abl_probe_margin_y;
+  uint8_t abl_probe_min_margin_y;    
 #endif
 #if ENABLED(AUTO_BED_LEVELING_UBL)
 //  int16_t ubl_probe_margin_l;
@@ -659,23 +664,10 @@ class RTSSHOW
 
 extern RTSSHOW rtscheck;
 
-#if ENABLED(HAS_MENU_RESET_WIFI)
-  enum sWIFI_STATE
-  {
-    INITIAL = 0,
-    PRESSED,
-    RECORDTIME,
-  };
-#endif
-
 #define Z_MEASURE_PLANTFORM     10
 // #define Z_POINT_AUX_LEVEL       20
 #define Z_MEASURE_FEEDRATE_FAST Z_PROBE_FEEDRATE_FAST*4
 #define Z_MEASURE_FEEDRATE_SLOW Z_PROBE_FEEDRATE_SLOW
-
-#if ENABLED(HAS_MENU_RESET_WIFI)
-  extern unsigned char WIFI_STATE;
-#endif
 
 typedef enum PROC_COM : int8_t {  
   MainEnterKey          = 0,
@@ -769,11 +761,12 @@ typedef enum PROC_COM : int8_t {
    VolumeDisplay            = 86,   
    DisplayStandbySeconds    = 87,
    SetGridMaxPoints         = 88,
-   SetAblProbeMargin        = 89,
+   SetAblProbeMarginX       = 89,
    SetUblProbeMarginMinX    = 90,
    SetUblProbeMarginMaxX    = 91,
    SetUblProbeMarginMinY    = 92,
-   SetUblProbeMarginMaxY    = 93
+   SetUblProbeMarginMaxY    = 93,
+   SetAblProbeMarginY       = 94   
 } proc_command_t; 
 
 const unsigned long Addrbuf[] = 
@@ -869,11 +862,12 @@ const unsigned long Addrbuf[] =
    0x1146, // VolumeDisplayEnableIndicator
    0x1148, // DisplayStandbySeconds
    0x1156, // SetGridMaxPoints
-   0x1158, // SetAblProbeMargin
+   0x1158, // SetAblProbeMarginX
    0x1982, // SetUblProbeMarginMinX
    0x1984, // SetUblProbeMarginMaxX
    0x1986, // SetUblProbeMarginMinY
    0x1988, // SetUblProbeMarginMaxY
+   0x1164, // SetAblProbeMarginY 
   0
 };
 
@@ -956,7 +950,8 @@ extern uint8_t leveling_running;
 extern lcd_rts_settings_t lcd_rts_settings;
 void saveSettings(char * const buff);
 void loadSettings(const char * const buff);
-void resetSettings(); 
+void resetSettings();
+int custom_ceil(float x); 
 void AutoUIBedNozzleHeightCali(void);
 void LcdAutoUIMoveXYBlock(float _posX, float _posY);
 void LcdAutoUIMoveZBlock(float _posZ);

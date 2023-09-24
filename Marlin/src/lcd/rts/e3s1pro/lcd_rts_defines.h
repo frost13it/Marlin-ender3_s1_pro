@@ -65,11 +65,11 @@
 //#define Y_MAX_POS  (float)lcd_rts_data.y_max_pos
 //#define Z_MAX_POS  (float)lcd_rts_data.z_max_pos
 #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-  #define PROBING_MARGIN (float)lcd_rts_data.probing_margin
-  #define PROBING_MARGIN_LEFT (float)lcd_rts_data.probing_margin
-  #define PROBING_MARGIN_RIGHT (float)lcd_rts_data.probing_margin
-  #define PROBING_MARGIN_FRONT (float)lcd_rts_data.probing_margin
-  #define PROBING_MARGIN_BACK (float)lcd_rts_data.probing_margin
+  #define PROBING_MARGIN (float)lcd_rts_data.probing_margin_x
+  #define PROBING_MARGIN_LEFT (float)lcd_rts_data.probing_margin_x
+  #define PROBING_MARGIN_RIGHT (float)lcd_rts_data.probing_margin_x
+  #define PROBING_MARGIN_FRONT (float)lcd_rts_data.probing_margin_x
+  #define PROBING_MARGIN_BACK (float)lcd_rts_data.probing_margin_y
 #endif
 #define GRID_MIN 3
 #define GRID_MAX 10

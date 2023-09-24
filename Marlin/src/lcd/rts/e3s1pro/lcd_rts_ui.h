@@ -53,11 +53,14 @@
   #ifndef PROBING_MARGIN
     #define PROBING_MARGIN 45
   #endif
+  #ifndef PROBING_MARGIN_BACK
+    #define PROBING_MARGIN_BACK 45
+  #endif  
 constexpr int16_t DEF_PROBING_MARGIN = PROBING_MARGIN;
 //constexpr int16_t DEF_PROBING_MARGIN_LEFT = PROBING_MARGIN;
 //constexpr int16_t DEF_PROBING_MARGIN_RIGHT = PROBING_MARGIN;
 //constexpr int16_t DEF_PROBING_MARGIN_FRONT = PROBING_MARGIN;
-//constexpr int16_t DEF_PROBING_MARGIN_BACK = PROBING_MARGIN;
+constexpr int16_t DEF_PROBING_MARGIN_BACK = PROBING_MARGIN_BACK;
 #define MIN_PROBE_MARGIN 5
 #define MAX_PROBE_MARGIN 60
 #endif
@@ -85,7 +88,8 @@ typedef struct {
   #endif
   //uint8_t multiple_probing = MULTIPLE_PROBING;
   #if ENABLED(AUTO_BED_LEVELING_BILINEAR)  
-    mutable uint8_t probing_margin = DEF_PROBING_MARGIN;
+    mutable uint8_t probing_margin_x = DEF_PROBING_MARGIN;
+    mutable uint8_t probing_margin_y = DEF_PROBING_MARGIN_BACK;    
   #endif
 } lcd_rts_data_t;
 //extern lcd_rts_data_t lcd_rts_data;

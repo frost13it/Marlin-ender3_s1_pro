@@ -4082,24 +4082,28 @@ void MarlinSettings::reset() {
     #if ENABLED(E3S1PRO_RTS)
       #if ENABLED(LCD_RTS_DEBUG)
         SERIAL_ECHO_MSG("  lcd_rts_settings size: ", sizeof(lcd_rts_settings));
-        SERIAL_ECHO_MSG("  lcd_rts_data size: ", sizeof(lcd_rts_data_t));      
+        SERIAL_ECHO_MSG("  lcd_rts_data size: ", sizeof(lcd_rts_data_t)); 
+        #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
+          SERIAL_ECHO_MSG("  Grid_max_points: ", lcd_rts_settings.max_points);
+          SERIAL_ECHO_MSG("  Abl Margin x set to: ", lcd_rts_settings.abl_probe_margin_x);
+          SERIAL_ECHO_MSG("  Abl Margin y set to: ", lcd_rts_settings.abl_probe_margin_y);        
+          SERIAL_ECHO_MSG("  Abl Margin min x: ", lcd_rts_settings.abl_probe_min_margin_x);
+          SERIAL_ECHO_MSG("  Abl Margin min y: ", lcd_rts_settings.abl_probe_min_margin_y);       
+          SERIAL_ECHO_MSG("  Abl Margin x default: ", lcd_rts_data.probing_margin_x);
+          SERIAL_ECHO_MSG("  Abl Margin y default: ", lcd_rts_data.probing_margin_y);        
+        #endif
+        //#if ENABLED(AUTO_BED_LEVELING_UBL)
+        //  SERIAL_ECHO_MSG("  MESH_MIN_X: ", lcd_rts_settings.ubl_probe_margin_l);
+        //  SERIAL_ECHO_MSG("  MESH_MAX_X: ", lcd_rts_settings.ubl_probe_margin_r);
+        //  SERIAL_ECHO_MSG("  MESH_MIN_Y: ", lcd_rts_settings.ubl_probe_margin_f);
+        //  SERIAL_ECHO_MSG("  MESH_MAX_Y: ", lcd_rts_settings.ubl_probe_margin_b);
+        //#endif
+        SERIAL_ECHO_MSG("  Screen brightness: ", lcd_rts_settings.screen_brightness);
+        SERIAL_ECHO_MSG("  Screen standby brightness: ", lcd_rts_settings.standby_brightness);      
+        SERIAL_ECHO_MSG("  Screen standby time: ", lcd_rts_settings.standby_time_seconds);            
+        SERIAL_ECHO_MSG("  Display sound: ", lcd_rts_settings.display_sound);
+        SERIAL_ECHO_MSG("  Display volume: ", lcd_rts_settings.display_volume);
       #endif
-      #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-        SERIAL_ECHO_MSG("  Grid_max_points: ", lcd_rts_settings.max_points);
-        SERIAL_ECHO_MSG("  Abl Margin set to: ", lcd_rts_settings.abl_probe_margin);
-        SERIAL_ECHO_MSG("  Abl Margin default: ", lcd_rts_data.probing_margin);
-      #endif
-      //#if ENABLED(AUTO_BED_LEVELING_UBL)
-      //  SERIAL_ECHO_MSG("  MESH_MIN_X: ", lcd_rts_settings.ubl_probe_margin_l);
-      //  SERIAL_ECHO_MSG("  MESH_MAX_X: ", lcd_rts_settings.ubl_probe_margin_r);
-      //  SERIAL_ECHO_MSG("  MESH_MIN_Y: ", lcd_rts_settings.ubl_probe_margin_f);
-      //  SERIAL_ECHO_MSG("  MESH_MAX_Y: ", lcd_rts_settings.ubl_probe_margin_b);
-      //#endif
-      SERIAL_ECHO_MSG("  Screen brightness: ", lcd_rts_settings.screen_brightness);
-      SERIAL_ECHO_MSG("  Screen standby brightness: ", lcd_rts_settings.standby_brightness);      
-      SERIAL_ECHO_MSG("  Screen standby time: ", lcd_rts_settings.standby_time_seconds);            
-      SERIAL_ECHO_MSG("  Display sound: ", lcd_rts_settings.display_sound);
-      SERIAL_ECHO_MSG("  Display volume: ", lcd_rts_settings.display_volume);
     #endif
 
     //
