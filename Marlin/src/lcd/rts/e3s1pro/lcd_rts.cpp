@@ -4,7 +4,6 @@
  * This class is backward compatible to the stock screen firmware with its stock features.
  */
 
-// GCODE_PREVIEW requires some fixing..
 //#define GCODE_PREVIEW_ENABLED
 // LCD_RTS_SOFTWARE_AUTOSCROLL
 //#define LCD_RTS_SOFTWARE_AUTOSCROLL
@@ -1503,6 +1502,9 @@ void RTSSHOW::RTS_HandleData(void)
   {
     //SERIAL_ECHO_MSG("Recorded value Catchall\n", Checkkey);            
     case MainEnterKey:
+      RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);
+      RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);        
+      RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);      
       if (recdat.data[0] == 1) {
         CardUpdate = true;
         CardRecbuf.recordcount = -1;
@@ -1638,9 +1640,6 @@ void RTSSHOW::RTS_HandleData(void)
         }
       }
       else if (recdat.data[0] == 8) {
-        RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);
-        RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);        
-        RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);         
         RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
         #if ENABLED(GCODE_PREVIEW_ENABLED)
           if (false == CardRecbuf.selectFlag) {
@@ -1651,7 +1650,6 @@ void RTSSHOW::RTS_HandleData(void)
       }
       else if(recdat.data[0] == 9)
       {
-        RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);
         RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
         change_page_font = 11;
       }else if(recdat.data[0] == 0x0A)
@@ -1833,6 +1831,8 @@ void RTSSHOW::RTS_HandleData(void)
     case StopPrintKey:
       if(recdat.data[0] == 1)
       {
+        RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);     
+        RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);        
         RTS_SndData(ExchangePageBase + 13, ExchangepageAddr);
         change_page_font = 13;
       }
@@ -2050,6 +2050,9 @@ void RTSSHOW::RTS_HandleData(void)
       break;
 
     case ResumePrintKey:
+      RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
+      RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);
+      RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);
       if(recdat.data[0] == 1)
       {
         #if ENABLED(FILAMENT_RUNOUT_SENSOR)
@@ -2061,9 +2064,6 @@ void RTSSHOW::RTS_HandleData(void)
           }
         #endif
 
-        RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
-        RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);
-        RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);
         RTS_SndData(ExchangePageBase + 10, ExchangepageAddr);
         change_page_font = 10;
 
@@ -2125,9 +2125,6 @@ void RTSSHOW::RTS_HandleData(void)
         queue.inject_P(PSTR("M108"));
         runout.reset();
 
-        RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
-        RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);
-        RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);
         RTS_SndData(ExchangePageBase + 10, ExchangepageAddr);
         change_page_font = 10;
 
@@ -2145,9 +2142,6 @@ void RTSSHOW::RTS_HandleData(void)
           Update_Time_Value = 0;
           sdcard_pause_check = true;
           sd_printing_autopause = false;
-          RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
-          RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);
-          RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);
           RTS_SndData(ExchangePageBase + 10, ExchangepageAddr);
           change_page_font = 10;
           gcode.process_subcommands_now(F("M24"));
@@ -4681,6 +4675,8 @@ void RTSSHOW::RTS_HandleData(void)
         #if ENABLED(FILAMENT_RUNOUT_SENSOR)
           if ((1 == READ(FIL_RUNOUT_PIN)) && (runout.enabled == true))
           {
+            RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);     
+            RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);            
             RTS_SndData(ExchangePageBase + 46, ExchangepageAddr);
             change_page_font = 46;
             sdcard_pause_check = false;
@@ -5606,9 +5602,10 @@ void RTS_CommandPause(void)
   {
         rtscheck.RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
         rtscheck.RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);
-        rtscheck.RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);    
-        rtscheck.RTS_SndData(ExchangePageBase + 10, ExchangepageAddr);
-        change_page_font = 10;
+        rtscheck.RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);
+        rtscheck.RTS_SndData(ExchangePageBase + 13, ExchangepageAddr);
+        change_page_font = 13;
+
     // card.pauseSDPrint();
     // print_job_timer.pause();
     // pause_action_flag = true; 

@@ -51,7 +51,7 @@
  * M1: Conditional stop   - Wait for user button press on LCD
  */
 void GcodeSuite::M0_M1() {
-  TERN_(E3S1PRO_RTS, RTS_CommandPause());
+
   millis_t ms = 0;
   if (parser.seenval('P')) ms = parser.value_millis();              // Milliseconds to wait
   if (parser.seenval('S')) ms = parser.value_millis_from_seconds(); // Seconds to wait
@@ -95,6 +95,7 @@ void GcodeSuite::M0_M1() {
       hostui.continue_prompt(parser.codenum ? F("M1 Stop") : F("M0 Stop"));
   #endif
 
+  TERN_(E3S1PRO_RTS, RTS_CommandPause());
   TERN_(HAS_RESUME_CONTINUE, wait_for_user_response(ms));
 
   TERN_(HAS_MARLINUI_MENU, ui.reset_status());
