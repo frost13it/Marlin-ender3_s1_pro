@@ -287,9 +287,6 @@ void PrintJobRecovery::save(const bool force/*=false*/, const float zraise/*=POW
     #endif
 
     write();
-    #if ENABLED(E3S1PRO_RTS)
-      SERIAL_ECHO_MSG("current_position.z:", current_position.z);
-    #endif
 
   }
 }

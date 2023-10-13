@@ -113,7 +113,7 @@ bool power_off_type_yes = false;
 uint8_t old_leveling = 0;
 uint8_t bltouch_tramming = 0;
 uint8_t leveling_running = 0;
-
+uint8_t current_point = 255;
 int touchscreen_requested_mesh = 0;
 
 const float manual_feedrate_mm_m[] = {50 * 60, 50 * 60, 4 * 60, 60};
@@ -796,27 +796,7 @@ void RTSSHOW::RTS_Init(void)
     if (!IS_SD_INSERTED()) { delay(50); card.mount(); }
     if (IS_SD_INSERTED()) recovery.check();
   #endif
-/**
-  uint8_t guiVersion, osVersion;
-  bool success = readDisplayVersion(guiVersion, osVersion);
-  if (success) {
-    // Display the received display version
-    SERIAL_ECHO("Display Version: GUI ");
-    SERIAL_ECHO(guiVersion);
-    SERIAL_ECHO(", OS ");
-    SERIAL_ECHOLN(osVersion);
-  } else {
-    // Handle the case where reading the display version failed
-    SERIAL_ECHOLN("Error: Failed to read display version during initialization.");
-    // You can take appropriate action here, e.g., retry, display an error message, etc.
-  }
 
-  uint16_t addressToRead = 0x000F;  
-  // Read the text field content from the display at the given address
-  String textFieldContent = RTS_ReadTextField(addressToRead);
-  // Print the received text field content to the serial monitor for testing
-  SERIAL_ECHO_MSG("Value of variable at address 0x17D8: ", textFieldContent.c_str());
-*/
   delay(50);
 
   last_zoffset = zprobe_zoffset = probe.offset.z;
@@ -3089,6 +3069,7 @@ void RTSSHOW::RTS_HandleData(void)
             RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
             change_page_font = 40;
           }else{
+            //waitway = 15;            
             if (lcd_rts_settings.max_points == 5){
               rtscheck.RTS_SndData(ExchangePageBase + 81, ExchangepageAddr);
               change_page_font = 81;
@@ -4570,6 +4551,70 @@ void RTSSHOW::RTS_HandleData(void)
         lcd_rts_settings.standby_time_seconds = (uint8_t)recdat.data[0];
       setTouchScreenConfiguration();
       break;
+
+    case EditMeshpoint: 
+    {
+      current_point = recdat.data[0] - 1;
+      uint8_t y_probe_point = current_point / lcd_rts_settings.max_points;
+      uint8_t x_probe_point;
+      if (y_probe_point % 2 == 0)
+      {
+        x_probe_point = current_point % lcd_rts_settings.max_points;
+      }
+      else
+      {
+        x_probe_point = lcd_rts_settings.max_points - 1 - (current_point % lcd_rts_settings.max_points);
+      }
+      if (current_point >= 0  && current_point <= 100) {
+        RTS_SndData(bedlevel.z_values[x_probe_point][y_probe_point] * 1000, CURRENT_MESH_POINT);
+      }
+    }
+      break;
+
+    case CurrentMeshpoint: 
+    {
+      if (current_point >= 0  && current_point <= 100) {
+        float new_point_height;
+        if(recdat.data[0] >= 32768)
+        {
+          new_point_height = ((float)recdat.data[0] - 65536) / 1000;
+        }
+        else
+        {
+          new_point_height = ((float)recdat.data[0]) / 1000;
+        } 
+        RTS_SndData(new_point_height * 1000, CURRENT_MESH_POINT);
+        if (current_point == 1){
+        RTS_SndData(new_point_height * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP);
+        }else{
+        RTS_SndData(new_point_height * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + current_point * 2);        
+        }
+
+        uint8_t point_index = current_point;
+        uint8_t y = point_index / lcd_rts_settings.max_points;
+        uint8_t x;
+        if (y % 2 == 0)
+        {
+          x = point_index % lcd_rts_settings.max_points;
+        }
+        else
+        {
+          x = lcd_rts_settings.max_points - 1 - (point_index % lcd_rts_settings.max_points);
+        }    
+        char cmd_point[39];   
+        const char* sign = (new_point_height < 0) ? "-" : "";
+        int intPart = abs(static_cast<int>(new_point_height));
+        int fracPart = abs(static_cast<int>((new_point_height - static_cast<int>(new_point_height)) * 1000));
+        snprintf(cmd_point, sizeof(cmd_point), "M421 I%d J%d Z%s%d.%03d", static_cast<int>(x), static_cast<int>(y), sign, intPart, fracPart);
+        queue.enqueue_now_P(cmd_point);
+        //char sign = (new_point_height < 0) ? '-' : ' ';
+        //int intPart = abs(static_cast<int>(new_point_height));
+        //int fracPart = abs(static_cast<int>((new_point_height - static_cast<int>(new_point_height)) * 1000));
+        //snprintf(cmd_point, sizeof(cmd_point), "M421 I%d J%d Z%c%d.%03d", static_cast<int>(x), static_cast<int>(y), sign, intPart, fracPart);
+        //queue.enqueue_now_P(cmd_point);
+      }
+    }
+      break; 
 
     case SelectFileKey:
       if (RTS_SD_Detected()) {

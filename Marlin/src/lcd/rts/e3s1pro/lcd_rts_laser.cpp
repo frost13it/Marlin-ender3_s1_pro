@@ -115,7 +115,7 @@ static void RTS_line_to_filelist_laser() {
       j = TEXTBYTELEN - 1;
     }
     strncpy(CardRecbuf.Cardshowfilename[num], card.longFilename, j);
-        #if ENABLED(FILAMENT_RUNOUT_SENSOR_DEBUG)
+        #if ENABLED(LCD_RTS_DEBUG)
         SERIAL_ECHO("inside rts_line_to_filelist_laser");
         SERIAL_ECHOLN("");
         #endif
@@ -208,7 +208,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
 
         CardUpdate = true;
         CardRecbuf.recordcount = -1;
-        #if ENABLED(FILAMENT_RUNOUT_SENSOR_DEBUG)
+        #if ENABLED(LCD_RTS_DEBUG)
         SERIAL_ECHOPGM("Working dir is: ");
         SERIAL_ECHO(card.getWorkDirName());
         SERIAL_ECHOLN("");
@@ -217,7 +217,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         currentdir = card.getWorkDirName();
         if (card.getWorkDirName() != std::string("/")) {
         card.cdup();
-        #if ENABLED(FILAMENT_RUNOUT_SENSOR_DEBUG)
+        #if ENABLED(LCD_RTS_DEBUG)
         SERIAL_ECHO("chroot done to:");
         SERIAL_ECHO(card.getWorkDirName());
         SERIAL_ECHOLN("");

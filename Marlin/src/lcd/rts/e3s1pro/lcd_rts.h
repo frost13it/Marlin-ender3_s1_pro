@@ -510,6 +510,8 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define SET_ABL_PROBE_MARGIN_Y_TEXT_VP      0x1166
 #define SET_MESH_SIZE_TEXT_VP               0x1972
 #define SET_MESH_SIZE_SIZE_TEXT_VP          0x196A
+#define CURRENT_MESH_POINT                  0x2220
+
 //#define SET_UBL_PROBE_MARGIN_MINX_VP        0x1982
 //#define SET_UBL_PROBE_MARGIN_MAXX_VP        0x1984
 //#define SET_UBL_PROBE_MARGIN_MINY_VP        0x1986
@@ -766,7 +768,9 @@ typedef enum PROC_COM : int8_t {
    SetUblProbeMarginMaxX    = 91,
    SetUblProbeMarginMinY    = 92,
    SetUblProbeMarginMaxY    = 93,
-   SetAblProbeMarginY       = 94   
+   SetAblProbeMarginY       = 94,
+   EditMeshpoint            = 95,
+   CurrentMeshpoint         = 96
 } proc_command_t; 
 
 const unsigned long Addrbuf[] = 
@@ -868,6 +872,8 @@ const unsigned long Addrbuf[] =
    0x1986, // SetUblProbeMarginMinY
    0x1988, // SetUblProbeMarginMaxY
    0x1164, // SetAblProbeMarginY 
+   0x2218, // EditMeshpoint
+   0x2220, // CurrentMeshpoint
   0
 };
 

@@ -35,7 +35,7 @@ DwinBrightness_t printBri; // 预览图结构体
 #define JPG_BYTES_PER_FRAME 240   // 每一帧发送的字节数（图片数据）
 #define JPG_WORD_PER_FRAME  (JPG_BYTES_PER_FRAME/2)   // 每一帧发送的字数（图片数据）
 #define SizeofDatabuf2		300
-#define USER_LOGIC_DEUBG 1
+#define USER_LOGIC_DEUBG 0
 
 #ifdef LCD_SERIAL_PORT
   #define LCDSERIAL LCD_SERIAL
@@ -210,14 +210,9 @@ bool gcodePicGetDataFormBase64(char * buf, unsigned long picLen, bool resetFlag)
     int getBase64Cnt = 0;                      // 从U盘获取的，base64编码的数据
     static int deCodeBase64Cnt = 0;     // 已经解码得了数据
     unsigned long deCodePicLenCnt = 0;          // 保存已经获取的图片数据
-    static char lCmdBuf[100];
+    //static char lCmdBuf[100];
     bool getPicEndFlag = false;
 
-
-    if (ENABLED(USER_LOGIC_DEUBG)) 
-        //SERIAL_ECHOLNPAIR("\r\n gcodePicGetDataFormBase64(...), .deCodeBase64Cnt = ", deCodeBase64Cnt,
-        //                    "\r\n gcodePicGetDataFormBase64(...), .deCodePicLenCnt = ", deCodePicLenCnt,
-        //                    "\r\n gcodePicGetDataFormBase64(...), .picLen = ", picLen);
 
     //  清除上次记录
     if (resetFlag)
@@ -232,14 +227,6 @@ bool gcodePicGetDataFormBase64(char * buf, unsigned long picLen, bool resetFlag)
 
     if ((deCodeBase64Cnt > 0) && (deCodePicLenCnt < picLen))
     {
-        if (ENABLED(USER_LOGIC_DEUBG)) 
-        {
-            SERIAL_ECHO("\r\n There are parameters left last time ");
-            memset(lCmdBuf, 0, sizeof(lCmdBuf));
-            sprintf(lCmdBuf, "\r\n ------------------------------deCodeBase64Cnt = %d; base64_out[3 - deCodeBase64Cnt] = %x",deCodeBase64Cnt,base64_out[3 - deCodeBase64Cnt]);
-            SERIAL_ECHO(lCmdBuf);
-        }
-
         for (int deCode = deCodeBase64Cnt; deCode > 0; deCode--)
         {
             if (deCodePicLenCnt < picLen)
@@ -251,11 +238,6 @@ bool gcodePicGetDataFormBase64(char * buf, unsigned long picLen, bool resetFlag)
         }
 
     }
-
-    if (ENABLED(USER_LOGIC_DEUBG)) 
-        //SERIAL_ECHOLNPAIR("\r\n gcodePicGetDataFormBase64(...), ..deCodeBase64Cnt = ", deCodeBase64Cnt,
-        //                    "\r\n gcodePicGetDataFormBase64(...), ..deCodePicLenCnt = ", deCodePicLenCnt);
-
     
     while(deCodePicLenCnt < picLen)
     {
@@ -281,11 +263,6 @@ bool gcodePicGetDataFormBase64(char * buf, unsigned long picLen, bool resetFlag)
             base64_out[i] = 0;
         deCodeBase64Cnt = 3;  // 这里强制给3，因为始终是4 --> 3 字符
 
-        // if (ENABLED(USER_LOGIC_DEUBG)) {
-        //     memset(lCmdBuf, 0, sizeof(lCmdBuf));
-        //     sprintf(lCmdBuf, "\r\n deCodePicLenCnt = %d ;in = %s; ", deCodePicLenCnt, base64_in);
-        //     SERIAL_ECHO(lCmdBuf);
-        // }
         int test = deCodeBase64Cnt;
         for (int deCode = 0; deCode < test; deCode++)
         {
@@ -301,8 +278,6 @@ bool gcodePicGetDataFormBase64(char * buf, unsigned long picLen, bool resetFlag)
                     ((buf[deCodePicLenCnt-1] == 0xD9 && buf[deCodePicLenCnt-2] == 0xFF) || (buf[deCodePicLenCnt-1] == 0xd9 && buf[deCodePicLenCnt-2] == 0xff)))
                     {
                         getPicEndFlag = true;
-                        //if (ENABLED(USER_LOGIC_DEUBG)) 
-                            //SERIAL_ECHOLNPAIR("\r\n ---------------- deCodePicLenCnt = ", deCodePicLenCnt);
                     }
 
                 deCodeBase64Cnt--;
@@ -314,9 +289,6 @@ bool gcodePicGetDataFormBase64(char * buf, unsigned long picLen, bool resetFlag)
         hal.watchdog_refresh();
     }
 
-    if (ENABLED(USER_LOGIC_DEUBG)) 
-        //SERIAL_ECHOLNPAIR("\r\n gcodePicGetDataFormBase64(...), ....deCodePicLenCnt = ", deCodePicLenCnt);
-        
     return true;
 }
 
@@ -346,9 +318,6 @@ bool gcodePicDataRead(unsigned long picLenth, char isDisplay, unsigned long jpgA
     unsigned long j;
 
     picLen = picLenth;//(picLenth / 4) * 3; 
-    if (ENABLED(USER_LOGIC_DEUBG)) 
-        //SERIAL_ECHOLNPAIR("\r\n gcodePicDataRead(...), picLenth = ", picLenth,
-        //                    "\r\n gcodePicDataRead(...), picLen = ", picLen);
 
     gcodePicGetDataFormBase64(picBuf, 0, true);
 
