@@ -4584,7 +4584,7 @@ void RTSSHOW::RTS_HandleData(void)
           new_point_height = ((float)recdat.data[0]) / 1000;
         } 
         RTS_SndData(new_point_height * 1000, CURRENT_MESH_POINT);
-        if (current_point == 1){
+        if (current_point == 0){
         RTS_SndData(new_point_height * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP);
         }else{
         RTS_SndData(new_point_height * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + current_point * 2);        
