@@ -439,9 +439,6 @@ void PrintJobRecovery::resume() {
   // Home the axes that can safely be homed, and
   // establish the current position as best we can.
   //
-  #if ENABLED(E3S1PRO_RTS) && DISABLED(NOZZLE_CLEAN_FEATURE)
-    xyze_pos_t save_pos = info.current_position;
-  #endif
   PROCESS_SUBCOMMANDS_NOW(F("G92.9E0")); // Reset E to 0
 
   #if Z_HOME_TO_MAX
@@ -461,7 +458,7 @@ void PrintJobRecovery::resume() {
       #define HOMING_Z_DOWN 1
     #endif
 
-    float z_now = info.flag.raised ? z_raised : z_print;
+    float z_now = info.flag.raised ? z_raised : z_print + info.zraise + 10.000;
 
     #if !HOMING_Z_DOWN
       // Set Z to the real position
@@ -498,16 +495,6 @@ void PrintJobRecovery::resume() {
       // The physical Z was adjusted at power-off so undo the M420S1 correction to Z with G92.9.
       PROCESS_SUBCOMMANDS_NOW(TS(F("G92.9Z"), p_float_t(z_now, 1)));
     #endif
-  #endif
-
-  #if ENABLED(E3S1PRO_RTS) && DISABLED(NOZZLE_CLEAN_FEATURE)
-    // Parking head to allow clean before of heating the hotend
-    gcode.process_subcommands_now(F("G27"));
-    rtscheck.RTS_SndData(ExchangePageBase + 13, ExchangepageAddr);
-    change_page_font = 13;
-    sdcard_pause_check = true;    
-    wait_for_user_response();
-    info.current_position = save_pos;
   #endif
 
   #if ENABLED(POWER_LOSS_RECOVER_ZHOME)
