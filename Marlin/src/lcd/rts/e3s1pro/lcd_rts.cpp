@@ -848,6 +848,8 @@ void RTSSHOW::RTS_Init(void)
   RTS_SndData(Y_MIN_POS * 100, Y_MIN_POS_VP);
 
   #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
+    bedlevel.max_points.x = lcd_rts_settings.max_points;
+    bedlevel.max_points.y = lcd_rts_settings.max_points;  
     const char text_margin_x[] = "MarginX:";
     RTS_SndData(text_margin_x, SET_ABL_PROBE_MARGIN_X_TEXT_VP);
     const char text_margin_y[] = "MarginY:";
