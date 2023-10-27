@@ -72,7 +72,7 @@ void safe_delay(millis_t ms);           // Delay ensuring that temperatures are 
     inline bool marked(const xy_int8_t &xy)       { return marked(xy.x, xy.y); }
   };
 
-  typedef FlagBits<GRID_LIMIT, GRID_LIMIT> MeshFlags;
+  typedef FlagBits<GRID_MAX_POINTS_X, GRID_MAX_POINTS_Y> MeshFlags;
 
 #endif
 

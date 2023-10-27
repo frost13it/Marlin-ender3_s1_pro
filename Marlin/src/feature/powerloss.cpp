@@ -102,6 +102,9 @@ PrintJobRecovery recovery;
     gcode.process_subcommands_now(cmd); \
   }while(0)
 
+xyze_pos_t resume_pos;
+uint32_t resume_sdpos;
+
 /**
  * Clear the recovery info
  */
@@ -176,6 +179,8 @@ void PrintJobRecovery::load() {
   if (exists()) {
     open(true);
     (void)file.read(&info, sizeof(info));
+    resume_pos = info.current_position;
+    resume_sdpos = info.sdpos;    
     close();
   }
   debug(F("Load"));
@@ -390,7 +395,7 @@ void PrintJobRecovery::write() {
  * Resume the saved print job
  */
 void PrintJobRecovery::resume() {
-  const uint32_t resume_sdpos = info.sdpos; // Get here before the stepper ISR overwrites it
+  //const uint32_t resume_sdpos = info.sdpos; // Get here before the stepper ISR overwrites it
 
   // Apply the dry-run flag if enabled
   if (info.flag.dryrun) marlin_debug_flags |= MARLIN_DEBUG_DRYRUN;
@@ -432,16 +437,14 @@ void PrintJobRecovery::resume() {
   #endif
 
   // Interpret the saved Z according to flags
-  const float z_print = info.current_position.z,
+  const float z_print = resume_pos.z,
               z_raised = z_print + info.zraise;
 
+  DEBUG_ECHO_MSG(">>> z_print: ", z_print, " current_position.z: ", current_position.z, " info.current_position.z: ", info.current_position.z);
   //
   // Home the axes that can safely be homed, and
   // establish the current position as best we can.
   //
-  #if ENABLED(E3S1PRO_RTS) && DISABLED(NOZZLE_CLEAN_FEATURE)
-    xyze_pos_t save_pos = info.current_position;
-  #endif
   PROCESS_SUBCOMMANDS_NOW(F("G92.9E0")); // Reset E to 0
 
   #if Z_HOME_TO_MAX
@@ -461,7 +464,7 @@ void PrintJobRecovery::resume() {
       #define HOMING_Z_DOWN 1
     #endif
 
-    float z_now = info.flag.raised ? z_raised : z_print;
+    float z_now = info.flag.raised ? z_raised : resume_pos.z + info.zraise + Z_CLEARANCE_DEPLOY_PROBE;
 
     #if !HOMING_Z_DOWN
       // Set Z to the real position
@@ -498,16 +501,6 @@ void PrintJobRecovery::resume() {
       // The physical Z was adjusted at power-off so undo the M420S1 correction to Z with G92.9.
       PROCESS_SUBCOMMANDS_NOW(TS(F("G92.9Z"), p_float_t(z_now, 1)));
     #endif
-  #endif
-
-  #if ENABLED(E3S1PRO_RTS) && DISABLED(NOZZLE_CLEAN_FEATURE)
-    // Parking head to allow clean before of heating the hotend
-    gcode.process_subcommands_now(F("G27"));
-    rtscheck.RTS_SndData(ExchangePageBase + 13, ExchangepageAddr);
-    change_page_font = 13;
-    sdcard_pause_check = true;    
-    wait_for_user_response();
-    info.current_position = save_pos;
   #endif
 
   #if ENABLED(POWER_LOSS_RECOVER_ZHOME)
@@ -584,22 +577,19 @@ void PrintJobRecovery::resume() {
 
   // Move back over to the saved XY
   PROCESS_SUBCOMMANDS_NOW(TS(
-    F("G1F3000X"), p_float_t(info.current_position.x, 3), 'Y', p_float_t(info.current_position.y, 3)
+    F("G1F3000X"), p_float_t(resume_pos.x, 3), 'Y', p_float_t(resume_pos.y, 3)
   ));
 
   // Move back down to the saved Z for printing
-  PROCESS_SUBCOMMANDS_NOW(TS(F("G1F600Z"), p_float_t(z_print, 3)));
+  PROCESS_SUBCOMMANDS_NOW(TS(F("G1F600Z"), p_float_t(resume_pos.z, 3)));
 
-  //DEBUG_ECHOLN(cmd);
-  DEBUG_ECHO_MSG(">>> z_print:", z_print, "current_position.z:", current_position.z);
-  PROCESS_SUBCOMMANDS_NOW(F("M114"));
-  //safe_delay(10000);
+  DEBUG_ECHO_MSG(">>> z_print: ", z_print, " z_now: ", z_now, " current_position.z: ", current_position.z, " info.current_position.z: ", info.current_position.z);
 
   // Restore the feedrate
   PROCESS_SUBCOMMANDS_NOW(TS(F("G1F"), info.feedrate));
 
   // Restore E position with G92.9
-  PROCESS_SUBCOMMANDS_NOW(TS(F("G92.9E"), p_float_t(info.current_position.e, 3)));
+  PROCESS_SUBCOMMANDS_NOW(TS(F("G92.9E"), p_float_t(resume_pos.e, 3)));
 
   TERN_(GCODE_REPEAT_MARKERS, repeat = info.stored_repeat);
   TERN_(HAS_HOME_OFFSET, home_offset = info.home_offset);
@@ -628,15 +618,21 @@ void PrintJobRecovery::resume() {
           DEBUG_ECHO(info.current_position[i]);
         }
         DEBUG_EOL();
+        DEBUG_ECHOPGM("resume_pos: ");
+        LOOP_LOGICAL_AXES(i) {
+          if (i) DEBUG_CHAR(',');
+          DEBUG_ECHO(resume_pos[i]);
+        }   
+        DEBUG_EOL();
 
         DEBUG_ECHOLNPGM("feedrate: ", info.feedrate);
 
         DEBUG_ECHOLNPGM("zraise: ", info.zraise, " ", info.flag.raised ? "(before)" : "");
 
         #if ENABLED(GCODE_REPEAT_MARKERS)
-          DEBUG_ECHOLNPGM("repeat index: ", info.stored_repeat.index);
-          for (uint8_t i = 0; i < info.stored_repeat.index; ++i)
-            DEBUG_ECHOLNPGM("..... sdpos: ", info.stored_repeat.marker.sdpos, " count: ", info.stored_repeat.marker.counter);
+          DEBUG_ECHOLNPGM("repeat index: ", info.stored_repeat.get_index());
+          for (uint8_t i = 0; i < info.stored_repeat.get_index(); ++i)
+            DEBUG_ECHOLNPGM("..... marker[", i, "] sdpos: ", info.stored_repeat.get_marker_sdpos(i), " count: ", info.stored_repeat.get_marker_counter(i));
         #endif
 
         #if HAS_HOME_OFFSET
@@ -710,6 +706,7 @@ void PrintJobRecovery::resume() {
 
         DEBUG_ECHOLNPGM("sd_filename: ", info.sd_filename);
         DEBUG_ECHOLNPGM("sdpos: ", info.sdpos);
+        DEBUG_ECHOLNPGM("resume_sdpos: ", resume_sdpos);
         DEBUG_ECHOLNPGM("print_job_elapsed: ", info.print_job_elapsed);
 
         DEBUG_ECHOPGM("axis_relative:");

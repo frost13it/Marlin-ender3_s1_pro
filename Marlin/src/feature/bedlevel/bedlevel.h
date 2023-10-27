@@ -63,11 +63,7 @@ class TemporaryBedLevelingState {
 
 #if HAS_MESH
 
-  #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-    typedef float bed_mesh_t[GRID_LIMIT][GRID_LIMIT];
-  #elif ENABLED(AUTO_BED_LEVELING_UBL)
-    typedef float bed_mesh_t[GRID_MAX_POINTS_X][GRID_MAX_POINTS_Y];
-  #endif
+  typedef float bed_mesh_t[GRID_MAX_POINTS_X][GRID_MAX_POINTS_Y];
 
   #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
     #include "abl/bbl.h"
@@ -75,11 +71,6 @@ class TemporaryBedLevelingState {
     #include "ubl/ubl.h"
   #elif ENABLED(MESH_BED_LEVELING)
     #include "mbl/mesh_bed_leveling.h"
-  #endif
-
-  #if ENABLED(E3S1PRO_RTS)
-    #define Z_VALUES(X,Y) Z_VALUES_ARR[X][Y]
-    #define _GET_MESH_POS(M) { _GET_MESH_X(M.a), _GET_MESH_Y(M.b) }
   #endif
 
   #if ANY(AUTO_BED_LEVELING_BILINEAR, MESH_BED_LEVELING)
@@ -91,8 +82,8 @@ class TemporaryBedLevelingState {
     /**
      * Print calibration results for plotting or manual frame adjustment.
      */
-    void print_2d_array(const uint8_t sx, const uint8_t sy, const uint8_t precision, const float *values);
-
+    void print_2d_array(const uint8_t sx, const uint8_t sy, const uint8_t precision, const float *values, uint8_t print_x=0, uint8_t print_y=0);
+    #define PRINT_2D_ARRAY(X, Y, P, V, M...) print_2d_array(X, Y, P, V, M)
   #endif
 
   struct mesh_index_pair {

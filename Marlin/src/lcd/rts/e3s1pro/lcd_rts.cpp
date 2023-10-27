@@ -314,16 +314,13 @@ void resetSettings() {
   lcd_rts_settings.standby_brightness    = 20;
   lcd_rts_settings.screen_brightness     = 100;
   lcd_rts_settings.standby_time_seconds  = 60;
-  //lcd_rts_settings.bed_size_x = 235.00;
-  //lcd_rts_settings.bed_size_y = 235.00;
-  //lcd_rts_settings.x_min_pos = -2.00;
-  ////lcd_rts_settings.y_min_pos = -2.00;
-  //lcd_rts_settings.x_max_pos = 235.00;
-  //lcd_rts_settings.y_max_pos = 235.00;
-  //lcd_rts_settings.z_max_pos = 270.00;
-    lcd_rts_settings.max_points = GRID_MAX_POINTS_X;
   #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-    lcd_rts_settings.grid_limit = GRID_MAX_POINTS_X;
+    lcd_rts_settings.max_points = 5;
+  #endif
+  #if ENABLED(AUTO_BED_LEVELING_UBL)
+    lcd_rts_settings.max_points = GRID_MAX_POINTS_X;
+  #endif
+  #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
     lcd_rts_settings.abl_probe_margin_x = 45;
     lcd_rts_settings.abl_probe_min_margin_x = 45;    
     lcd_rts_settings.abl_probe_margin_y = 45;
@@ -347,7 +344,6 @@ void loadSettings(const char * const buff) {
   #if ENABLED(LCD_RTS_DEBUG)  
     SERIAL_ECHOLNPGM("Saved settings: ");
     SERIAL_ECHOLNPGM("settings_size: ", lcd_rts_settings.settings_size);
-    SERIAL_ECHOLNPGM("data_size: ", sizeof(lcd_rts_data_t));    
     SERIAL_ECHOLNPGM("settings_version: ", lcd_rts_settings.settings_version);
     SERIAL_ECHOLNPGM("screen_rotation: ", lcd_rts_settings.screen_rotation);
     SERIAL_ECHOLNPGM("display_sound: ", lcd_rts_settings.display_sound);
@@ -357,28 +353,12 @@ void loadSettings(const char * const buff) {
     SERIAL_ECHOLNPGM("standby_brightness: ", lcd_rts_settings.standby_brightness);
     SERIAL_ECHOLNPGM("standby_time_seconds: ", lcd_rts_settings.standby_time_seconds); 
     SERIAL_ECHOLNPGM("------------------");
-    //SERIAL_ECHOLNPGM("bed_size_x: ", lcd_rts_settings.bed_size_x);
-    //SERIAL_ECHOLNPGM("bed_size_y: ", lcd_rts_settings.bed_size_y);    
-    //SERIAL_ECHOLNPGM("x_min_pos: ", lcd_rts_settings.x_min_pos);
-    //SERIAL_ECHOLNPGM("y_min_pos: ", lcd_rts_settings.y_min_pos);
-    //SERIAL_ECHOLNPGM("x_max_pos: ", lcd_rts_settings.x_max_pos);
-    //SERIAL_ECHOLNPGM("y_max_pos: ", lcd_rts_settings.y_max_pos);
-    //SERIAL_ECHOLNPGM("z_max_pos: ", lcd_rts_settings.z_max_pos);
     SERIAL_ECHOLNPGM("max_points: ", lcd_rts_settings.max_points);
     #if ENABLED(AUTO_BED_LEVELING_BILINEAR)    
-      SERIAL_ECHOLNPGM("grid_limit: ", lcd_rts_settings.grid_limit);    
       SERIAL_ECHOLNPGM("abl_probe_margin x: ", lcd_rts_settings.abl_probe_margin_x);
       SERIAL_ECHOLNPGM("abl_probe_min_margin x: ", lcd_rts_settings.abl_probe_min_margin_x);      
       SERIAL_ECHOLNPGM("abl_probe_margin y: ", lcd_rts_settings.abl_probe_margin_y);
       SERIAL_ECHOLNPGM("abl_probe_min_margin y: ", lcd_rts_settings.abl_probe_min_margin_y);
-      SERIAL_ECHOLNPGM("probing_margin x: ", lcd_rts_data.probing_margin_x);
-      SERIAL_ECHOLNPGM("probing_margin y: ", lcd_rts_data.probing_margin_y);      
-    #endif
-    #if ENABLED(AUTO_BED_LEVELING_UBL)      
-    //  SERIAL_ECHOLNPGM("ubl_probe_margin_l: ", lcd_rts_settings.ubl_probe_margin_l);
-    //  SERIAL_ECHOLNPGM("ubl_probe_margin_r: ", lcd_rts_settings.ubl_probe_margin_r);
-    //  SERIAL_ECHOLNPGM("ubl_probe_margin_f: ", lcd_rts_settings.ubl_probe_margin_f);
-    //  SERIAL_ECHOLNPGM("ubl_probe_margin_b: ", lcd_rts_settings.ubl_probe_margin_b);
     #endif
     SERIAL_ECHOLNPGM("gcode_preview: ", lcd_rts_settings.gcode_preview);
     SERIAL_ECHOLNPGM("lcd_rts_debug: ", lcd_rts_settings.lcd_rts_debug);
@@ -391,7 +371,6 @@ void saveSettings(char * const buff) {
   #if ENABLED(LCD_RTS_DEBUG)  
     SERIAL_ECHOLNPGM("Saved settings: ");
     SERIAL_ECHOLNPGM("settings_size: ", lcd_rts_settings.settings_size);
-    SERIAL_ECHOLNPGM("data_size: ", sizeof(lcd_rts_data_t));     
     SERIAL_ECHOLNPGM("settings_version: ", lcd_rts_settings.settings_version);
     SERIAL_ECHOLNPGM("screen_rotation: ", lcd_rts_settings.screen_rotation);
     SERIAL_ECHOLNPGM("display_sound: ", lcd_rts_settings.display_sound);
@@ -401,22 +380,12 @@ void saveSettings(char * const buff) {
     SERIAL_ECHOLNPGM("standby_brightness: ", lcd_rts_settings.standby_brightness);
     SERIAL_ECHOLNPGM("standby_time_seconds: ", lcd_rts_settings.standby_time_seconds); 
     SERIAL_ECHOLNPGM("------------------");
-    //SERIAL_ECHOLNPGM("bed_size_x: ", lcd_rts_settings.bed_size_x);
-    //SERIAL_ECHOLNPGM("bed_size_y: ", lcd_rts_settings.bed_size_y);    
-    //SERIAL_ECHOLNPGM("x_min_pos: ", lcd_rts_settings.x_min_pos);
-    //SERIAL_ECHOLNPGM("y_min_pos: ", lcd_rts_settings.y_min_pos);
-    //SERIAL_ECHOLNPGM("x_max_pos: ", lcd_rts_settings.x_max_pos);
-    //SERIAL_ECHOLNPGM("y_max_pos: ", lcd_rts_settings.y_max_pos);
-    //SERIAL_ECHOLNPGM("z_max_pos: ", lcd_rts_settings.z_max_pos);
     SERIAL_ECHOLNPGM("max_points: ", lcd_rts_settings.max_points);    
     #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-      SERIAL_ECHOLNPGM("grid_limit: ", lcd_rts_settings.grid_limit);    
       SERIAL_ECHOLNPGM("abl_probe_margin x: ", lcd_rts_settings.abl_probe_margin_x);
       SERIAL_ECHOLNPGM("abl_probe_min_margin x: ", lcd_rts_settings.abl_probe_min_margin_x);      
       SERIAL_ECHOLNPGM("abl_probe_margin y: ", lcd_rts_settings.abl_probe_margin_y);
-      SERIAL_ECHOLNPGM("abl_probe_min_margin y: ", lcd_rts_settings.abl_probe_min_margin_y);
-      SERIAL_ECHOLNPGM("probing_margin x: ", lcd_rts_data.probing_margin_x);
-      SERIAL_ECHOLNPGM("probing_margin y: ", lcd_rts_data.probing_margin_y);      
+      SERIAL_ECHOLNPGM("abl_probe_min_margin y: ", lcd_rts_settings.abl_probe_min_margin_y);   
     #endif
     #if ENABLED(AUTO_BED_LEVELING_UBL)      
     //  SERIAL_ECHOLNPGM("ubl_probe_margin_l: ", lcd_rts_settings.ubl_probe_margin_l);
@@ -883,12 +852,15 @@ void RTSSHOW::RTS_Init(void)
     RTS_SndData(text_margin_x, SET_ABL_PROBE_MARGIN_X_TEXT_VP);
     const char text_margin_y[] = "MarginY:";
     RTS_SndData(text_margin_y, SET_ABL_PROBE_MARGIN_Y_TEXT_VP);    
-    const char text_mesh_size[] = "Mesh size:";
-    RTS_SndData(text_mesh_size, SET_MESH_SIZE_TEXT_VP); 
+    //const char text_mesh_size[] = "Mesh size:";
+    //RTS_SndData(text_mesh_size, SET_MESH_SIZE_TEXT_VP);
     char text_size[10]; // Make sure it's large enough to hold the result
+    sprintf(text_size, "     ");
+    RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);
     sprintf(text_size, "%dx%d", lcd_rts_settings.max_points, lcd_rts_settings.max_points);
-    RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);    
+    RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);
     RTS_SndData(lcd_rts_settings.max_points, SET_GRID_MAX_POINTS_VP);
+    RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT);
     RTS_SndData(lcd_rts_settings.abl_probe_margin_x, SET_ABL_PROBE_MARGIN_X_VP);
     RTS_SndData(lcd_rts_settings.abl_probe_margin_y, SET_ABL_PROBE_MARGIN_Y_VP);    
   #endif
@@ -898,15 +870,11 @@ void RTSSHOW::RTS_Init(void)
     const char text_margin_y[] = "n.a.";
     RTS_SndData(text_margin_y, SET_ABL_PROBE_MARGIN_Y_TEXT_VP);    
     RTS_SndData(lcd_rts_settings.max_points, SET_GRID_MAX_POINTS_VP);
-    const char text_mesh_size[] = "Mesh size:";
-    RTS_SndData(text_mesh_size, SET_MESH_SIZE_TEXT_VP); 
     char text_size[10]; // Make sure it's large enough to hold the result
+    sprintf(text_size, "     ");
+    RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);
     sprintf(text_size, "%dx%d", lcd_rts_settings.max_points, lcd_rts_settings.max_points);
     RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);
-    //RTS_SndData(lcd_rts_settings.ubl_probe_margin_l, SET_UBL_PROBE_MARGIN_MINX_VP);
-    //RTS_SndData(lcd_rts_settings.ubl_probe_margin_r, SET_UBL_PROBE_MARGIN_MAXX_VP);
-    //RTS_SndData(lcd_rts_settings.ubl_probe_margin_f, SET_UBL_PROBE_MARGIN_MINY_VP);
-    //RTS_SndData(lcd_rts_settings.ubl_probe_margin_b, SET_UBL_PROBE_MARGIN_MAXY_VP);                  
   #endif
 
   if (lcd_rts_settings.max_points >= 7){
@@ -929,6 +897,11 @@ void RTSSHOW::RTS_Init(void)
     bool zig = false;
     int8_t inStart, inStop, inInc, showcount;
     showcount = 0;
+    // Initialize min_value and max_value with the first value in the range
+    float min_value = bedlevel.z_values[0][0]; 
+    float max_value = bedlevel.z_values[0][0]; 
+    float deviation; // Variable to hold the deviation
+    
     //settings.load();
     for (int y = 0; y < lcd_rts_settings.max_points; y++)
     {
@@ -947,14 +920,39 @@ void RTSSHOW::RTS_Init(void)
         inInc = 1;
       }
       zig ^= true;
+      
       for (int x = inStart; x != inStop; x += inInc)
       {
-        //SERIAL_ECHOLNPGM("value: ", bedlevel.z_values[x][y] * 1000);
-        RTS_SndData(bedlevel.z_values[x][y] * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
+        // Get the current z_value as a float
+        float current_z_value = bedlevel.z_values[x][y];
+        
+        // Check if it's the new minimum
+        if (current_z_value < min_value)
+        {
+          min_value = current_z_value;
+        }
+        
+        // Check if it's the new maximum
+        if (current_z_value > max_value)
+        {
+          max_value = current_z_value;
+        }
+        
+        // Send the current_z_value (as is, no scaling) to the display
+        RTS_SndData(current_z_value * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
         showcount++;
       }
     }
+    
+    // Calculate the deviation
+    deviation = max_value - min_value;
+    
+    // Send min_value, max_value, and deviation to the display
+    RTS_SndData(min_value * 1000, MESH_POINT_MIN);
+    RTS_SndData(max_value * 1000, MESH_POINT_MAX);
+    RTS_SndData(deviation * 1000, MESH_POINT_DEVIATION);
   #endif
+
   #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
     queue.enqueue_now_P(PSTR("M420 S1"));
   #endif
@@ -3090,19 +3088,19 @@ void RTSSHOW::RTS_HandleData(void)
           if (leveling_running == 0){
             RTS_SndData(AutoHomeFirstPoint, AUTO_BED_LEVEL_CUR_POINT_VP);
             RTS_SndData(lang + 10, AUTO_LEVELING_START_TITLE_VP);          
-            RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT);            
+            RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT);
             leveling_running = 1;
             bedlevel.reset();
             bool zig = false;
             int8_t inStart, inStop, inInc, showcount;
             showcount = 0;
             //settings.load();
-            for (int y = 0; y < lcd_rts_settings.max_points; y++)
+            for (int y = 0; y < GRID_MAX_POINTS_Y; y++)
             {
               // away from origin
               if (zig)
               {
-                inStart = lcd_rts_settings.max_points - 1;
+                inStart = GRID_MAX_POINTS_X - 1;
                 inStop = -1;
                 inInc = -1;
               }
@@ -3110,7 +3108,7 @@ void RTSSHOW::RTS_HandleData(void)
               {
                 // towards origin
                 inStart = 0;
-                inStop = lcd_rts_settings.max_points;
+                inStop = GRID_MAX_POINTS_X;
                 inInc = 1;
               }
               zig ^= true;
@@ -3151,12 +3149,13 @@ void RTSSHOW::RTS_HandleData(void)
             RTS_SndData(text_margin_x, SET_ABL_PROBE_MARGIN_X_TEXT_VP);
             const char text_margin_y[] = "MarginY:";
             RTS_SndData(text_margin_y, SET_ABL_PROBE_MARGIN_Y_TEXT_VP);
-            const char text_mesh_size[] = "Mesh size:";
-            RTS_SndData(text_mesh_size, SET_MESH_SIZE_TEXT_VP); 
             char text_size[10]; // Make sure it's large enough to hold the result
+            sprintf(text_size, "     ");
+            RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);
             sprintf(text_size, "%dx%d", lcd_rts_settings.max_points, lcd_rts_settings.max_points);
-            RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);                         
+            RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);
             RTS_SndData(lcd_rts_settings.max_points, SET_GRID_MAX_POINTS_VP);
+            RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT); 
             RTS_SndData(lcd_rts_settings.abl_probe_margin_x, SET_ABL_PROBE_MARGIN_X_VP);
             RTS_SndData(lcd_rts_settings.abl_probe_margin_y, SET_ABL_PROBE_MARGIN_Y_VP);            
           #endif
@@ -3165,16 +3164,12 @@ void RTSSHOW::RTS_HandleData(void)
             RTS_SndData(text_margin_x, SET_ABL_PROBE_MARGIN_X_TEXT_VP);
             const char text_margin_y[] = "n.a.";
             RTS_SndData(text_margin_y, SET_ABL_PROBE_MARGIN_Y_TEXT_VP);            
-            const char text_mesh_size[] = "Mesh size:";
-            RTS_SndData(text_mesh_size, SET_MESH_SIZE_TEXT_VP); 
             char text_size[10]; // Make sure it's large enough to hold the result
+            sprintf(text_size, "     ");
+            RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);
             sprintf(text_size, "%dx%d", lcd_rts_settings.max_points, lcd_rts_settings.max_points);
             RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);                      
             RTS_SndData(lcd_rts_settings.max_points, SET_GRID_MAX_POINTS_VP);
-            //RTS_SndData(lcd_rts_settings.ubl_probe_margin_l, SET_UBL_PROBE_MARGIN_MINX_VP);
-            //RTS_SndData(lcd_rts_settings.ubl_probe_margin_r, SET_UBL_PROBE_MARGIN_MAXX_VP);
-            //RTS_SndData(lcd_rts_settings.ubl_probe_margin_f, SET_UBL_PROBE_MARGIN_MINY_VP);
-            //RTS_SndData(lcd_rts_settings.ubl_probe_margin_b, SET_UBL_PROBE_MARGIN_MAXY_VP);            
           #endif
 
           if (lcd_rts_settings.max_points == 5){
@@ -3196,12 +3191,17 @@ void RTSSHOW::RTS_HandleData(void)
         }
         rtscheck.RTS_SndData(AutoHomeFirstPoint, AUTO_BED_LEVEL_CUR_POINT_VP);
         RTS_SndData(lang, AUTO_LEVELING_START_TITLE_VP);                  
-        rtscheck.RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT);      
+        rtscheck.RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT);
         rtscheck.RTS_SndData(0 , AUTO_LEVELING_PERCENT_DATA_VP);
         #if ANY(AUTO_BED_LEVELING_BILINEAR, AUTO_BED_LEVELING_UBL)
           bool zig = false;
           int8_t inStart, inStop, inInc, showcount;
           showcount = 0;
+          // Initialize min_value and max_value with the first value in the range
+          float min_value = bedlevel.z_values[0][0]; 
+          float max_value = bedlevel.z_values[0][0]; 
+          float deviation; // Variable to hold the deviation
+          
           //settings.load();
           for (int y = 0; y < lcd_rts_settings.max_points; y++)
           {
@@ -3220,13 +3220,37 @@ void RTSSHOW::RTS_HandleData(void)
               inInc = 1;
             }
             zig ^= true;
+            
             for (int x = inStart; x != inStop; x += inInc)
             {
-              //SERIAL_ECHOLNPGM("value: ", bedlevel.z_values[x][y] * 1000);
-              RTS_SndData(bedlevel.z_values[x][y] * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
+              // Get the current z_value as a float
+              float current_z_value = bedlevel.z_values[x][y];
+              
+              // Check if it's the new minimum
+              if (current_z_value < min_value)
+              {
+                min_value = current_z_value;
+              }
+              
+              // Check if it's the new maximum
+              if (current_z_value > max_value)
+              {
+                max_value = current_z_value;
+              }
+              
+              // Send the current_z_value (as is, no scaling) to the display
+              RTS_SndData(current_z_value * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
               showcount++;
             }
           }
+          
+          // Calculate the deviation
+          deviation = max_value - min_value;
+          
+          // Send min_value, max_value, and deviation to the display
+          RTS_SndData(min_value * 1000, MESH_POINT_MIN);
+          RTS_SndData(max_value * 1000, MESH_POINT_MAX);
+          RTS_SndData(deviation * 1000, MESH_POINT_DEVIATION);
         #endif
         Update_Time_Value = 0;
       }
@@ -3874,16 +3898,76 @@ void RTSSHOW::RTS_HandleData(void)
       RTS_SndData(temp_preheat_bed, PREHEAT_CUST_SET_BED_TEMP_VP);
       break;
 
-    case SetGridMaxPoints: {
-      temp_grid_max_points = recdat.data[0];
-      lcd_rts_settings.max_points = temp_grid_max_points;
-      if (lcd_rts_settings.max_points >= 7){
-        queue.enqueue_now_P(PSTR("M401 S0"));
-      }else{
-        queue.enqueue_now_P(PSTR("M401 S1"));
-      }
-      RTS_SndData(temp_grid_max_points, SET_GRID_MAX_POINTS_VP);
-      settings.save();
+    case SetGridMaxPoints: 
+      {
+      #if ENABLED(AUTO_BED_LEVELING_BILINEAR)       
+        temp_grid_max_points = recdat.data[0];
+        if (temp_grid_max_points == 5 || temp_grid_max_points == 7 || temp_grid_max_points == 10){
+          lcd_rts_settings.max_points = temp_grid_max_points;
+          if (lcd_rts_settings.max_points == 5){
+            queue.enqueue_now_P(PSTR("M401 S1"));            
+            RTS_SndData(ExchangePageBase + 81, ExchangepageAddr);
+            change_page_font = 81;
+          }
+          if (lcd_rts_settings.max_points == 7){
+            queue.enqueue_now_P(PSTR("M401 S0"));            
+            RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
+            change_page_font = 94;
+          }
+          if (lcd_rts_settings.max_points == 9){
+            queue.enqueue_now_P(PSTR("M401 S0"));            
+            RTS_SndData(ExchangePageBase + 96, ExchangepageAddr);
+            change_page_font = 96;
+          }               
+          if (lcd_rts_settings.max_points == 10){
+            queue.enqueue_now_P(PSTR("M401 S0"));
+            RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
+            change_page_font = 95;
+          }
+          char text_size[10]; // Make sure it's large enough to hold the result
+          sprintf(text_size, "     ");
+          RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);
+          sprintf(text_size, "%dx%d", lcd_rts_settings.max_points, lcd_rts_settings.max_points);
+          RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT);          
+          RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);  
+          RTS_SndData(temp_grid_max_points, SET_GRID_MAX_POINTS_VP);
+          bedlevel.max_points.x = temp_grid_max_points;
+          bedlevel.max_points.y = temp_grid_max_points;      
+          queue.enqueue_now_P(PSTR("M84"));
+          queue.enqueue_now_P(PSTR("G92.9Z0"));
+          RTS_SndData(1, MOTOR_FREE_ICON_VP);
+                bool zig = false;
+                int8_t inStart, inStop, inInc, showcount;
+                showcount = 0;
+                //settings.load();
+                for (int y = 0; y < GRID_MAX_POINTS_Y; y++)
+                {
+                  // away from origin
+                  if (zig)
+                  {
+                    inStart = GRID_MAX_POINTS_X - 1;
+                    inStop = -1;
+                    inInc = -1;
+                  }
+                  else
+                  {
+                    // towards origin
+                    inStart = 0;
+                    inStop = GRID_MAX_POINTS_X;
+                    inInc = 1;
+                  }
+                  zig ^= true;
+                  for (int x = inStart; x != inStop; x += inInc)
+                  {
+                    // Set the value to 0 directly
+                    RTS_SndData(0, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
+                    showcount++;
+                  }
+                }
+          bedlevel.reset();                       
+          settings.save();
+        }
+      #endif
       }    
       break;
       
@@ -3920,7 +4004,6 @@ void RTSSHOW::RTS_HandleData(void)
           }
         #endif
         lcd_rts_settings.abl_probe_margin_x = temp_abl_probe_margin_x;
-        lcd_rts_data.probing_margin_x = temp_abl_probe_margin_x;      
         RTS_SndData(temp_abl_probe_margin_x, SET_ABL_PROBE_MARGIN_X_VP);
         settings.save();
         }    
@@ -3961,7 +4044,6 @@ void RTSSHOW::RTS_HandleData(void)
         }
         lcd_rts_settings.abl_probe_margin_y = temp_abl_probe_margin_y;
         lcd_rts_settings.abl_probe_min_margin_y = temp_abl_probe_margin_y;        
-        lcd_rts_data.probing_margin_y = temp_abl_probe_margin_y;
         RTS_SndData(temp_abl_probe_margin_y, SET_ABL_PROBE_MARGIN_Y_VP); 
         settings.save();
         }    
@@ -4459,7 +4541,6 @@ void RTSSHOW::RTS_HandleData(void)
 
     case XMinPosEepromEnterKey:
       float home_offset_x_temp;
-      //x_min_pos_eeprom_temp = 1;      
       if(recdat.data[0] >= 32768)
       {
         home_offset_x_temp = ((float)recdat.data[0] - 65536) / 10;
@@ -4584,7 +4665,7 @@ void RTSSHOW::RTS_HandleData(void)
           new_point_height = ((float)recdat.data[0]) / 1000;
         } 
         RTS_SndData(new_point_height * 1000, CURRENT_MESH_POINT);
-        if (current_point == 1){
+        if (current_point == 0){
         RTS_SndData(new_point_height * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP);
         }else{
         RTS_SndData(new_point_height * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + current_point * 2);        
@@ -4607,11 +4688,6 @@ void RTSSHOW::RTS_HandleData(void)
         int fracPart = abs(static_cast<int>((new_point_height - static_cast<int>(new_point_height)) * 1000));
         snprintf(cmd_point, sizeof(cmd_point), "M421 I%d J%d Z%s%d.%03d", static_cast<int>(x), static_cast<int>(y), sign, intPart, fracPart);
         queue.enqueue_now_P(cmd_point);
-        //char sign = (new_point_height < 0) ? '-' : ' ';
-        //int intPart = abs(static_cast<int>(new_point_height));
-        //int fracPart = abs(static_cast<int>((new_point_height - static_cast<int>(new_point_height)) * 1000));
-        //snprintf(cmd_point, sizeof(cmd_point), "M421 I%d J%d Z%c%d.%03d", static_cast<int>(x), static_cast<int>(y), sign, intPart, fracPart);
-        //queue.enqueue_now_P(cmd_point);
       }
     }
       break; 
