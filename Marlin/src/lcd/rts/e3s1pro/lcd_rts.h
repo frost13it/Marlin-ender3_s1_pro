@@ -508,9 +508,12 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define SET_ABL_PROBE_MARGIN_X_TEXT_VP      0x1160
 #define SET_ABL_PROBE_MARGIN_Y_VP           0x1164
 #define SET_ABL_PROBE_MARGIN_Y_TEXT_VP      0x1166
-#define SET_MESH_SIZE_TEXT_VP               0x1972
+//#define SET_MESH_SIZE_TEXT_VP               0x1972
 #define SET_MESH_SIZE_SIZE_TEXT_VP          0x196A
 #define CURRENT_MESH_POINT                  0x2220
+#define MESH_POINT_MIN                      0x2222
+#define MESH_POINT_MAX                      0x2224
+#define MESH_POINT_DEVIATION                0x2226
 
 //#define SET_UBL_PROBE_MARGIN_MINX_VP        0x1982
 //#define SET_UBL_PROBE_MARGIN_MAXX_VP        0x1984
@@ -594,16 +597,8 @@ uint8_t screen_brightness;
 bool display_standby;
 uint8_t standby_brightness;
 int16_t standby_time_seconds;  
-//float bed_size_x;
-//float bed_size_y;
-//float x_min_pos;
-//float y_min_pos;
-//float x_max_pos;
-//float y_max_pos;
-//float z_max_pos;
 uint8_t max_points;
 #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-  uint8_t grid_limit;
   uint8_t abl_probe_margin_x;
   uint8_t abl_probe_min_margin_x;  
   uint8_t abl_probe_margin_y;
@@ -619,7 +614,7 @@ bool gcode_preview;
 bool lcd_rts_debug;
 };
 
-static constexpr size_t eeprom_data_size = sizeof(lcd_rts_settings_t) + sizeof(lcd_rts_data_t);
+static constexpr size_t eeprom_data_size = sizeof(lcd_rts_settings_t);
 
 class RTSSHOW
 {

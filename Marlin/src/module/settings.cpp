@@ -202,24 +202,13 @@ typedef struct {  int16_t MAIN_AXIS_NAMES_ X2, Y2, Z2, Z3, Z4;                  
 typedef struct {     bool NUM_AXIS_LIST_(X:1, Y:1, Z:1, I:1, J:1, K:1, U:1, V:1, W:1) X2:1, Y2:1, Z2:1, Z3:1, Z4:1 REPEAT(E_STEPPERS, _EN1_ITEM); } per_stepper_bool_t;
 
 #if ENABLED(E3S1PRO_RTS) && ENABLED(LCD_RTS_DEBUG)
-  #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-    void printZValues(float z_values[][GRID_LIMIT], size_t rows, size_t cols) {
-        for (size_t i = 0; i < rows; i++) {
-            for (size_t j = 0; j < cols; j++) {
-                    SERIAL_ECHOLNPGM("z_values[", i, "][", j, "]: ", z_values[i][j]);     
-            }
-        }
-    }
-  #endif
-  #if ENABLED(AUTO_BED_LEVELING_UBL)
-    void printZValues(float z_values[][GRID_MAX_POINTS_X], size_t rows, size_t cols) {
-        for (size_t i = 0; i < rows; i++) {
-            for (size_t j = 0; j < cols; j++) {
-                    SERIAL_ECHOLNPGM("z_values[", i, "][", j, "]: ", z_values[i][j]);     
-            }
-        }
-    }
-  #endif
+  void printZValues(float z_values[][GRID_MAX_POINTS_X], size_t rows, size_t cols) {
+      for (size_t i = 0; i < rows; i++) {
+          for (size_t j = 0; j < cols; j++) {
+                  SERIAL_ECHOLNPGM("z_values[", i, "][", j, "]: ", z_values[i][j]);     
+          }
+      }
+  }
 #endif
 
 #undef _EN_ITEM
@@ -330,6 +319,7 @@ typedef struct SettingsDataStruct {
   xy_pos_t bilinear_grid_spacing, bilinear_start;       // G29 L F
   #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
     bed_mesh_t z_values;                                // G29
+    xy_uint8_t max_points;    
   #else
     float z_values[3][3];
   #endif
@@ -1055,19 +1045,13 @@ void MarlinSettings::postprocess() {
     {
       #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
         static_assert(
-          sizeof(bedlevel.z_values) == GRID_LIMIT * GRID_LIMIT * sizeof(bedlevel.z_values[0][0]),
+          sizeof(bedlevel.z_values) == GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y * sizeof(bedlevel.z_values[0][0]),
           "Bilinear Z array is the wrong size."
         );
       #endif
 
-      #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-      const uint8_t grid_max_x = TERN(AUTO_BED_LEVELING_BILINEAR, GRID_LIMIT, 3),
-                    grid_max_y = TERN(AUTO_BED_LEVELING_BILINEAR, GRID_LIMIT, 3);
-      #endif
-      #if ENABLED(AUTO_BED_LEVELING_UBL)
       const uint8_t grid_max_x = TERN(AUTO_BED_LEVELING_BILINEAR, GRID_MAX_POINTS_X, 3),
                     grid_max_y = TERN(AUTO_BED_LEVELING_BILINEAR, GRID_MAX_POINTS_Y, 3);
-      #endif
 
       EEPROM_WRITE(grid_max_x);
       EEPROM_WRITE(grid_max_y);
@@ -1086,6 +1070,7 @@ void MarlinSettings::postprocess() {
       #endif
 
       #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
+        EEPROM_WRITE(bedlevel.max_points);
         EEPROM_WRITE(bedlevel.z_values);              // 9-256 floats
         #if ENABLED(E3S1PRO_RTS) && ENABLED(LCD_RTS_DEBUG)
           const size_t rows = sizeof(bedlevel.z_values) / sizeof(bedlevel.z_values[0]);
@@ -2143,9 +2128,10 @@ void MarlinSettings::postprocess() {
         EEPROM_READ(spacing);                          // 2 ints
         EEPROM_READ(start);
         #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-          if (grid_max_x == (GRID_LIMIT) && grid_max_y == (GRID_LIMIT)) {
+          if (grid_max_x == (GRID_MAX_POINTS_X) && grid_max_y == (GRID_MAX_POINTS_Y)) {
             if (!validating) set_bed_leveling_enabled(false);
-            bedlevel.set_grid(spacing, start);
+            EEPROM_READ(bedlevel.max_points);
+            bedlevel.set_grid(spacing, start, bedlevel.max_points);
             EEPROM_READ(bedlevel.z_values);                 // 9 to 256 floats
             #if ENABLED(E3S1PRO_RTS) && ENABLED(LCD_RTS_DEBUG)
               const size_t rows = sizeof(bedlevel.z_values) / sizeof(bedlevel.z_values[0]);
@@ -2153,13 +2139,13 @@ void MarlinSettings::postprocess() {
               printZValues(bedlevel.z_values, rows, cols);
             #endif
           }
-          else if (grid_max_x > (GRID_LIMIT) || grid_max_y > (GRID_LIMIT)) {
+          else if (grid_max_x > (GRID_MAX_POINTS_X) || grid_max_y > (GRID_MAX_POINTS_Y)) {
             eeprom_error = ERR_EEPROM_CORRUPT;
             break;
           }
           else // EEPROM data is stale
         #endif // AUTO_BED_LEVELING_BILINEAR
-          {
+          {           
             // Skip past disabled (or stale) Bilinear Grid data
             for (uint16_t q = grid_max_x * grid_max_y; q--;) EEPROM_READ(dummyf);
           }
@@ -4110,15 +4096,12 @@ void MarlinSettings::reset() {
     #if ENABLED(E3S1PRO_RTS)
       #if ENABLED(LCD_RTS_DEBUG)
         SERIAL_ECHO_MSG("  lcd_rts_settings size: ", sizeof(lcd_rts_settings));
-        SERIAL_ECHO_MSG("  lcd_rts_data size: ", sizeof(lcd_rts_data_t)); 
         #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
           SERIAL_ECHO_MSG("  Grid_max_points: ", lcd_rts_settings.max_points);
           SERIAL_ECHO_MSG("  Abl Margin x set to: ", lcd_rts_settings.abl_probe_margin_x);
           SERIAL_ECHO_MSG("  Abl Margin y set to: ", lcd_rts_settings.abl_probe_margin_y);        
           SERIAL_ECHO_MSG("  Abl Margin min x: ", lcd_rts_settings.abl_probe_min_margin_x);
-          SERIAL_ECHO_MSG("  Abl Margin min y: ", lcd_rts_settings.abl_probe_min_margin_y);       
-          SERIAL_ECHO_MSG("  Abl Margin x default: ", lcd_rts_data.probing_margin_x);
-          SERIAL_ECHO_MSG("  Abl Margin y default: ", lcd_rts_data.probing_margin_y);        
+          SERIAL_ECHO_MSG("  Abl Margin min y: ", lcd_rts_settings.abl_probe_min_margin_y);
         #endif
         //#if ENABLED(AUTO_BED_LEVELING_UBL)
         //  SERIAL_ECHO_MSG("  MESH_MIN_X: ", lcd_rts_settings.ubl_probe_margin_l);

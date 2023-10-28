@@ -77,13 +77,13 @@
 #if ABL_USES_GRID
   #if ENABLED(PROBE_Y_FIRST)
     #define PR_OUTER_VAR  abl.meshCount.x
-    #define PR_OUTER_SIZE abl.grid_points.x
     #define PR_INNER_VAR  abl.meshCount.y
+    #define PR_OUTER_SIZE abl.grid_points.x
     #define PR_INNER_SIZE abl.grid_points.y
   #else
     #define PR_OUTER_VAR  abl.meshCount.y
-    #define PR_OUTER_SIZE abl.grid_points.y
     #define PR_INNER_VAR  abl.meshCount.x
+    #define PR_OUTER_SIZE abl.grid_points.y
     #define PR_INNER_SIZE abl.grid_points.x
   #endif
 #endif
@@ -116,8 +116,8 @@ public:
     int abl_probe_index;
   #endif
 
-  #if ENABLED(AUTO_BED_LEVELING_LINEAR)
-    grid_count_t abl_points;
+  #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
+    grid_count_t abl_points = GRID_USED_POINTS;
   #elif ENABLED(AUTO_BED_LEVELING_3POINT)
     static constexpr grid_count_t abl_points = 3;
   #elif ABL_USES_GRID
@@ -1053,7 +1053,64 @@ G29_TYPE GcodeSuite::G29() {
   #if ENABLED(E3S1PRO_RTS)
     queue.enqueue_one_P(PSTR("M420 S1"));  
     queue.enqueue_one_P(PSTR("M500"));
-    leveling_running = 0;    
+    leveling_running = 0;
+    bool zig = false;
+    int8_t inStart, inStop, inInc, showcount;
+    showcount = 0;
+    // Initialize min_value and max_value with the first value in the range
+    float min_value = bedlevel.z_values[0][0]; 
+    float max_value = bedlevel.z_values[0][0]; 
+    float deviation; // Variable to hold the deviation
+    
+    //settings.load();
+    for (int y = 0; y < lcd_rts_settings.max_points; y++)
+    {
+      // away from origin
+      if (zig)
+      {
+        inStart = lcd_rts_settings.max_points - 1;
+        inStop = -1;
+        inInc = -1;
+      }
+      else
+      {
+        // towards origin
+        inStart = 0;
+        inStop = lcd_rts_settings.max_points;
+        inInc = 1;
+      }
+      zig ^= true;
+      
+      for (int x = inStart; x != inStop; x += inInc)
+      {
+        // Get the current z_value as a float
+        float current_z_value = bedlevel.z_values[x][y];
+        
+        // Check if it's the new minimum
+        if (current_z_value < min_value)
+        {
+          min_value = current_z_value;
+        }
+        
+        // Check if it's the new maximum
+        if (current_z_value > max_value)
+        {
+          max_value = current_z_value;
+        }
+        
+        // Send the current_z_value (as is, no scaling) to the display
+        rtscheck.RTS_SndData(current_z_value * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
+        showcount++;
+      }
+    }
+    
+    // Calculate the deviation
+    deviation = max_value - min_value;
+    
+    // Send min_value, max_value, and deviation to the display
+    rtscheck.RTS_SndData(min_value * 1000, MESH_POINT_MIN);
+    rtscheck.RTS_SndData(max_value * 1000, MESH_POINT_MAX);
+    rtscheck.RTS_SndData(deviation * 1000, MESH_POINT_DEVIATION);       
     rtscheck.RTS_SndData(lang, AUTO_LEVELING_START_TITLE_VP);    
     RTS_AutoBedLevelPage();
   #endif

@@ -69,7 +69,7 @@
 //#define ENDER_3S1_PRO
 //#define ENDER_3S1_PLUS
 //#define ENDER_3S1
-#define FORK_VERSION "v014"
+#define FORK_VERSION "v015"
 
 // Choose the name from boards.h that matches your setup
 #define USER_STM32F401  1
@@ -117,8 +117,10 @@
       #define FIRMWARE_VERSION  "abl8x8-" FORK_VERSION "-byTT"      
     #elif GRID_MAX_POINTS_X == 9
       #define FIRMWARE_VERSION  "abl9x9-" FORK_VERSION "-byTT"      
-    #elif GRID_MAX_POINTS_X == 10
+    #elif GRID_MAX_POINTS_X == 10 && DISABLED(IS_UNIFIED)
       #define FIRMWARE_VERSION  "abl10x10-" FORK_VERSION "-byTT"
+    #elif GRID_MAX_POINTS_X == 10 && ENABLED(IS_UNIFIED)
+      #define FIRMWARE_VERSION  "abl-" FORK_VERSION "-byTT"
     #endif
   #else
     #if GRID_MAX_POINTS_X == 5
@@ -162,8 +164,10 @@
       #define FIRMWARE_VERSION  "abl8x8-" FORK_VERSION "-byTT"      
     #elif GRID_MAX_POINTS_X == 9
       #define FIRMWARE_VERSION  "abl9x9-" FORK_VERSION "-byTT"      
-    #elif GRID_MAX_POINTS_X == 10
+    #elif GRID_MAX_POINTS_X == 10 && DISABLED(IS_UNIFIED)
       #define FIRMWARE_VERSION  "abl10x10-" FORK_VERSION "-byTT"
+    #elif GRID_MAX_POINTS_X == 10 && ENABLED(IS_UNIFIED)
+      #define FIRMWARE_VERSION  "abl-" FORK_VERSION "-byTT"
     #endif    
   #else
     #if GRID_MAX_POINTS_X == 5
