@@ -319,7 +319,10 @@ typedef struct SettingsDataStruct {
   xy_pos_t bilinear_grid_spacing, bilinear_start;       // G29 L F
   #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
     bed_mesh_t z_values;                                // G29
-    xy_uint8_t max_points;    
+    xy_uint8_t max_points;
+  #elif ENABLED(AUTO_BED_LEVELING_UBL)   
+    xy_uint8_t max_points;
+    float z_values[3][3];  
   #else
     float z_values[3][3];
   #endif
@@ -1078,6 +1081,7 @@ void MarlinSettings::postprocess() {
           printZValues(bedlevel.z_values, rows, cols);
         #endif
       #else
+        EEPROM_WRITE(bedlevel.max_points);      
         dummyf = 0;
         for (uint16_t q = grid_max_x * grid_max_y; q--;) EEPROM_WRITE(dummyf);
       #endif
@@ -2145,7 +2149,8 @@ void MarlinSettings::postprocess() {
           }
           else // EEPROM data is stale
         #endif // AUTO_BED_LEVELING_BILINEAR
-          {           
+          {
+            EEPROM_READ(bedlevel.max_points);            
             // Skip past disabled (or stale) Bilinear Grid data
             for (uint16_t q = grid_max_x * grid_max_y; q--;) EEPROM_READ(dummyf);
           }
@@ -4095,25 +4100,17 @@ void MarlinSettings::reset() {
 
     #if ENABLED(E3S1PRO_RTS)
       #if ENABLED(LCD_RTS_DEBUG)
-        SERIAL_ECHO_MSG("  lcd_rts_settings size: ", sizeof(lcd_rts_settings));
-        #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-          SERIAL_ECHO_MSG("  Grid_max_points: ", lcd_rts_settings.max_points);
-          SERIAL_ECHO_MSG("  Abl Margin x set to: ", lcd_rts_settings.abl_probe_margin_x);
-          SERIAL_ECHO_MSG("  Abl Margin y set to: ", lcd_rts_settings.abl_probe_margin_y);        
-          SERIAL_ECHO_MSG("  Abl Margin min x: ", lcd_rts_settings.abl_probe_min_margin_x);
-          SERIAL_ECHO_MSG("  Abl Margin min y: ", lcd_rts_settings.abl_probe_min_margin_y);
-        #endif
-        //#if ENABLED(AUTO_BED_LEVELING_UBL)
-        //  SERIAL_ECHO_MSG("  MESH_MIN_X: ", lcd_rts_settings.ubl_probe_margin_l);
-        //  SERIAL_ECHO_MSG("  MESH_MAX_X: ", lcd_rts_settings.ubl_probe_margin_r);
-        //  SERIAL_ECHO_MSG("  MESH_MIN_Y: ", lcd_rts_settings.ubl_probe_margin_f);
-        //  SERIAL_ECHO_MSG("  MESH_MAX_Y: ", lcd_rts_settings.ubl_probe_margin_b);
-        //#endif
-        SERIAL_ECHO_MSG("  Screen brightness: ", lcd_rts_settings.screen_brightness);
-        SERIAL_ECHO_MSG("  Screen standby brightness: ", lcd_rts_settings.standby_brightness);      
-        SERIAL_ECHO_MSG("  Screen standby time: ", lcd_rts_settings.standby_time_seconds);            
-        SERIAL_ECHO_MSG("  Display sound: ", lcd_rts_settings.display_sound);
-        SERIAL_ECHO_MSG("  Display volume: ", lcd_rts_settings.display_volume);
+        SERIAL_ECHO_MSG("lcd_rts_settings size: ", sizeof(lcd_rts_settings));
+        SERIAL_ECHO_MSG("Grid_max_points: ", lcd_rts_settings.max_points);
+        SERIAL_ECHO_MSG("Probing Margin x set to: ", lcd_rts_settings.probe_margin_x);
+        SERIAL_ECHO_MSG("Probing Margin y set to: ", lcd_rts_settings.probe_margin_y);        
+        SERIAL_ECHO_MSG("Probing Margin min x: ", lcd_rts_settings.probe_min_margin_x);
+        SERIAL_ECHO_MSG("Probing Margin min y: ", lcd_rts_settings.probe_min_margin_y);
+        SERIAL_ECHO_MSG("Screen brightness: ", lcd_rts_settings.screen_brightness);
+        SERIAL_ECHO_MSG("Screen standby brightness: ", lcd_rts_settings.standby_brightness);      
+        SERIAL_ECHO_MSG("Screen standby time: ", lcd_rts_settings.standby_time_seconds);            
+        SERIAL_ECHO_MSG("Display sound: ", lcd_rts_settings.display_sound);
+        SERIAL_ECHO_MSG("Display volume: ", lcd_rts_settings.display_volume);
       #endif
     #endif
 

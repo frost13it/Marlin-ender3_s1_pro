@@ -69,7 +69,7 @@
 //#define ENDER_3S1_PRO
 //#define ENDER_3S1_PLUS
 //#define ENDER_3S1
-#define FORK_VERSION "v015"
+#define FORK_VERSION "v016"
 
 // Choose the name from boards.h that matches your setup
 #define USER_STM32F401  1
@@ -128,19 +128,21 @@
     #elif GRID_MAX_POINTS_X == 7
       #define FIRMWARE_VERSION  "ubl7x7-" FORK_VERSION "-byTT"
     #elif GRID_MAX_POINTS_X == 8
-      #define FIRMWARE_VERSION  "ubl8x8-" FORK_VERSION "-byTT"      
+      #define FIRMWARE_VERSION  "ubl8x8-" FORK_VERSION "-byTT"
     #elif GRID_MAX_POINTS_X == 9
-      #define FIRMWARE_VERSION  "ubl9x9-" FORK_VERSION "-byTT"      
-    #elif GRID_MAX_POINTS_X == 10
+      #define FIRMWARE_VERSION  "ubl9x9-" FORK_VERSION "-byTT"
+    #elif GRID_MAX_POINTS_X == 10 && DISABLED(IS_UNIFIED)
       #define FIRMWARE_VERSION  "ubl10x10-" FORK_VERSION "-byTT"
+    #elif GRID_MAX_POINTS_X == 10 && ENABLED(IS_UNIFIED)
+      #define FIRMWARE_VERSION  "ubl-" FORK_VERSION "-byTT"
     #endif
   #endif
-  #define SCREEN_VERSION    "UI20" 
+  #define SCREEN_VERSION    "UI20"
   #define SCREEN_HW_VERSION "DWIN2021"
   #if ENABLED(USER_STM32F103RE)
   #define HARDWARE_VERSION  "CR-E3S1PRO-F1-RE"
   #elif ENABLED(USER_STM32F103RC)
-  #define HARDWARE_VERSION  "CR-E3S1PRO-F1-RC"  
+  #define HARDWARE_VERSION  "CR-E3S1PRO-F1-RC"
   #elif ENABLED(USER_STM32F401)
   #define HARDWARE_VERSION  "CR-E3S1PRO-F4"
   #endif
@@ -161,9 +163,9 @@
     #elif GRID_MAX_POINTS_X == 7
       #define FIRMWARE_VERSION  "abl7x7-" FORK_VERSION "-byTT"
     #elif GRID_MAX_POINTS_X == 8
-      #define FIRMWARE_VERSION  "abl8x8-" FORK_VERSION "-byTT"      
+      #define FIRMWARE_VERSION  "abl8x8-" FORK_VERSION "-byTT"
     #elif GRID_MAX_POINTS_X == 9
-      #define FIRMWARE_VERSION  "abl9x9-" FORK_VERSION "-byTT"      
+      #define FIRMWARE_VERSION  "abl9x9-" FORK_VERSION "-byTT"
     #elif GRID_MAX_POINTS_X == 10 && DISABLED(IS_UNIFIED)
       #define FIRMWARE_VERSION  "abl10x10-" FORK_VERSION "-byTT"
     #elif GRID_MAX_POINTS_X == 10 && ENABLED(IS_UNIFIED)
@@ -175,11 +177,13 @@
     #elif GRID_MAX_POINTS_X == 7
       #define FIRMWARE_VERSION  "ubl7x7-" FORK_VERSION "-byTT"
     #elif GRID_MAX_POINTS_X == 8
-      #define FIRMWARE_VERSION  "ubl8x8-" FORK_VERSION "-byTT"      
+      #define FIRMWARE_VERSION  "ubl8x8-" FORK_VERSION "-byTT"
     #elif GRID_MAX_POINTS_X == 9
-      #define FIRMWARE_VERSION  "ubl9x9-" FORK_VERSION "-byTT"      
-    #elif GRID_MAX_POINTS_X == 10
+      #define FIRMWARE_VERSION  "ubl9x9-" FORK_VERSION "-byTT"
+    #elif GRID_MAX_POINTS_X == 10 && DISABLED(IS_UNIFIED)
       #define FIRMWARE_VERSION  "ubl10x10-" FORK_VERSION "-byTT"
+    #elif GRID_MAX_POINTS_X == 10 && ENABLED(IS_UNIFIED)
+      #define FIRMWARE_VERSION  "ubl-" FORK_VERSION "-byTT"
     #endif
   #endif
   #define SCREEN_VERSION    "v1.0.1-byTT"
@@ -1477,7 +1481,7 @@
  * Override with M201
  *                                      X, Y, Z [, I [, J [, K...]]], E0 [, E1[, E2...]]
  */
-#define DEFAULT_MAX_ACCELERATION      { 1000, 1000, 100, 1000 }
+#define DEFAULT_MAX_ACCELERATION      { 1000, 1000, 100, 5000 }
 
 #define LIMITED_MAX_ACCEL_EDITING     // Limit edit via M201 or LCD to DEFAULT_MAX_ACCELERATION * 2
 #if ENABLED(LIMITED_MAX_ACCEL_EDITING)
@@ -1506,9 +1510,9 @@
  */
 #define CLASSIC_JERK
 #if ENABLED(CLASSIC_JERK)
-  #define DEFAULT_XJERK 12.0
-  #define DEFAULT_YJERK 12.0
-  #define DEFAULT_ZJERK  0.4
+  #define DEFAULT_XJERK 20.0
+  #define DEFAULT_YJERK 20.0
+  #define DEFAULT_ZJERK  0.6
   //#define DEFAULT_IJERK  0.3
   //#define DEFAULT_JJERK  0.3
   //#define DEFAULT_KJERK  0.3
@@ -1524,7 +1528,7 @@
   #endif
 #endif
 
-#define DEFAULT_EJERK    5.0  // May be used by Linear Advance
+#define DEFAULT_EJERK    10.0  // May be used by Linear Advance
 
 /**
  * Junction Deviation Factor

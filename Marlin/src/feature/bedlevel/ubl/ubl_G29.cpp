@@ -397,17 +397,17 @@ void unified_bed_leveling::G29() {
       case -1: TERN_(UBL_DEVEL_DEBUGGING, g29_eeprom_dump()); break;
 
       case 0:
-        GRID_LOOP(x, y) {                                     // Create a bowl shape similar to a poorly-calibrated Delta
-          const float p1 = 0.5f * (GRID_MAX_POINTS_X) - x,
-                      p2 = 0.5f * (GRID_MAX_POINTS_Y) - y;
+        GRID_LOOP_USED(x, y) {                                     // Create a bowl shape similar to a poorly-calibrated Delta
+          const float p1 = 0.5f * (GRID_USED_POINTS_X) - x,
+                      p2 = 0.5f * (GRID_USED_POINTS_Y) - y;
           z_values[x][y] += 2.0f * HYPOT(p1, p2);
           TERN_(EXTENSIBLE_UI, ExtUI::onMeshUpdate(x, y, z_values[x][y]));
         }
         break;
 
       case 1:
-        for (uint8_t x = 0; x < GRID_MAX_POINTS_X; ++x) {                     // Create a diagonal line several Mesh cells thick that is raised
-          const uint8_t x2 = x + (x < (GRID_MAX_POINTS_Y) - 1 ? 1 : -1);
+        for (uint8_t x = 0; x < GRID_USED_POINTS_X; ++x) {                     // Create a diagonal line several Mesh cells thick that is raised
+          const uint8_t x2 = x + (x < (GRID_USED_POINTS_Y) - 1 ? 1 : -1);
           z_values[x][x] += 9.999f;
           z_values[x][x2] += 9.999f; // We want the altered line several mesh points thick
           #if ENABLED(EXTENSIBLE_UI)
@@ -419,8 +419,8 @@ void unified_bed_leveling::G29() {
 
       case 2:
         // Allow the user to specify the height because 10mm is a little extreme in some cases.
-        for (uint8_t x = (GRID_MAX_POINTS_X) / 3; x < 2 * (GRID_MAX_POINTS_X) / 3; x++)     // Create a rectangular raised area in
-          for (uint8_t y = (GRID_MAX_POINTS_Y) / 3; y < 2 * (GRID_MAX_POINTS_Y) / 3; y++) { // the center of the bed
+        for (uint8_t x = (GRID_USED_POINTS_X) / 3; x < 2 * (GRID_USED_POINTS_X) / 3; x++)     // Create a rectangular raised area in
+          for (uint8_t y = (GRID_USED_POINTS_Y) / 3; y < 2 * (GRID_USED_POINTS_Y) / 3; y++) { // the center of the bed
             z_values[x][y] += parser.seen_test('C') ? param.C_constant : 9.99f;
             TERN_(EXTENSIBLE_UI, ExtUI::onMeshUpdate(x, y, z_values[x][y]));
           }
@@ -436,7 +436,7 @@ void unified_bed_leveling::G29() {
       restore_ubl_active_state_and_leave();
 
       #if ENABLED(UBL_G29_J_RECENTER)
-        do_blocking_move_to_xy(0.5f * ((MESH_MIN_X) + (MESH_MAX_X)), 0.5f * ((MESH_MIN_Y) + (MESH_MAX_Y)));
+        do_blocking_move_to_xy(0.5f * ((lcd_rts_settings.probe_margin_x) + (X_BED_SIZE - lcd_rts_settings.probe_margin_x)), 0.5f * ((lcd_rts_settings.probe_margin_x) + (Y_BED_SIZE - lcd_rts_settings.probe_margin_y)));
       #endif
 
       report_current_position();
@@ -783,7 +783,7 @@ void unified_bed_leveling::shift_mesh_height() {
     TERN_(DWIN_LCD_PROUI, dwinLevelingStart());
 
     save_ubl_active_state_and_disable();  // No bed level correction so only raw data is obtained
-    grid_count_t count = GRID_MAX_POINTS;
+    grid_count_t count = GRID_USED_POINTS;
     
     #if ENABLED(E3S1PRO_RTS)
       int16_t point_num_real;
@@ -794,9 +794,9 @@ void unified_bed_leveling::shift_mesh_height() {
     do {
       if (do_ubl_mesh_map) display_map(param.T_map_type);
 
-      const grid_count_t point_num = (GRID_MAX_POINTS - count) + 1;
-      SERIAL_ECHOLNPGM("Probing mesh point ", point_num, "/", GRID_MAX_POINTS, ".");
-      TERN_(HAS_STATUS_MESSAGE, ui.status_printf(0, F(S_FMT " %i/%i"), GET_TEXT(MSG_PROBING_POINT), point_num, int(GRID_MAX_POINTS)));
+      const grid_count_t point_num = (GRID_USED_POINTS - count) + 1;
+      SERIAL_ECHOLNPGM("Probing mesh point ", point_num, "/", GRID_USED_POINTS, ".");
+      TERN_(HAS_STATUS_MESSAGE, ui.status_printf(0, F(S_FMT " %i/%i"), GET_TEXT(MSG_PROBING_POINT), point_num, int(GRID_USED_POINTS)));
       TERN_(LCD_BACKLIGHT_TIMEOUT_MINS, ui.refresh_backlight_timeout());
 
       #if HAS_MARLINUI_MENU
@@ -836,44 +836,44 @@ void unified_bed_leveling::shift_mesh_height() {
             rtscheck.RTS_SndData(ExchangePageBase + 26, ExchangepageAddr);
             change_page_font = 26;
           }else{
-            if (GRID_MAX_POINTS_Y % 2 == 1) {
-                // When GRID_MAX_POINTS_Y is odd
+            if (GRID_USED_POINTS_Y % 2 == 1) {
+                // When GRID_USED_POINTS_Y is odd
                 if (best.pos.y % 2 == 0) {
                     // Traverse the row from left to right
-                    point_num_real = best.pos.x + best.pos.y * GRID_MAX_POINTS_X + 1;
+                    point_num_real = best.pos.x + best.pos.y * GRID_USED_POINTS_X + 1;
                 } else {
                     // Traverse the row from right to left
-                    point_num_real = (GRID_MAX_POINTS_X - 1 - best.pos.x) + best.pos.y * GRID_MAX_POINTS_X + 1;
+                    point_num_real = (GRID_USED_POINTS_X - 1 - best.pos.x) + best.pos.y * GRID_USED_POINTS_X + 1;
                 }
             }else{
-                // When GRID_MAX_POINTS_Y is even
+                // When GRID_USED_POINTS_Y is even
                 if (best.pos.y % 2 == 0) {
                     // Traverse the row from right to left
-                    point_num_real = (GRID_MAX_POINTS_X - 1 - best.pos.x) + best.pos.y * GRID_MAX_POINTS_X + 1;
+                    point_num_real = (GRID_USED_POINTS_X - 1 - best.pos.x) + best.pos.y * GRID_USED_POINTS_X + 1;
                 } else {
                     // Traverse the row from left to right in the zigzag manner
-                    point_num_real = (best.pos.y * GRID_MAX_POINTS_X) + best.pos.x + 1;
+                    point_num_real = (best.pos.y * GRID_USED_POINTS_X) + best.pos.x + 1;
                 }
             }
-            rtscheck.RTS_SndData(GRID_MAX_POINTS, AUTO_BED_LEVEL_END_POINT);
+            rtscheck.RTS_SndData(GRID_USED_POINTS, AUTO_BED_LEVEL_END_POINT);
             rtscheck.RTS_SndData(point_num, AUTO_BED_LEVEL_CUR_POINT_VP);
             rtscheck.RTS_SndData(measured_z * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + (point_num_real - 1) * 2);
-            #if GRID_MAX_POINTS_X == 5
+            if (lcd_rts_settings.max_points == 5){
               rtscheck.RTS_SndData(ExchangePageBase + 81, ExchangepageAddr);
               change_page_font = 81;
-            #endif
-            #if GRID_MAX_POINTS_X == 7
+            }
+            if (lcd_rts_settings.max_points == 7){
               rtscheck.RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
               change_page_font = 94;
-            #endif
-            #if GRID_MAX_POINTS_X == 9
+            }
+            if (lcd_rts_settings.max_points == 9){
               rtscheck.RTS_SndData(ExchangePageBase + 96, ExchangepageAddr);
               change_page_font = 96;
-            #endif             
-            #if GRID_MAX_POINTS_X == 10
+            }             
+            if (lcd_rts_settings.max_points == 10){
               rtscheck.RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
               change_page_font = 95;
-            #endif
+            }
           }       
           #endif
       }
@@ -881,7 +881,7 @@ void unified_bed_leveling::shift_mesh_height() {
 
     } while (best.pos.x >= 0 && --count);
 
-    GRID_LOOP(x, y) if (z_values[x][y] == HUGE_VALF) z_values[x][y] = NAN; // Restore NAN for HUGE_VALF marks
+    GRID_LOOP_USED(x, y) if (z_values[x][y] == HUGE_VALF) z_values[x][y] = NAN; // Restore NAN for HUGE_VALF marks
 
     TERN_(EXTENSIBLE_UI, ExtUI::onMeshUpdate(best.pos, ExtUI::G29_FINISH));
 
@@ -961,8 +961,8 @@ void unified_bed_leveling::shift_mesh_height() {
     restore_ubl_active_state_and_leave();
     
     do_blocking_move_to_xy(
-      constrain(nearby.x - probe.offset_xy.x, MESH_MIN_X, MESH_MAX_X),
-      constrain(nearby.y - probe.offset_xy.y, MESH_MIN_Y, MESH_MAX_Y)
+      constrain(nearby.x - probe.offset_xy.x, lcd_rts_settings.probe_margin_x, (X_BED_SIZE - lcd_rts_settings.probe_margin_x)),
+      constrain(nearby.y - probe.offset_xy.y, lcd_rts_settings.probe_margin_x, (Y_BED_SIZE - lcd_rts_settings.probe_margin_y))
     );
 
     TERN_(EXTENSIBLE_UI, ExtUI::onLevelingDone());
@@ -1028,8 +1028,8 @@ void set_message_with_feedback(FSTR_P const fstr) {
     save_ubl_active_state_and_disable();   // Disable bed level correction for probing
     do_blocking_move_to(
       xyz_pos_t({
-        0.5f * ((MESH_MAX_X) - (MESH_MIN_X)),
-        0.5f * ((MESH_MAX_Y) - (MESH_MIN_Y)),
+        0.5f * ((X_BED_SIZE - lcd_rts_settings.probe_margin_x) - (lcd_rts_settings.probe_margin_x)),
+        0.5f * ((Y_BED_SIZE - lcd_rts_settings.probe_margin_y) - (lcd_rts_settings.probe_margin_x)),
         MANUAL_PROBE_START_Z
         #ifdef SAFE_BED_LEVELING_START_I
           , SAFE_BED_LEVELING_START_I
@@ -1281,8 +1281,8 @@ bool unified_bed_leveling::G29_parse_parameters() {
   param.R_repetition = 0;
 
   if (parser.seen('R')) {
-    param.R_repetition = parser.has_value() ? parser.value_ushort() : GRID_MAX_POINTS;
-    NOMORE(param.R_repetition, GRID_MAX_POINTS);
+    param.R_repetition = parser.has_value() ? parser.value_ushort() : GRID_USED_POINTS;
+    NOMORE(param.R_repetition, GRID_USED_POINTS);
     if (param.R_repetition < 1) {
       SERIAL_ECHOLNPGM("?(R)epetition count invalid (1+).\n");
       return UBL_ERR;
@@ -1425,7 +1425,7 @@ mesh_index_pair unified_bed_leveling::find_furthest_invalid_mesh_point() {
 
   mesh_index_pair farthest { -1, -1, -99999.99 };
 
-  GRID_LOOP(i, j) {
+  GRID_LOOP_USED(i, j) {
     if (!isnan(z_values[i][j])) continue;  // Skip valid mesh points
 
     // Skip unreachable points
@@ -1436,7 +1436,7 @@ mesh_index_pair unified_bed_leveling::find_furthest_invalid_mesh_point() {
 
     xy_int8_t nearby { -1, -1 };
     float d1, d2 = 99999.9f;
-    GRID_LOOP(k, l) {
+    GRID_LOOP_USED(k, l) {
       if (isnan(z_values[k][l])) continue;
 
       found_a_real = true;
@@ -1464,7 +1464,7 @@ mesh_index_pair unified_bed_leveling::find_furthest_invalid_mesh_point() {
   } // GRID_LOOP
 
   if (!found_a_real && found_a_NAN) {        // if the mesh is totally unpopulated, start the probing
-    farthest.pos.set((GRID_MAX_POINTS_X) / 2, (GRID_MAX_POINTS_Y) / 2);
+    farthest.pos.set((GRID_USED_POINTS_X) / 2, (GRID_USED_POINTS_Y) / 2);
     farthest.distance = 1;
   }
   return farthest;
@@ -1524,7 +1524,7 @@ mesh_index_pair unified_bed_leveling::find_closest_mesh_point_of_type(const Mesh
 
     float best_so_far = 99999.99f;
 
-    GRID_LOOP(i, j) {
+    GRID_LOOP_USED(i, j) {
       if (  type == CLOSEST || type == (isnan(z_values[i][j]) ? INVALID : REAL)
         || (type == SET_IN_BITMAP && !done_flags->marked(i, j))
       ) {
@@ -1669,10 +1669,10 @@ void unified_bed_leveling::smart_fill_mesh() {
         #define G29J_MESH_TILT_MARGIN 0
       #endif
 
-      const float x_min = _MAX((X_MIN_POS) + (G29J_MESH_TILT_MARGIN), MESH_MIN_X, probe.min_x()),
-                  x_max = _MIN((X_MAX_POS) - (G29J_MESH_TILT_MARGIN), MESH_MAX_X, probe.max_x()),
-                  y_min = _MAX((Y_MIN_POS) + (G29J_MESH_TILT_MARGIN), MESH_MIN_Y, probe.min_y()),
-                  y_max = _MIN((Y_MAX_POS) - (G29J_MESH_TILT_MARGIN), MESH_MAX_Y, probe.max_y()),
+      const float x_min = _MAX((X_MIN_POS) + (G29J_MESH_TILT_MARGIN), lcd_rts_settings.probe_margin_x, probe.min_x()),
+                  x_max = _MIN((X_MAX_POS) - (G29J_MESH_TILT_MARGIN), (X_BED_SIZE - lcd_rts_settings.probe_margin_x), probe.max_x()),
+                  y_min = _MAX((Y_MIN_POS) + (G29J_MESH_TILT_MARGIN), lcd_rts_settings.probe_margin_x, probe.min_y()),
+                  y_max = _MIN((Y_MAX_POS) - (G29J_MESH_TILT_MARGIN), (Y_BED_SIZE - lcd_rts_settings.probe_margin_y), probe.max_y()),
                   dx = (x_max - x_min) / (param.J_grid_size - 1),
                   dy = (y_max - y_min) / (param.J_grid_size - 1);
 
@@ -1757,7 +1757,7 @@ void unified_bed_leveling::smart_fill_mesh() {
 
     matrix_3x3 rotation = matrix_3x3::create_look_at(vector_3(lsf_results.A, lsf_results.B, 1));
 
-    GRID_LOOP(i, j) {
+    GRID_LOOP_USED(i, j) {
       float mx = get_mesh_x(i), my = get_mesh_y(j), mz = z_values[i][j];
 
       if (DEBUGGING(LEVELING)) {
@@ -1825,27 +1825,27 @@ void unified_bed_leveling::smart_fill_mesh() {
     // the point being extrapolated.  Then extrapolate the mesh point from WLSF.
 
     static_assert((GRID_MAX_POINTS_Y) <= 16, "GRID_MAX_POINTS_Y too big");
-    uint16_t bitmap[GRID_MAX_POINTS_X] = { 0 };
+    uint16_t bitmap[GRID_USED_POINTS_X] = { 0 };
     struct linear_fit_data lsf_results;
 
     SERIAL_ECHOPGM("Extrapolating mesh...");
 
-    const float weight_scaled = weight_factor * _MAX(MESH_X_DIST, MESH_Y_DIST);
+    const float weight_scaled = weight_factor * _MAX(unified_bed_leveling::get_mesh_x_dist(), unified_bed_leveling::get_mesh_y_dist());
 
-    GRID_LOOP(jx, jy) if (!isnan(z_values[jx][jy])) SBI(bitmap[jx], jy);
+    GRID_LOOP_USED(jx, jy) if (!isnan(z_values[jx][jy])) SBI(bitmap[jx], jy);
 
     xy_pos_t ppos;
-    for (uint8_t ix = 0; ix < GRID_MAX_POINTS_X; ++ix) {
+    for (uint8_t ix = 0; ix < GRID_USED_POINTS_X; ++ix) {
       ppos.x = get_mesh_x(ix);
-      for (uint8_t iy = 0; iy < GRID_MAX_POINTS_Y; ++iy) {
+      for (uint8_t iy = 0; iy < GRID_USED_POINTS_Y; ++iy) {
         ppos.y = get_mesh_y(iy);
         if (isnan(z_values[ix][iy])) {
           // undefined mesh point at (ppos.x,ppos.y), compute weighted LSF from original valid mesh points.
           incremental_LSF_reset(&lsf_results);
           xy_pos_t rpos;
-          for (uint8_t jx = 0; jx < GRID_MAX_POINTS_X; ++jx) {
+          for (uint8_t jx = 0; jx < GRID_USED_POINTS_X; ++jx) {
             rpos.x = get_mesh_x(jx);
-            for (uint8_t jy = 0; jy < GRID_MAX_POINTS_Y; ++jy) {
+            for (uint8_t jy = 0; jy < GRID_USED_POINTS_Y; ++jy) {
               if (TEST(bitmap[jx], jy)) {
                 rpos.y = get_mesh_y(jy);
                 const float rz = z_values[jx][jy],
@@ -1894,24 +1894,23 @@ void unified_bed_leveling::smart_fill_mesh() {
       SERIAL_ECHOLNPGM("Probe Offset M851 Z", p_float_t(probe.offset.z, 7));
     #endif
 
-    //SERIAL_ECHOLNPGM("MESH_MIN_X  " STRINGIFY(MESH_MIN_X) "=", (MESH_MIN_X)); serial_delay(50);
-    //SERIAL_ECHOLNPGM("MESH_MIN_Y  " STRINGIFY(MESH_MIN_Y) "=", (MESH_MIN_Y)); serial_delay(50);
+    //SERIAL_ECHOLNPGM("lcd_rts_settings.probe_margin_x  " STRINGIFY(lcd_rts_settings.probe_margin_x) "=", (lcd_rts_settings.probe_margin_x)); serial_delay(50);
+    //SERIAL_ECHOLNPGM("lcd_rts_settings.probe_margin_x  " STRINGIFY(lcd_rts_settings.probe_margin_x) "=", (lcd_rts_settings.probe_margin_x)); serial_delay(50);
     //SERIAL_ECHOLNPGM("MESH_MAX_X  " STRINGIFY(MESH_MAX_X) "=", (MESH_MAX_X)); serial_delay(50);
     //SERIAL_ECHOLNPGM("MESH_MAX_Y  " STRINGIFY(MESH_MAX_Y) "=", (MESH_MAX_Y)); serial_delay(50);
-    SERIAL_ECHOLNPGM("GRID_MAX_POINTS_X  ", GRID_MAX_POINTS_X);             serial_delay(50);
-    SERIAL_ECHOLNPGM("GRID_MAX_POINTS_Y  ", GRID_MAX_POINTS_Y);             serial_delay(50);
-    SERIAL_ECHOLNPGM("MESH_X_DIST  ", MESH_X_DIST);
-    SERIAL_ECHOLNPGM("MESH_Y_DIST  ", MESH_Y_DIST);                         serial_delay(50);
-
+    SERIAL_ECHOLNPGM("GRID_MAX_POINTS_X ", GRID_MAX_POINTS_X);             serial_delay(50);
+    SERIAL_ECHOLNPGM("GRID_MAX_POINTS_Y ", GRID_MAX_POINTS_Y);             serial_delay(50);
+    SERIAL_ECHOLNPGM("GRID_USED_POINTS_X ", GRID_USED_POINTS_X);             serial_delay(50);
+    SERIAL_ECHOLNPGM("GRID_USE_POINTS_Y ", GRID_USED_POINTS_Y);             serial_delay(50);
     SERIAL_ECHOPGM("X-Axis Mesh Points at: ");
-    for (uint8_t i = 0; i < GRID_MAX_POINTS_X; ++i) {
+    for (uint8_t i = 0; i < GRID_USED_POINTS_X; ++i) {
       SERIAL_ECHO(p_float_t(LOGICAL_X_POSITION(get_mesh_x(i)), 3), F("  "));
       serial_delay(25);
     }
     SERIAL_EOL();
 
     SERIAL_ECHOPGM("Y-Axis Mesh Points at: ");
-    for (uint8_t i = 0; i < GRID_MAX_POINTS_Y; ++i) {
+    for (uint8_t i = 0; i < GRID_USED_POINTS_Y; ++i) {
       SERIAL_ECHO(p_float_t(LOGICAL_Y_POSITION(get_mesh_y(i)), 3), F("  "));
       serial_delay(25);
     }
@@ -1989,12 +1988,12 @@ void unified_bed_leveling::smart_fill_mesh() {
 
     param.KLS_storage_slot = (int8_t)parser.value_int();
 
-    float tmp_z_values[GRID_MAX_POINTS_X][GRID_MAX_POINTS_Y];
+    float tmp_z_values[GRID_USED_POINTS_X][GRID_USED_POINTS_Y];
     settings.load_mesh(param.KLS_storage_slot, &tmp_z_values);
 
     SERIAL_ECHOLNPGM("Subtracting mesh in slot ", param.KLS_storage_slot, " from current mesh.");
 
-    GRID_LOOP(x, y) {
+    GRID_LOOP_USED(x, y) {
       z_values[x][y] -= tmp_z_values[x][y];
       TERN_(EXTENSIBLE_UI, ExtUI::onMeshUpdate(x, y, z_values[x][y]));
     }

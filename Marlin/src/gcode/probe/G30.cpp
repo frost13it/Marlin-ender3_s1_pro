@@ -131,21 +131,21 @@ void GcodeSuite::G30() {
           uint16_t min_calc_margin_x = X_BED_SIZE - max_reachable_pos_x;
           uint16_t min_calc_margin_y = Y_BED_SIZE - max_reachable_pos_y;      
 
-          if(min_calc_margin_x >= lcd_rts_settings.abl_probe_margin_x){
+          if(min_calc_margin_x >= lcd_rts_settings.probe_margin_x){
             min_margin_x = min_calc_margin_x;
           }else{
-            min_margin_x = lcd_rts_settings.abl_probe_margin_x;
+            min_margin_x = lcd_rts_settings.probe_margin_x;
           }
 
-          if (min_calc_margin_y <= lcd_rts_settings.abl_probe_margin_y){
-            if (min_calc_margin_x <= lcd_rts_settings.abl_probe_margin_y){
-              if (lcd_rts_settings.abl_probe_margin_y <= lcd_rts_settings.abl_probe_margin_x){
-                min_margin_y_front = lcd_rts_settings.abl_probe_margin_y;
+          if (min_calc_margin_y <= lcd_rts_settings.probe_margin_y){
+            if (min_calc_margin_x <= lcd_rts_settings.probe_margin_y){
+              if (lcd_rts_settings.probe_margin_y <= lcd_rts_settings.probe_margin_x){
+                min_margin_y_front = lcd_rts_settings.probe_margin_y;
               }else{
-                min_margin_y_front = lcd_rts_settings.abl_probe_margin_x;
+                min_margin_y_front = lcd_rts_settings.probe_margin_x;
               }              
               }else{
-                min_margin_y_front = lcd_rts_settings.abl_probe_margin_y;
+                min_margin_y_front = lcd_rts_settings.probe_margin_y;
               }
           }else{
             min_margin_y_front = min_calc_margin_y;
@@ -153,10 +153,10 @@ void GcodeSuite::G30() {
           if (min_margin_y_front <= 10){
             min_margin_y_front = 10;
           }
-          if(min_calc_margin_y >= lcd_rts_settings.abl_probe_margin_y){
+          if(min_calc_margin_y >= lcd_rts_settings.probe_margin_y){
             min_margin_y_back = static_cast<int>(std::ceil(min_calc_margin_y));
           }else{
-            min_margin_y_back = static_cast<int>(std::ceil(lcd_rts_settings.abl_probe_margin_y));
+            min_margin_y_back = static_cast<int>(std::ceil(lcd_rts_settings.probe_margin_y));
           }
           if (min_margin_y_back <= 10){
             min_margin_y_back = 10;
