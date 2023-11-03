@@ -243,8 +243,10 @@ void GcodeSuite::M18_M84() {
           if (parser.seen_test(AXIS_CHAR(a))) stepper.disable_axis((AxisEnum)a);
       }
     }
-    else
+    else {
       planner.finish_and_disable();
+      stepper.disable_all_steppers();
+    }
 
     TERN_(AUTO_BED_LEVELING_UBL, bedlevel.steppers_were_disabled());
   }

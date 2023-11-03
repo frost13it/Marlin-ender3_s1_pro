@@ -230,8 +230,7 @@ enum{
   PREHEAT_CUST = 3,
 };
 
-int temp_preheat_nozzle = 0, temp_preheat_bed = 0, temp_grid_max_points = 0, temp_abl_probe_margin_x = 0, temp_abl_probe_margin_y = 0;
-//int temp_ubl_probe_margin_l = 0, temp_ubl_probe_margin_r = 0, temp_ubl_probe_margin_f = 0, temp_ubl_probe_margin_b = 0;
+int temp_preheat_nozzle = 0, temp_preheat_bed = 0, temp_grid_max_points = 0, temp_probe_margin_x = 0, temp_probe_margin_y = 0;
 uint8_t preheat_flag = PREHEAT_PLA; // 0=PLA，1=ABS, 2=PETG, 3=CUST
 
 uint8_t  last_progress_percent = 0;
@@ -314,24 +313,11 @@ void resetSettings() {
   lcd_rts_settings.standby_brightness    = 20;
   lcd_rts_settings.screen_brightness     = 100;
   lcd_rts_settings.standby_time_seconds  = 60;
-  #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-    lcd_rts_settings.max_points = 5;
-  #endif
-  #if ENABLED(AUTO_BED_LEVELING_UBL)
-    lcd_rts_settings.max_points = GRID_MAX_POINTS_X;
-  #endif
-  #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-    lcd_rts_settings.abl_probe_margin_x = 45;
-    lcd_rts_settings.abl_probe_min_margin_x = 45;    
-    lcd_rts_settings.abl_probe_margin_y = 45;
-    lcd_rts_settings.abl_probe_min_margin_y = 45;     
-  #endif
-  #if ENABLED(AUTO_BED_LEVELING_UBL)  
-  //  lcd_rts_settings.ubl_probe_margin_l = MESH_MIN_X;
-  //  lcd_rts_settings.ubl_probe_margin_r = MESH_MAX_X;
-  //  lcd_rts_settings.ubl_probe_margin_f = MESH_MIN_Y;
-  //  lcd_rts_settings.ubl_probe_margin_b = MESH_MAX_X;
-  #endif
+  lcd_rts_settings.max_points = 5;
+  lcd_rts_settings.probe_margin_x = 45;
+  lcd_rts_settings.probe_min_margin_x = 45;    
+  lcd_rts_settings.probe_margin_y = 45;
+  lcd_rts_settings.probe_min_margin_y = 45;     
   lcd_rts_settings.gcode_preview = false;
   lcd_rts_settings.lcd_rts_debug = false;
   #if ENABLED(LCD_RTS_DEBUG)   
@@ -354,12 +340,10 @@ void loadSettings(const char * const buff) {
     SERIAL_ECHOLNPGM("standby_time_seconds: ", lcd_rts_settings.standby_time_seconds); 
     SERIAL_ECHOLNPGM("------------------");
     SERIAL_ECHOLNPGM("max_points: ", lcd_rts_settings.max_points);
-    #if ENABLED(AUTO_BED_LEVELING_BILINEAR)    
-      SERIAL_ECHOLNPGM("abl_probe_margin x: ", lcd_rts_settings.abl_probe_margin_x);
-      SERIAL_ECHOLNPGM("abl_probe_min_margin x: ", lcd_rts_settings.abl_probe_min_margin_x);      
-      SERIAL_ECHOLNPGM("abl_probe_margin y: ", lcd_rts_settings.abl_probe_margin_y);
-      SERIAL_ECHOLNPGM("abl_probe_min_margin y: ", lcd_rts_settings.abl_probe_min_margin_y);
-    #endif
+    SERIAL_ECHOLNPGM("probe_margin x: ", lcd_rts_settings.probe_margin_x);
+    SERIAL_ECHOLNPGM("probe_min_margin x: ", lcd_rts_settings.probe_min_margin_x);      
+    SERIAL_ECHOLNPGM("probe_margin y: ", lcd_rts_settings.probe_margin_y);
+    SERIAL_ECHOLNPGM("probe_min_margin y: ", lcd_rts_settings.probe_min_margin_y);
     SERIAL_ECHOLNPGM("gcode_preview: ", lcd_rts_settings.gcode_preview);
     SERIAL_ECHOLNPGM("lcd_rts_debug: ", lcd_rts_settings.lcd_rts_debug);
     SERIAL_ECHOLNPGM("------Load lcd_rts_settings from lcd_rts.cpp!-------");    
@@ -381,18 +365,10 @@ void saveSettings(char * const buff) {
     SERIAL_ECHOLNPGM("standby_time_seconds: ", lcd_rts_settings.standby_time_seconds); 
     SERIAL_ECHOLNPGM("------------------");
     SERIAL_ECHOLNPGM("max_points: ", lcd_rts_settings.max_points);    
-    #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-      SERIAL_ECHOLNPGM("abl_probe_margin x: ", lcd_rts_settings.abl_probe_margin_x);
-      SERIAL_ECHOLNPGM("abl_probe_min_margin x: ", lcd_rts_settings.abl_probe_min_margin_x);      
-      SERIAL_ECHOLNPGM("abl_probe_margin y: ", lcd_rts_settings.abl_probe_margin_y);
-      SERIAL_ECHOLNPGM("abl_probe_min_margin y: ", lcd_rts_settings.abl_probe_min_margin_y);   
-    #endif
-    #if ENABLED(AUTO_BED_LEVELING_UBL)      
-    //  SERIAL_ECHOLNPGM("ubl_probe_margin_l: ", lcd_rts_settings.ubl_probe_margin_l);
-    //  SERIAL_ECHOLNPGM("ubl_probe_margin_r: ", lcd_rts_settings.ubl_probe_margin_r);
-    //  SERIAL_ECHOLNPGM("ubl_probe_margin_f: ", lcd_rts_settings.ubl_probe_margin_f);
-    //  SERIAL_ECHOLNPGM("ubl_probe_margin_b: ", lcd_rts_settings.ubl_probe_margin_b);
-    #endif
+    SERIAL_ECHOLNPGM("probe_margin x: ", lcd_rts_settings.probe_margin_x);
+    SERIAL_ECHOLNPGM("probe_min_margin x: ", lcd_rts_settings.probe_min_margin_x);      
+    SERIAL_ECHOLNPGM("probe_margin y: ", lcd_rts_settings.probe_margin_y);
+    SERIAL_ECHOLNPGM("probe_min_margin y: ", lcd_rts_settings.probe_min_margin_y);   
     SERIAL_ECHOLNPGM("gcode_preview: ", lcd_rts_settings.gcode_preview);
     SERIAL_ECHOLNPGM("lcd_rts_debug: ", lcd_rts_settings.lcd_rts_debug);    
     SERIAL_ECHOLNPGM("------Save lcd_rts_settings from lcd_rts.cpp!-------");
@@ -847,37 +823,21 @@ void RTSSHOW::RTS_Init(void)
   RTS_SndData(X_MIN_POS * 100, X_MIN_POS_VP);
   RTS_SndData(Y_MIN_POS * 100, Y_MIN_POS_VP);
 
-  #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-    GRID_USED_POINTS_X = lcd_rts_settings.max_points;
-    GRID_USED_POINTS_Y = lcd_rts_settings.max_points;    
-    const char text_margin_x[] = "MarginX:";
-    RTS_SndData(text_margin_x, SET_ABL_PROBE_MARGIN_X_TEXT_VP);
-    const char text_margin_y[] = "MarginY:";
-    RTS_SndData(text_margin_y, SET_ABL_PROBE_MARGIN_Y_TEXT_VP);    
-    //const char text_mesh_size[] = "Mesh size:";
-    //RTS_SndData(text_mesh_size, SET_MESH_SIZE_TEXT_VP);
-    char text_size[10]; // Make sure it's large enough to hold the result
-    sprintf(text_size, "     ");
-    RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);
-    sprintf(text_size, "%dx%d", lcd_rts_settings.max_points, lcd_rts_settings.max_points);
-    RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);
-    RTS_SndData(lcd_rts_settings.max_points, SET_GRID_MAX_POINTS_VP);
-    RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT);
-    RTS_SndData(lcd_rts_settings.abl_probe_margin_x, SET_ABL_PROBE_MARGIN_X_VP);
-    RTS_SndData(lcd_rts_settings.abl_probe_margin_y, SET_ABL_PROBE_MARGIN_Y_VP);    
-  #endif
-  #if ENABLED(AUTO_BED_LEVELING_UBL)
-    const char text_margin_x[] = "n.a.";
-    RTS_SndData(text_margin_x, SET_ABL_PROBE_MARGIN_X_TEXT_VP);
-    const char text_margin_y[] = "n.a.";
-    RTS_SndData(text_margin_y, SET_ABL_PROBE_MARGIN_Y_TEXT_VP);    
-    RTS_SndData(lcd_rts_settings.max_points, SET_GRID_MAX_POINTS_VP);
-    char text_size[10]; // Make sure it's large enough to hold the result
-    sprintf(text_size, "     ");
-    RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);
-    sprintf(text_size, "%dx%d", lcd_rts_settings.max_points, lcd_rts_settings.max_points);
-    RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);
-  #endif
+  GRID_USED_POINTS_X = lcd_rts_settings.max_points;
+  GRID_USED_POINTS_Y = lcd_rts_settings.max_points;
+  const char text_margin_x[] = "MarginX:";
+  RTS_SndData(text_margin_x, PROBE_MARGIN_X_TEXT_VP);
+  const char text_margin_y[] = "MarginY:";
+  RTS_SndData(text_margin_y, PROBE_MARGIN_Y_TEXT_VP);    
+  char text_size[10]; // Make sure it's large enough to hold the result
+  sprintf(text_size, "     ");
+  RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);
+  sprintf(text_size, "%dx%d", lcd_rts_settings.max_points, lcd_rts_settings.max_points);
+  RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);
+  RTS_SndData(lcd_rts_settings.max_points, SET_GRID_MAX_POINTS_VP);
+  RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT);
+  RTS_SndData(lcd_rts_settings.probe_margin_x, PROBE_MARGIN_X_VP);
+  RTS_SndData(lcd_rts_settings.probe_margin_y, PROBE_MARGIN_Y_VP);    
 
   if (lcd_rts_settings.max_points >= 7){
     queue.enqueue_now_P(PSTR("M401 S0"));
@@ -2514,67 +2474,66 @@ void RTSSHOW::RTS_HandleData(void)
       break;
 
     case BedLevelKey:
-      #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-        uint8_t min_margin_x;          
-        float probe_offset_x_temp;  
+      uint8_t min_margin_x;          
+      float probe_offset_x_temp;  
 
-        if (probe.offset_xy.x < 0) {
-          probe_offset_x_temp = fabs(probe.offset_xy.x);
-        }else{
-          probe_offset_x_temp = -fabs(probe.offset_xy.x);
-        }
+      if (probe.offset_xy.x < 0) {
+        probe_offset_x_temp = fabs(probe.offset_xy.x);
+      }else{
+        probe_offset_x_temp = -fabs(probe.offset_xy.x);
+      }
 
-        max_reachable_pos_x = X_MAX_POS - custom_ceil(probe_offset_x_temp);       
-        min_calc_margin_x_bedlevel = X_BED_SIZE - max_reachable_pos_x;      
+      max_reachable_pos_x = X_MAX_POS - custom_ceil(probe_offset_x_temp);       
+      min_calc_margin_x_bedlevel = X_BED_SIZE - max_reachable_pos_x;      
 
-        if(min_calc_margin_x_bedlevel >= lcd_rts_settings.abl_probe_margin_x){
-          min_margin_x = static_cast<int>(std::ceil(min_calc_margin_x_bedlevel));
-        }else{
-          min_margin_x = static_cast<int>(std::ceil(lcd_rts_settings.abl_probe_margin_x));
-        }        
-        uint8_t min_margin_y_back;
-        float probe_offset_y_temp;  
-        if (probe.offset_xy.y < 0) {
-          probe_offset_y_temp = fabs(probe.offset_xy.y);
-        }else{
-          probe_offset_y_temp = -fabs(probe.offset_xy.y);
-        }
-        if (probe.offset_xy.y == 0) {
-          probe_offset_y_temp = probe.offset_xy.y;
-        }
-        max_reachable_pos_y = Y_MAX_POS - custom_ceil(probe_offset_y_temp);       
-        #if ENABLED(LCD_RTS_DEBUG)
-          SERIAL_ECHO_MSG("max_reachable_pos_y: ", max_reachable_pos_y);
-        #endif
-        if (max_reachable_pos_y >= Y_BED_SIZE){
-          min_calc_margin_y_bedlevel = probe_offset_y_temp;
-        }else{
-          min_calc_margin_y_bedlevel = Y_BED_SIZE - max_reachable_pos_y;  
-        }
-        if (min_calc_margin_y_bedlevel <= 10){
-            min_calc_margin_y_bedlevel = 10;
-        }
+      if(min_calc_margin_x_bedlevel >= lcd_rts_settings.probe_margin_x){
+        min_margin_x = static_cast<int>(std::ceil(min_calc_margin_x_bedlevel));
+      }else{
+        min_margin_x = static_cast<int>(std::ceil(lcd_rts_settings.probe_margin_x));
+      }        
+      uint8_t min_margin_y_back;
+      float probe_offset_y_temp;  
+      if (probe.offset_xy.y < 0) {
+        probe_offset_y_temp = fabs(probe.offset_xy.y);
+      }else{
+        probe_offset_y_temp = -fabs(probe.offset_xy.y);
+      }
+      if (probe.offset_xy.y == 0) {
+        probe_offset_y_temp = probe.offset_xy.y;
+      }
+      max_reachable_pos_y = Y_MAX_POS - custom_ceil(probe_offset_y_temp);       
+      #if ENABLED(LCD_RTS_DEBUG)
+        SERIAL_ECHO_MSG("max_reachable_pos_y: ", max_reachable_pos_y);
+      #endif
+      if (max_reachable_pos_y >= Y_BED_SIZE){
+        min_calc_margin_y_bedlevel = probe_offset_y_temp;
+      }else{
+        min_calc_margin_y_bedlevel = Y_BED_SIZE - max_reachable_pos_y;  
+      }
+      if (min_calc_margin_y_bedlevel <= 10){
+          min_calc_margin_y_bedlevel = 10;
+      }
 
-        if (min_calc_margin_y_bedlevel <= lcd_rts_settings.abl_probe_margin_y){
-          if (min_calc_margin_x_bedlevel <= lcd_rts_settings.abl_probe_margin_y){
-            if (lcd_rts_settings.abl_probe_margin_y <= lcd_rts_settings.abl_probe_margin_x){
-              lcd_rts_settings.abl_probe_min_margin_y = lcd_rts_settings.abl_probe_margin_y;
-            }else{
-              lcd_rts_settings.abl_probe_min_margin_y = lcd_rts_settings.abl_probe_margin_x;
-            }
+      if (min_calc_margin_y_bedlevel <= lcd_rts_settings.probe_margin_y){
+        if (min_calc_margin_x_bedlevel <= lcd_rts_settings.probe_margin_y){
+          if (lcd_rts_settings.probe_margin_y <= lcd_rts_settings.probe_margin_x){
+            lcd_rts_settings.probe_min_margin_y = lcd_rts_settings.probe_margin_y;
           }else{
-            lcd_rts_settings.abl_probe_min_margin_y = lcd_rts_settings.abl_probe_margin_y;
+            lcd_rts_settings.probe_min_margin_y = lcd_rts_settings.probe_margin_x;
           }
         }else{
-          lcd_rts_settings.abl_probe_min_margin_y = min_calc_margin_y_bedlevel;
+          lcd_rts_settings.probe_min_margin_y = lcd_rts_settings.probe_margin_y;
         }
+      }else{
+        lcd_rts_settings.probe_min_margin_y = min_calc_margin_y_bedlevel;
+      }
 
-        if(min_calc_margin_y_bedlevel >= lcd_rts_settings.abl_probe_margin_y){
-          min_margin_y_back = static_cast<int>(std::ceil(min_calc_margin_y_bedlevel));
-        }else{
-          min_margin_y_back = static_cast<int>(std::ceil(lcd_rts_settings.abl_probe_margin_y));
-        }
-      #endif
+      if(min_calc_margin_y_bedlevel >= lcd_rts_settings.probe_margin_y){
+        min_margin_y_back = static_cast<int>(std::ceil(min_calc_margin_y_bedlevel));
+      }else{
+        min_margin_y_back = static_cast<int>(std::ceil(lcd_rts_settings.probe_margin_y));
+      }
+
       if(recdat.data[0] == 1)
       {
         planner.synchronize();
@@ -2727,13 +2686,8 @@ void RTSSHOW::RTS_HandleData(void)
             }
             if (bltouch_tramming == 1){
             // Cr-Touch measuring point 6
-            #if ENABLED(AUTO_BED_LEVELING_BILINEAR)  
-            sprintf_P(cmd, "G30 X%d Y%d", lcd_rts_settings.abl_probe_margin_x,lcd_rts_settings.abl_probe_min_margin_y);
-            #endif
-            #if ENABLED(AUTO_BED_LEVELING_UBL)
-            sprintf_P(cmd, "G30 X%d Y%d", manual_crtouch_5position[5][0],manual_crtouch_5position[5][1]);
-            #endif
-            queue.enqueue_now_P(cmd);         
+            sprintf_P(cmd, "G30 X%d Y%d", lcd_rts_settings.probe_margin_x,lcd_rts_settings.probe_min_margin_y);
+            queue.enqueue_now_P(cmd);
             RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
             change_page_font = 89;                      
             }
@@ -2770,13 +2724,8 @@ void RTSSHOW::RTS_HandleData(void)
             }
             if (bltouch_tramming == 1){
             // Cr-Touch measuring point 7
-            #if ENABLED(AUTO_BED_LEVELING_BILINEAR) 
-              sprintf_P(cmd, "G30 X%d Y%d", (X_BED_SIZE - lcd_rts_settings.abl_probe_margin_x),lcd_rts_settings.abl_probe_min_margin_y);
-            #endif
-            #if ENABLED(AUTO_BED_LEVELING_UBL)
-              sprintf_P(cmd, "G30 X%d Y%d", manual_crtouch_5position[6][0],manual_crtouch_5position[6][1]);
-            #endif            
-            queue.enqueue_now_P(cmd);         
+            sprintf_P(cmd, "G30 X%d Y%d", (X_BED_SIZE - lcd_rts_settings.probe_margin_x),lcd_rts_settings.probe_min_margin_y);
+            queue.enqueue_now_P(cmd);
             RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
             change_page_font = 89;                      
             }
@@ -2814,21 +2763,16 @@ void RTSSHOW::RTS_HandleData(void)
             }
             if (bltouch_tramming == 1){
             // Cr-Touch measuring point 8
-            #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-              #if ENABLED(LCD_RTS_DEBUG)
-                SERIAL_ECHO_MSG("min_margin_y_back ", min_margin_y_back);
-                SERIAL_ECHO_MSG("Y_BED_SIZE ", Y_BED_SIZE);                  
-                SERIAL_ECHO_MSG("lcd_rts_settings.abl_probe_margin_x ", lcd_rts_settings.abl_probe_margin_x);
-                SERIAL_ECHO_MSG("lcd_rts_settings.abl_probe_min_margin_x ", lcd_rts_settings.abl_probe_min_margin_x);                
-                SERIAL_ECHO_MSG("lcd_rts_settings.abl_probe_margin_y ", lcd_rts_settings.abl_probe_margin_y);
-                SERIAL_ECHO_MSG("lcd_rts_settings.abl_probe_min_margin_y ", lcd_rts_settings.abl_probe_min_margin_y);                
-              #endif
-              sprintf_P(cmd, "G30 X%d Y%d", min_margin_x,(Y_BED_SIZE - min_margin_y_back));
+            #if ENABLED(LCD_RTS_DEBUG)
+              SERIAL_ECHO_MSG("min_margin_y_back ", min_margin_y_back);
+              SERIAL_ECHO_MSG("Y_BED_SIZE ", Y_BED_SIZE);                  
+              SERIAL_ECHO_MSG("lcd_rts_settings.probe_margin_x ", lcd_rts_settings.probe_margin_x);
+              SERIAL_ECHO_MSG("lcd_rts_settings.probe_min_margin_x ", lcd_rts_settings.probe_min_margin_x);                
+              SERIAL_ECHO_MSG("lcd_rts_settings.probe_margin_y ", lcd_rts_settings.probe_margin_y);
+              SERIAL_ECHO_MSG("lcd_rts_settings.probe_min_margin_y ", lcd_rts_settings.probe_min_margin_y);                
             #endif
-            #if ENABLED(AUTO_BED_LEVELING_UBL)
-              sprintf_P(cmd, "G30 X%d Y%d", manual_crtouch_5position[7][0],manual_crtouch_5position[7][1]);
-            #endif            
-            queue.enqueue_now_P(cmd);         
+            sprintf_P(cmd, "G30 X%d Y%d", min_margin_x,(Y_BED_SIZE - min_margin_y_back));
+            queue.enqueue_now_P(cmd);
             RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
             change_page_font = 89;                      
             }
@@ -2866,13 +2810,8 @@ void RTSSHOW::RTS_HandleData(void)
             }
             if (bltouch_tramming == 1){
             // Cr-Touch measuring point 9
-            #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-              sprintf_P(cmd, "G30 X%d Y%d", (X_BED_SIZE - min_margin_x),(Y_BED_SIZE - min_margin_y_back));
-            #endif
-            #if ENABLED(AUTO_BED_LEVELING_UBL)
-              sprintf_P(cmd, "G30 X%d Y%d", manual_crtouch_5position[8][0],manual_crtouch_5position[8][1]);
-            #endif            
-            queue.enqueue_now_P(cmd);        
+            sprintf_P(cmd, "G30 X%d Y%d", (X_BED_SIZE - min_margin_x),(Y_BED_SIZE - min_margin_y_back));
+            queue.enqueue_now_P(cmd);
             RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
             change_page_font = 89;                      
             }  
@@ -3146,11 +3085,10 @@ void RTSSHOW::RTS_HandleData(void)
           change_page_font = 40;
         }else{
 
-          #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
             const char text_margin_x[] = "MarginX:";
-            RTS_SndData(text_margin_x, SET_ABL_PROBE_MARGIN_X_TEXT_VP);
+            RTS_SndData(text_margin_x, PROBE_MARGIN_X_TEXT_VP);
             const char text_margin_y[] = "MarginY:";
-            RTS_SndData(text_margin_y, SET_ABL_PROBE_MARGIN_Y_TEXT_VP);
+            RTS_SndData(text_margin_y, PROBE_MARGIN_Y_TEXT_VP);
             char text_size[10]; // Make sure it's large enough to hold the result
             sprintf(text_size, "     ");
             RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);
@@ -3158,21 +3096,8 @@ void RTSSHOW::RTS_HandleData(void)
             RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);
             RTS_SndData(lcd_rts_settings.max_points, SET_GRID_MAX_POINTS_VP);
             RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT); 
-            RTS_SndData(lcd_rts_settings.abl_probe_margin_x, SET_ABL_PROBE_MARGIN_X_VP);
-            RTS_SndData(lcd_rts_settings.abl_probe_margin_y, SET_ABL_PROBE_MARGIN_Y_VP);            
-          #endif
-          #if ENABLED(AUTO_BED_LEVELING_UBL)
-            const char text_margin_x[] = "n.a.";
-            RTS_SndData(text_margin_x, SET_ABL_PROBE_MARGIN_X_TEXT_VP);
-            const char text_margin_y[] = "n.a.";
-            RTS_SndData(text_margin_y, SET_ABL_PROBE_MARGIN_Y_TEXT_VP);            
-            char text_size[10]; // Make sure it's large enough to hold the result
-            sprintf(text_size, "     ");
-            RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);
-            sprintf(text_size, "%dx%d", lcd_rts_settings.max_points, lcd_rts_settings.max_points);
-            RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);                      
-            RTS_SndData(lcd_rts_settings.max_points, SET_GRID_MAX_POINTS_VP);
-          #endif
+            RTS_SndData(lcd_rts_settings.probe_margin_x, PROBE_MARGIN_X_VP);
+            RTS_SndData(lcd_rts_settings.probe_margin_y, PROBE_MARGIN_Y_VP);            
 
           if (lcd_rts_settings.max_points == 5){
             RTS_SndData(ExchangePageBase + 81, ExchangepageAddr);
@@ -3259,64 +3184,36 @@ void RTSSHOW::RTS_HandleData(void)
       else if (recdat.data[0] == 165) 
       { // 00A5 
         bltouch_tramming = 1;
-        #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-          const char text_margin_x[] = "MarginX:";
-          RTS_SndData(text_margin_x, SET_ABL_PROBE_MARGIN_X_TEXT_VP);
-          RTS_SndData(lcd_rts_settings.abl_probe_margin_x, SET_ABL_PROBE_MARGIN_X_VP);
-          const char text_margin_y[] = "MarginY:";          
-          RTS_SndData(text_margin_y, SET_ABL_PROBE_MARGIN_Y_TEXT_VP);
-          RTS_SndData(lcd_rts_settings.abl_probe_margin_y, SET_ABL_PROBE_MARGIN_Y_VP);          
-        #endif
-        #if ENABLED(AUTO_BED_LEVELING_UBL)
-          const char text_margin_x[] = "n.a.";
-          RTS_SndData(text_margin_x, SET_ABL_PROBE_MARGIN_X_TEXT_VP);
-          const char text_margin_y[] = "n.a.";
-          RTS_SndData(text_margin_y, SET_ABL_PROBE_MARGIN_Y_TEXT_VP);          
-        #endif
+        const char text_margin_x[] = "MarginX:";
+        RTS_SndData(text_margin_x, PROBE_MARGIN_X_TEXT_VP);
+        RTS_SndData(lcd_rts_settings.probe_margin_x, PROBE_MARGIN_X_VP);
+        const char text_margin_y[] = "MarginY:";
+        RTS_SndData(text_margin_y, PROBE_MARGIN_Y_TEXT_VP);
+        RTS_SndData(lcd_rts_settings.probe_margin_y, PROBE_MARGIN_Y_VP);
         RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
-        change_page_font = 89;        
+        change_page_font = 89;
       }
-      else if (recdat.data[0] == 166) 
+      else if (recdat.data[0] == 166)
       { // 00A6 
         if (leveling_running == 0){
           if (bltouch_tramming == 1){
             leveling_running = 1;
-            #if ENABLED(AUTO_BED_LEVELING_BILINEAR)            
-              // Point 6  
-              char cmd6[20];
-              sprintf_P(cmd6, "G30 X%d Y%d", lcd_rts_settings.abl_probe_margin_x,lcd_rts_settings.abl_probe_min_margin_y);
-              queue.enqueue_now_P(cmd6);
-              // Point 7
-              char cmd7[20];
-              sprintf_P(cmd7, "G30 X%d Y%d", (X_BED_SIZE - lcd_rts_settings.abl_probe_margin_x),lcd_rts_settings.abl_probe_min_margin_y);
-              queue.enqueue_now_P(cmd7);
-              // Point 8
-              char cmd8[20];
-              sprintf_P(cmd8, "G30 X%d Y%d", lcd_rts_settings.abl_probe_margin_x,(Y_BED_SIZE - min_margin_y_back));
-              queue.enqueue_now_P(cmd8);
-              // Point 9
-              char cmd9[20];
-              sprintf_P(cmd9, "G30 X%d Y%d", (X_BED_SIZE - lcd_rts_settings.abl_probe_margin_x),(Y_BED_SIZE - min_margin_y_back));
-              queue.enqueue_now_P(cmd9);
-            #endif
-            #if ENABLED(AUTO_BED_LEVELING_UBL)           
-                // Point 6  
-                char cmd6[20];
-                sprintf_P(cmd6, "G30 X%d Y%d", manual_crtouch_5position[5][0],manual_crtouch_5position[5][1]);
-                queue.enqueue_now_P(cmd6);
-                // Point 7
-                char cmd7[20];
-                sprintf_P(cmd7, "G30 X%d Y%d", manual_crtouch_5position[6][0],manual_crtouch_5position[6][1]);
-                queue.enqueue_now_P(cmd7);
-                // Point 8
-                char cmd8[20];
-                sprintf_P(cmd8, "G30 X%d Y%d", manual_crtouch_5position[7][0],manual_crtouch_5position[7][1]);
-                queue.enqueue_now_P(cmd8);
-                // Point 9
-                char cmd9[20];
-                sprintf_P(cmd9, "G30 X%d Y%d", manual_crtouch_5position[8][0],manual_crtouch_5position[8][1]);
-                queue.enqueue_now_P(cmd9);
-            #endif
+            // Point 6
+            char cmd6[20];
+            sprintf_P(cmd6, "G30 X%d Y%d", lcd_rts_settings.probe_margin_x,lcd_rts_settings.probe_min_margin_y);
+            queue.enqueue_now_P(cmd6);
+            // Point 7
+            char cmd7[20];
+            sprintf_P(cmd7, "G30 X%d Y%d", (X_BED_SIZE - lcd_rts_settings.probe_margin_x),lcd_rts_settings.probe_min_margin_y);
+            queue.enqueue_now_P(cmd7);
+            // Point 8
+            char cmd8[20];
+            sprintf_P(cmd8, "G30 X%d Y%d", lcd_rts_settings.probe_margin_x,(Y_BED_SIZE - min_margin_y_back));
+            queue.enqueue_now_P(cmd8);
+            // Point 9
+            char cmd9[20];
+            sprintf_P(cmd9, "G30 X%d Y%d", (X_BED_SIZE - lcd_rts_settings.probe_margin_x),(Y_BED_SIZE - min_margin_y_back));
+            queue.enqueue_now_P(cmd9);
             // Finally center
             #if ENABLED(ENDER_3S1_PRO) || ENABLED(ENDER_3S1)
               queue.enqueue_now_P(PSTR("G30 X117.5 Y117.5")); 
@@ -3902,7 +3799,6 @@ void RTSSHOW::RTS_HandleData(void)
 
     case SetGridMaxPoints: 
       {
-      #if ENABLED(AUTO_BED_LEVELING_BILINEAR)       
         temp_grid_max_points = recdat.data[0];
         if (temp_grid_max_points == 5 || temp_grid_max_points == 7 || temp_grid_max_points == 10){
           lcd_rts_settings.max_points = temp_grid_max_points;
@@ -3969,24 +3865,22 @@ void RTSSHOW::RTS_HandleData(void)
           bedlevel.reset();                       
           settings.save();
         }
-      #endif
       }    
       break;
-      
-    #if ENABLED(AUTO_BED_LEVELING_BILINEAR) 
+
       case SetAblProbeMarginX: {
-        temp_abl_probe_margin_x = recdat.data[0];
-        #if ENABLED(LCD_RTS_DEBUG)          
-          SERIAL_ECHO_MSG("temp_abl_probe_margin_x ", temp_abl_probe_margin_x);
+        temp_probe_margin_x = recdat.data[0];
+        #if ENABLED(LCD_RTS_DEBUG)
+          SERIAL_ECHO_MSG("temp_probe_margin_x ", temp_probe_margin_x);
         #endif
         if (probe.offset_xy.x < 0) {
           probe_offset_x_temp = fabs(probe.offset_xy.x);
         }else{
           probe_offset_x_temp = -fabs(probe.offset_xy.x);
         }
-        #if ENABLED(LCD_RTS_DEBUG)          
+        #if ENABLED(LCD_RTS_DEBUG)
           SERIAL_ECHO_MSG("probe.offset_xy.x ", probe.offset_xy.x);
-          SERIAL_ECHO_MSG("X_MAX_POS ", X_MAX_POS);      
+          SERIAL_ECHO_MSG("X_MAX_POS ", X_MAX_POS);
         #endif
         //float max_reachable_pos = X_MAX_POS - probe.offset_xy.x;
         int max_reachable_pos_x = X_MAX_POS - custom_ceil(probe_offset_x_temp);
@@ -3997,26 +3891,24 @@ void RTSSHOW::RTS_HandleData(void)
         #if ENABLED(LCD_RTS_DEBUG)  
           SERIAL_ECHO_MSG("min_calc_margin_x ", min_calc_margin_x); 
         #endif
-        if(min_calc_margin_x >= temp_abl_probe_margin_x){
-         temp_abl_probe_margin_x = min_calc_margin_x;
+        if(min_calc_margin_x >= temp_probe_margin_x){
+         temp_probe_margin_x = min_calc_margin_x;
         }
         #if ENABLED(ENDER_3S1_PLUS)
-          if(temp_abl_probe_margin_x <= 27){
-            temp_abl_probe_margin_x = 27;
+          if(temp_probe_margin_x <= 27){
+            temp_probe_margin_x = 27;
           }
         #endif
-        lcd_rts_settings.abl_probe_margin_x = temp_abl_probe_margin_x;
-        RTS_SndData(temp_abl_probe_margin_x, SET_ABL_PROBE_MARGIN_X_VP);
+        lcd_rts_settings.probe_margin_x = temp_probe_margin_x;
+        RTS_SndData(temp_probe_margin_x, PROBE_MARGIN_X_VP);
         settings.save();
         }    
         break;      
-    #endif
 
-    #if ENABLED(AUTO_BED_LEVELING_BILINEAR) 
       case SetAblProbeMarginY: {
-        temp_abl_probe_margin_y = recdat.data[0];
+        temp_probe_margin_y = recdat.data[0];
         #if ENABLED(LCD_RTS_DEBUG)          
-          SERIAL_ECHO_MSG("temp_abl_probe_margin_y ", temp_abl_probe_margin_y);
+          SERIAL_ECHO_MSG("temp_probe_margin_y ", temp_probe_margin_y);
         #endif
         if (probe.offset_xy.y < 0) {
           probe_offset_y_temp = fabs(probe.offset_xy.y);
@@ -4038,67 +3930,18 @@ void RTSSHOW::RTS_HandleData(void)
         #if ENABLED(LCD_RTS_DEBUG)  
           SERIAL_ECHO_MSG("min_calc_margin_y ", min_calc_margin_y); 
         #endif
-        if(min_calc_margin_y_bedlevel >= temp_abl_probe_margin_y){
-         temp_abl_probe_margin_y = min_calc_margin_y;
+        if(min_calc_margin_y_bedlevel >= temp_probe_margin_y){
+         temp_probe_margin_y = min_calc_margin_y;
         }
-        if(temp_abl_probe_margin_y <= 10){
-          temp_abl_probe_margin_y = 10;
+        if(temp_probe_margin_y <= 10){
+          temp_probe_margin_y = 10;
         }
-        lcd_rts_settings.abl_probe_margin_y = temp_abl_probe_margin_y;
-        lcd_rts_settings.abl_probe_min_margin_y = temp_abl_probe_margin_y;        
-        RTS_SndData(temp_abl_probe_margin_y, SET_ABL_PROBE_MARGIN_Y_VP); 
+        lcd_rts_settings.probe_margin_y = temp_probe_margin_y;
+        lcd_rts_settings.probe_min_margin_y = temp_probe_margin_y;        
+        RTS_SndData(temp_probe_margin_y, PROBE_MARGIN_Y_VP); 
         settings.save();
         }    
         break;      
-    #endif
-
-    //#if ENABLED(AUTO_BED_LEVELING_UBL)
-      //case SetUblProbeMarginMinX: {
-      //  temp_ubl_probe_margin_l = recdat.data[0];
-      //  lcd_rts_settings.ubl_probe_margin_l = temp_ubl_probe_margin_l;
-      //  lcd_rts_data.mesh_min_x = temp_ubl_probe_margin_l;      
-      //  RTS_SndData(temp_ubl_probe_margin_l, SET_UBL_PROBE_MARGIN_MINX_VP);
-        //setTouchScreenConfiguration();  
-      //  settings.save();
-      //}    
-      //  break;      
-    //#endif
-
-    //#if ENABLED(AUTO_BED_LEVELING_UBL)
-      //case SetUblProbeMarginMaxX: {
-      //  temp_ubl_probe_margin_r = recdat.data[0];
-      //  lcd_rts_settings.ubl_probe_margin_r = temp_ubl_probe_margin_r;
-      //  lcd_rts_data.mesh_max_x = temp_ubl_probe_margin_r;      
-      //  RTS_SndData(temp_ubl_probe_margin_r, SET_UBL_PROBE_MARGIN_MAXX_VP);
-        //setTouchScreenConfiguration();  
-      //  settings.save();
-      //}    
-      //  break;      
-    //#endif
-
-    //#if ENABLED(AUTO_BED_LEVELING_UBL)
-      //case SetUblProbeMarginMinY: {
-      //  temp_ubl_probe_margin_f = recdat.data[0];
-      //  lcd_rts_settings.ubl_probe_margin_f = temp_ubl_probe_margin_f;
-      //  lcd_rts_data.mesh_min_y = temp_ubl_probe_margin_f;      
-       // RTS_SndData(temp_ubl_probe_margin_f, SET_UBL_PROBE_MARGIN_MINY_VP);
-      ////  //setTouchScreenConfiguration();  
-      //  settings.save();
-      //}    
-      //  break;      
-    //#endif
-
-    //#if ENABLED(AUTO_BED_LEVELING_UBL)
-      //case SetUblProbeMarginMaxY: {
-      //  temp_ubl_probe_margin_b = recdat.data[0];
-      //  lcd_rts_settings.ubl_probe_margin_b = temp_ubl_probe_margin_b;
-      //  lcd_rts_data.mesh_max_y = temp_ubl_probe_margin_b;      
-      //  RTS_SndData(temp_ubl_probe_margin_b, SET_UBL_PROBE_MARGIN_MAXY_VP);
-      //  //setTouchScreenConfiguration();  
-      //  settings.save();
-      //}    
-      //  break;      
-    //#endif        
 
     case StoreMemoryKey:
       if(recdat.data[0] == 1)

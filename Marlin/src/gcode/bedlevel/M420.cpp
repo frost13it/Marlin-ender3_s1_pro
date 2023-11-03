@@ -161,8 +161,8 @@ void GcodeSuite::M420() {
               const float zmean = mesh_sum / float(GRID_USED_POINTS);
             #endif
             #if ENABLED(AUTO_BED_LEVELING_UBL) 
-              GRID_LOOP(x, y) mesh_sum += bedlevel.z_values[x][y];
-              const float zmean = mesh_sum / float(GRID_MAX_POINTS);
+              GRID_LOOP_USED(x, y) mesh_sum += bedlevel.z_values[x][y];
+              const float zmean = mesh_sum / float(GRID_USED_POINTS);
             #endif
           #else // midrange
 
@@ -176,7 +176,7 @@ void GcodeSuite::M420() {
               }
             #endif
             #if ENABLED(AUTO_BED_LEVELING_UBL)
-              GRID_LOOP(x, y) {
+              GRID_LOOP_USED(x, y) {
                 const float z = bedlevel.z_values[x][y];
                 NOMORE(lo_val, z);
                 NOLESS(hi_val, z);
@@ -198,7 +198,7 @@ void GcodeSuite::M420() {
               }
             #endif
             #if ENABLED(AUTO_BED_LEVELING_UBL)
-              GRID_LOOP(x, y) {
+              GRID_LOOP_USED(x, y) {
                 bedlevel.z_values[x][y] -= zmean;
                 TERN_(EXTENSIBLE_UI, ExtUI::onMeshUpdate(x, y, bedlevel.z_values[x][y]));
               }

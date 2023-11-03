@@ -504,21 +504,16 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define SoundIcon                           0x1152
 #define BrightnessIcon                      0x1154
 #define SET_GRID_MAX_POINTS_VP              0x1156
-#define SET_ABL_PROBE_MARGIN_X_VP           0x1158
-#define SET_ABL_PROBE_MARGIN_X_TEXT_VP      0x1160
-#define SET_ABL_PROBE_MARGIN_Y_VP           0x1164
-#define SET_ABL_PROBE_MARGIN_Y_TEXT_VP      0x1166
+#define PROBE_MARGIN_X_VP           0x1158
+#define PROBE_MARGIN_X_TEXT_VP      0x1160
+#define PROBE_MARGIN_Y_VP           0x1164
+#define PROBE_MARGIN_Y_TEXT_VP      0x1166
 //#define SET_MESH_SIZE_TEXT_VP               0x1972
 #define SET_MESH_SIZE_SIZE_TEXT_VP          0x196A
 #define CURRENT_MESH_POINT                  0x2220
 #define MESH_POINT_MIN                      0x2222
 #define MESH_POINT_MAX                      0x2224
 #define MESH_POINT_DEVIATION                0x2226
-
-//#define SET_UBL_PROBE_MARGIN_MINX_VP        0x1982
-//#define SET_UBL_PROBE_MARGIN_MAXX_VP        0x1984
-//#define SET_UBL_PROBE_MARGIN_MINY_VP        0x1986
-//#define SET_UBL_PROBE_MARGIN_MAXY_VP        0x1988
 
 #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
   #ifndef LCD_RTS_AUTOSCROLL_START_CYCLES
@@ -598,18 +593,10 @@ bool display_standby;
 uint8_t standby_brightness;
 int16_t standby_time_seconds;  
 uint8_t max_points;
-#if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-  uint8_t abl_probe_margin_x;
-  uint8_t abl_probe_min_margin_x;  
-  uint8_t abl_probe_margin_y;
-  uint8_t abl_probe_min_margin_y;    
-#endif
-#if ENABLED(AUTO_BED_LEVELING_UBL)
-//  int16_t ubl_probe_margin_l;
-//  int16_t ubl_probe_margin_r;
-//  int16_t ubl_probe_margin_f;
-//  int16_t ubl_probe_margin_b;
-#endif
+uint8_t probe_margin_x;
+uint8_t probe_min_margin_x;  
+uint8_t probe_margin_y;
+uint8_t probe_min_margin_y;    
 bool gcode_preview;
 bool lcd_rts_debug;
 };
