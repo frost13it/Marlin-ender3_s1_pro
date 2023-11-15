@@ -48,7 +48,7 @@ void unified_bed_leveling::echo_name() { SERIAL_ECHOPGM("Unified Bed Leveling");
 void unified_bed_leveling::report_current_mesh() {
   if (!leveling_is_valid()) return;
   SERIAL_ECHO_MSG("  G29 I999");
-  GRID_LOOP(x, y)
+  GRID_LOOP_USED(x, y)
     if (!isnan(z_values[x][y])) {
       SERIAL_ECHO_START();
       SERIAL_ECHOLN(F("  M421 I"), x, F(" J"), y, FPSTR(SP_Z_STR), p_float_t(z_values[x][y], 4));
@@ -78,7 +78,7 @@ float unified_bed_leveling::get_mesh_y(const uint8_t i) {
 float unified_bed_leveling::get_mesh_x_dist() {
     return float((X_BED_SIZE - lcd_rts_settings.probe_margin_x) - (lcd_rts_settings.probe_margin_x)) / (bedlevel.max_points.x - 1);
 }
-
+// TODO: to reach the y max position here - margin_x is needed
 float unified_bed_leveling::get_mesh_y_dist() {
     return float((Y_BED_SIZE - lcd_rts_settings.probe_margin_y) - (lcd_rts_settings.probe_margin_x)) / (bedlevel.max_points.y - 1);
 }
@@ -93,7 +93,7 @@ void unified_bed_leveling::reset() {
   storage_slot = -1;
   ZERO(z_values);
   #if ENABLED(EXTENSIBLE_UI)
-    GRID_LOOP(x, y) ExtUI::onMeshUpdate(x, y, 0);
+    GRID_LOOP_USED(x, y) ExtUI::onMeshUpdate(x, y, 0);
   #endif
   if (was_enabled) report_current_position();
 }
@@ -233,7 +233,9 @@ void unified_bed_leveling::display_map(const uint8_t map_type) {
   if (human) {
     serial_echo_column_labels(eachsp - 2);
     SERIAL_EOL();
+    // TODO: To show the right point positions here probe_margin_x is needed
     serial_echo_xy(4, (lcd_rts_settings.probe_margin_x), (lcd_rts_settings.probe_margin_x));
+    // TODO: To show the right point positions here probe_margin_x is needed    
     serial_echo_xy(twixt, (X_BED_SIZE - lcd_rts_settings.probe_margin_x), (lcd_rts_settings.probe_margin_x));
     SERIAL_EOL();
     SERIAL_EOL();

@@ -139,7 +139,7 @@ public:
   }
 
   static int8_t cell_index_y_raw(const_float_t y) {
-    return FLOOR((y - (lcd_rts_settings.probe_margin_x)) * RECIPROCAL(get_mesh_y_dist()));
+    return FLOOR((y - (lcd_rts_settings.probe_margin_y)) * RECIPROCAL(get_mesh_y_dist()));
   }
 
   static bool cell_index_x_valid(const_float_t x) {
@@ -168,7 +168,7 @@ public:
     return WITHIN(px, 0, (max_points.x) - 1) ? px : -1;
   }
   static int8_t closest_y_index(const_float_t y, const xy_uint8_t &_max_points) {
-    const int8_t py = (y - (lcd_rts_settings.probe_margin_x) + (get_mesh_y_dist()) * 0.5) * RECIPROCAL(get_mesh_y_dist());
+    const int8_t py = (y - (lcd_rts_settings.probe_margin_y) + (get_mesh_y_dist()) * 0.5) * RECIPROCAL(get_mesh_y_dist());
     return WITHIN(py, 0, (max_points.y) - 1) ? py : -1;
   }
 
@@ -262,7 +262,7 @@ public:
      * UBL_Z_RAISE_WHEN_OFF_MESH is specified, that value is returned.
      */
     #ifdef UBL_Z_RAISE_WHEN_OFF_MESH
-      if (!WITHIN(rx0, lcd_rts_settings.probe_margin_x, X_BED_SIZE - lcd_rts_settings.probe_margin_x) || !WITHIN(ry0, lcd_rts_settings.probe_margin_x, MESH_MAX_Y))
+      if (!WITHIN(rx0, lcd_rts_settings.probe_margin_x, X_BED_SIZE - lcd_rts_settings.probe_margin_x) || !WITHIN(ry0, lcd_rts_settings.probe_margin_y, Y_BED_SIZE - lcd_rts_settings.probe_margin_y))
         return UBL_Z_RAISE_WHEN_OFF_MESH;
     #endif
 

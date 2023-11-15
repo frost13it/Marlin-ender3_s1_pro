@@ -2150,7 +2150,9 @@ void MarlinSettings::postprocess() {
           else // EEPROM data is stale
         #endif // AUTO_BED_LEVELING_BILINEAR
           {
-            EEPROM_READ(bedlevel.max_points);            
+            #if ENABLED(AUTO_BED_LEVELING_UBL)
+              EEPROM_READ(bedlevel.max_points);
+            #endif           
             // Skip past disabled (or stale) Bilinear Grid data
             for (uint16_t q = grid_max_x * grid_max_y; q--;) EEPROM_READ(dummyf);
           }

@@ -520,7 +520,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         zprobe_zoffset = ((float)recdat.data[0]) / 100;
         zprobe_zoffset += 0.001;
       }
-      if(WITHIN((zprobe_zoffset), Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX))
+      if(WITHIN((zprobe_zoffset), PROBE_OFFSET_ZMIN, PROBE_OFFSET_XMAX))
       {
         babystep.add_mm_laser(Z_AXIS, zprobe_zoffset - last_zoffset);
         //SERIAL_ECHOPAIR("\nZoffset=", zprobe_zoffset - last_zoffset);
@@ -1228,7 +1228,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         if (!planner.has_blocks_queued()) {
           file_current_page_laser = 1;
           RTS_SndData(ExchangePageBase + 52, ExchangepageAddr);
-          change_page_font = 2;
+          change_page_font = 52;
           RTS_line_to_filelist_laser();
         }        
       }

@@ -4435,9 +4435,6 @@
 
 #endif // HAS_PRUSA_MMU2
 
-#define AUTO_PID_HOTBED_TARGET_TEMP_MIN 60
-#define AUTO_PID_NOZZLE_TARGET_TEMP_MIN 200
-
 /**
  * Advanced Print Counter settings
  * @section stats

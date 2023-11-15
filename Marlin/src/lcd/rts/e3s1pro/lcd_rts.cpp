@@ -439,6 +439,22 @@ static void RTS_line_to_filelist() {
     strcpy(CardRecbuf.Cardfilename[num], card.filename);
     CardRecbuf.addr[num] = FILE1_TEXT_VP + (num * 20);
     rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[num], CardRecbuf.addr[num]);
+    if (!EndsWith(CardRecbuf.Cardshowlongfilename[num], "gcode") && !EndsWith(CardRecbuf.Cardshowlongfilename[num], "GCO") 
+      && !EndsWith(CardRecbuf.Cardshowlongfilename[num], "GCODE") && !EndsWith(CardRecbuf.Cardshowlongfilename[num], "gco")) 
+    {
+      rtscheck.RTS_SndData((unsigned long)0x073F, FilenameNature + (num + 1) * 16);
+      rtscheck.RTS_SndData(203, FILE6_SELECT_ICON_VP + num);
+    }
+    if (EndsWith(CardRecbuf.Cardshowlongfilename[num], "gcode") || EndsWith(CardRecbuf.Cardshowlongfilename[num], "GCO") 
+      || EndsWith(CardRecbuf.Cardshowlongfilename[num], "GCODE") || EndsWith(CardRecbuf.Cardshowlongfilename[num], "gco")) 
+    {
+      rtscheck.RTS_SndData((unsigned long)0xFFFF, FilenameNature + (num + 1) * 16);
+      rtscheck.RTS_SndData(204, FILE6_SELECT_ICON_VP + num);
+    }
+    if (filenamelen == 0) 
+    {
+      rtscheck.RTS_SndData(0, FILE6_SELECT_ICON_VP + num);
+    }    
     CardRecbuf.Filesum = (++num);
   }
   page_total_file = CardRecbuf.Filesum;
@@ -844,7 +860,7 @@ void RTSSHOW::RTS_Init(void)
   }else{
     queue.enqueue_now_P(PSTR("M401 S1"));
   }
-
+  queue.enqueue_now_P(PSTR("M402"));
   RTS_SndData(home_offset.x * 10, HOME_X_OFFSET_VP);
   RTS_SndData(home_offset.y * 10, HOME_Y_OFFSET_VP);
   RTS_SndData(planner.extruder_advance_K[0] * 100, ADVANCE_K_SET);
@@ -1131,6 +1147,16 @@ int RTSSHOW::RTS_RecData2() {
   memset(databuf, 0, sizeof(databuf));
   recnum = 0;
   return 2;
+}
+
+void RTSSHOW::RTS_SndColor(uint16_t vp, uint16_t color) {
+    snddat.head[0] = 0x5A;  // FHONE
+    snddat.head[1] = 0xA5;  // FHTWO
+    snddat.command = 0x82;  // Write instruction
+    snddat.addr = vp;       // VP address
+    snddat.data[0] = color; // Color
+    snddat.len = 5;         // Length (command + address + color)
+    RTS_SndData();
 }
 
 void RTSSHOW::RTS_SndData(void)
@@ -1479,9 +1505,9 @@ void RTSSHOW::RTS_HandleData(void)
         file_current_page = 1;
         RTS_SndData(file_current_page, PAGE_STATUS_TEXT_CURRENT_VP);
 
+        if (IS_SD_INSERTED()) RTS_line_to_filelist();
         RTS_SndData(ExchangePageBase + 2, ExchangepageAddr);
         change_page_font = 2;
-        if (IS_SD_INSERTED()) RTS_line_to_filelist();
         }
         CardUpdate = false;
       }
@@ -2109,7 +2135,7 @@ void RTSSHOW::RTS_HandleData(void)
         zprobe_zoffset = ((float)recdat.data[0]) / 100;
         zprobe_zoffset += 0.001;
       }
-      if(WITHIN((zprobe_zoffset), Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX))
+      if(WITHIN((zprobe_zoffset), PROBE_OFFSET_ZMIN, PROBE_OFFSET_XMAX))
       {
         babystep.add_mm(Z_AXIS, zprobe_zoffset - last_zoffset);
         //SERIAL_ECHO_MSG("babystep.add_mm():", zprobe_zoffset - last_zoffset);
@@ -2131,7 +2157,7 @@ void RTSSHOW::RTS_HandleData(void)
         zprobe_zoffset = ((float)recdat.data[0]) / 100;
         zprobe_zoffset += 0.001;
       }
-      if(WITHIN((zprobe_zoffset), Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX))
+      if(WITHIN((zprobe_zoffset), PROBE_OFFSET_ZMIN, PROBE_OFFSET_XMAX))
       {
         babystep.add_mm(Z_AXIS, zprobe_zoffset - last_zoffset);
         //SERIAL_ECHO_MSG("babystep.add_mm():", zprobe_zoffset - last_zoffset);
@@ -2321,7 +2347,7 @@ void RTSSHOW::RTS_HandleData(void)
         thermalManager.setTargetHotend(temphot, 0);
         RTS_SndData(thermalManager.temp_hotend[0].target, HEAD_SET_TEMP_VP);
       } else { // è‡ªåŠ¨PID
-          if ((g_uiAutoPIDNozzleRuningFlag == true) || (recdat.data[0] < AUTO_PID_NOZZLE_TARGET_TEMP_MIN)) {
+          if ((g_uiAutoPIDNozzleRuningFlag == true) || (recdat.data[0] < 200)) {
               RTS_SndData(g_autoPIDHeaterTempTargetset, HEAD_SET_TEMP_VP);
               break;
           }
@@ -2343,7 +2369,7 @@ void RTSSHOW::RTS_HandleData(void)
         thermalManager.setTargetBed(tempbed);
          RTS_SndData(temp_bed_display, BED_SET_TEMP_VP);
       } else { // è‡ªåŠ¨PID
-        if ((g_uiAutoPIDHotbedRuningFlag == true) || (recdat.data[0] < AUTO_PID_HOTBED_TARGET_TEMP_MIN)) {
+        if ((g_uiAutoPIDHotbedRuningFlag == true) || (recdat.data[0] < 60)) {
             RTS_SndData(g_autoPIDHotBedTempTargetset, BED_SET_TEMP_VP);
             break;
         }
@@ -2555,7 +2581,7 @@ void RTSSHOW::RTS_HandleData(void)
         } else {
           rec_zoffset = ((float)recdat.data[0]) / 100;
         }
-        if(WITHIN((zprobe_zoffset + 0.01), Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX)) {
+        if(WITHIN((zprobe_zoffset + 0.01), PROBE_OFFSET_ZMIN, PROBE_OFFSET_XMAX)) {
           #if ENABLED(HAS_LEVELING)
           if (rec_zoffset > last_zoffset) {
             zprobe_zoffset = last_zoffset;
@@ -2578,7 +2604,7 @@ void RTSSHOW::RTS_HandleData(void)
         } else {
           rec_zoffset = ((float)recdat.data[0]) / 100;
         }
-        if(WITHIN((zprobe_zoffset - 0.01), Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX)) {
+        if(WITHIN((zprobe_zoffset - 0.01), PROBE_OFFSET_ZMIN, PROBE_OFFSET_XMAX)) {
           #if ENABLED(HAS_LEVELING)
           if (rec_zoffset > last_zoffset) {
             zprobe_zoffset = last_zoffset;
@@ -2961,7 +2987,7 @@ void RTSSHOW::RTS_HandleData(void)
         } else {
           rec_zoffset = ((float)recdat.data[0]) / 100;
         }
-        if(WITHIN((zprobe_zoffset + 0.05), Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX)) {
+        if(WITHIN((zprobe_zoffset + 0.05), PROBE_OFFSET_ZMIN, PROBE_OFFSET_XMAX)) {
           #if ENABLED(HAS_LEVELING)
           if (rec_zoffset > last_zoffset) {
             zprobe_zoffset = last_zoffset;
@@ -2984,7 +3010,7 @@ void RTSSHOW::RTS_HandleData(void)
         } else {
           rec_zoffset = ((float)recdat.data[0]) / 100;
         }
-        if(WITHIN((zprobe_zoffset - 0.05), Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX)) {
+        if(WITHIN((zprobe_zoffset - 0.05), PROBE_OFFSET_ZMIN, PROBE_OFFSET_XMAX)) {
           #if ENABLED(HAS_LEVELING)
           if (rec_zoffset > last_zoffset) {
             zprobe_zoffset = last_zoffset;
@@ -4684,11 +4710,11 @@ void RTSSHOW::RTS_HandleData(void)
           }else{
             break;
           }
-          RTS_SndData(ExchangePageBase + 2, ExchangepageAddr);
-          change_page_font = 2;
           if (card.flag.mounted){
             RTS_line_to_filelist();              
           }       
+          RTS_SndData(ExchangePageBase + 2, ExchangepageAddr);
+          change_page_font = 2;
         }
       }
       else if(recdat.data[0] == 3)
@@ -4699,11 +4725,11 @@ void RTSSHOW::RTS_HandleData(void)
           }else{
             break;
           }
-          RTS_SndData(ExchangePageBase + 2, ExchangepageAddr);
-          change_page_font = 2;
           if (card.flag.mounted){
             RTS_line_to_filelist();
           }
+          RTS_SndData(ExchangePageBase + 2, ExchangepageAddr);
+          change_page_font = 2;
         }
       }
       else if(recdat.data[0] == 4)

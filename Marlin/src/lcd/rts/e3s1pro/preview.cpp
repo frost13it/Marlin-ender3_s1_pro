@@ -26,11 +26,9 @@
 #define FORMAT_JPG_HEADER "jpg begin"
 #define FORMAT_JPG_HEADER_PRUSA "thumbnail_JPG begin"
 #define FORMAT_JPG_HEADER_CURA "thumbnail begin"
-#define FORMAT_PNG_HEADER "png begin"
 #define FORMAT_JPG "jpg"
 #define FORMAT_JPG_PRUSA "thumbnail_JPG"
 #define FORMAT_JPG_CURA "thumbnail"
-#define FORMAT_PNG "png"
 DwinBrightness_t printBri; // 预览图结构体
 #define JPG_BYTES_PER_FRAME 240   // 每一帧发送的字节数（图片数据）
 #define JPG_WORD_PER_FRAME  (JPG_BYTES_PER_FRAME/2)   // 每一帧发送的字数（图片数据）
@@ -456,7 +454,7 @@ char gcodePicExistjudge(char *fileName, unsigned int targitPicAddr, const char t
         }
 
         if (picMsgP != NULL && \
-           (strstr((const char *)picMsgP, FORMAT_JPG) != NULL || strstr((const char *)picMsgP, FORMAT_PNG) != NULL || strstr((const char *)picMsgP, FORMAT_JPG_PRUSA) != NULL || strstr((const char *)picMsgP, FORMAT_JPG_CURA) != NULL)) break;
+           (strstr((const char *)picMsgP, FORMAT_JPG) != NULL || strstr((const char *)picMsgP, FORMAT_JPG_PRUSA) != NULL || strstr((const char *)picMsgP, FORMAT_JPG_CURA) != NULL)) break;
 
         picMsgP = strtok(NULL, (const char *)" ");
     }while(1);
@@ -476,22 +474,8 @@ char gcodePicExistjudge(char *fileName, unsigned int targitPicAddr, const char t
     if ( picMsgP != NULL )
     {
         picResolution = PIC_RESOLITION_MAX;
-        if (strcmp(picMsgP, RESOLITION_36_36) == 0) {
-            picResolution = PIC_RESOLITION_36_36;
-        } else if (strcmp(picMsgP, RESOLITION_48_48) == 0) {
-            picResolution = PIC_RESOLITION_48_48;
-        } else if (strcmp(picMsgP, RESOLITION_64_64) == 0) {
-            picResolution = PIC_RESOLITION_64_64;
-        } else if (strcmp(picMsgP, RESOLITION_96_96) == 0) {
-            picResolution = PIC_RESOLITION_96_96;
-        } else if (strcmp(picMsgP, RESOLITION_144_144) == 0) {
-            picResolution = PIC_RESOLITION_144_144;
-        } else if (strcmp(picMsgP, RESOLITION_250_250) == 0 || strcmp(picMsgP, RESOLITION_250_250_PRUSA) == 0) {
+        if (strcmp(picMsgP, RESOLITION_250_250) == 0 || strcmp(picMsgP, RESOLITION_250_250_PRUSA) == 0) {
             picResolution = PIC_RESOLITION_250_250;            
-        } else if (strcmp(picMsgP, RESOLITION_300_300) == 0) {
-            picResolution = PIC_RESOLITION_300_300;
-        } else if (strcmp(picMsgP, RESOLITION_600_600) == 0) {
-            picResolution = PIC_RESOLITION_600_600;
         }
     }
     

@@ -73,7 +73,7 @@ void GcodeSuite::M420() {
                     (y_max - y_min) / (GRID_MAX_CELLS_Y));
         bedlevel.set_grid(spacing, start);
       #endif
-      GRID_LOOP(x, y) {
+      GRID_LOOP_USED(x, y) {
         bedlevel.z_values[x][y] = 0.001 * random(-200, 200);
         TERN_(EXTENSIBLE_UI, ExtUI::onMeshUpdate(x, y, bedlevel.z_values[x][y]));
       }

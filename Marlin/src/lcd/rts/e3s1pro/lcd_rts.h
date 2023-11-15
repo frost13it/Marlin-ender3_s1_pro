@@ -187,6 +187,7 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define FILE3_SELECT_ICON_VP               0x1223
 #define FILE4_SELECT_ICON_VP               0x1224
 #define FILE5_SELECT_ICON_VP               0x1225
+// used for file icons as of v017
 #define FILE6_SELECT_ICON_VP               0x1226
 #define FILE7_SELECT_ICON_VP               0x1227
 #define FILE8_SELECT_ICON_VP               0x1228
@@ -639,6 +640,7 @@ class RTSSHOW
     void sendPacketAndReceiveResponse(uint16_t packetValue);
     bool readDisplayVersion(uint8_t &guiVersion, uint8_t &osVersion);
     static void RTS_SndText(const char string[], unsigned long addr, uint8_t textSize = 30);
+    void RTS_SndColor(uint16_t vp, uint16_t color);    
     static DB recdat;
     static DB snddat;
   private:

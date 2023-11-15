@@ -436,7 +436,7 @@ void unified_bed_leveling::G29() {
       restore_ubl_active_state_and_leave();
 
       #if ENABLED(UBL_G29_J_RECENTER)
-        do_blocking_move_to_xy(0.5f * ((lcd_rts_settings.probe_margin_x) + (X_BED_SIZE - lcd_rts_settings.probe_margin_x)), 0.5f * ((lcd_rts_settings.probe_margin_x) + (Y_BED_SIZE - lcd_rts_settings.probe_margin_y)));
+        do_blocking_move_to_xy(0.5f * ((lcd_rts_settings.probe_margin_x) + (X_BED_SIZE - lcd_rts_settings.probe_margin_x)), 0.5f * ((lcd_rts_settings.probe_margin_y) + (Y_BED_SIZE - lcd_rts_settings.probe_margin_y)));
       #endif
 
       report_current_position();
@@ -552,7 +552,7 @@ void unified_bed_leveling::G29() {
          */
 
         if (param.C_seen) {
-          if (param.R_repetition >= GRID_MAX_POINTS) {
+          if (param.R_repetition >= GRID_USED_POINTS) {
             set_all_mesh_points_to_value(param.C_constant);
           }
           else {
@@ -562,7 +562,7 @@ void unified_bed_leveling::G29() {
               if (cpos.x < 0) {
                 // No more REAL INVALID mesh points to populate, so we ASSUME
                 // user meant to populate ALL INVALID mesh points to value
-                GRID_LOOP(x, y) if (isnan(z_values[x][y])) z_values[x][y] = param.C_constant;
+                GRID_LOOP_USED(x, y) if (isnan(z_values[x][y])) z_values[x][y] = param.C_constant;
                 break; // No more invalid Mesh Points to populate
               }
               else {
@@ -728,7 +728,7 @@ void unified_bed_leveling::G29() {
 void unified_bed_leveling::adjust_mesh_to_mean(const bool cflag, const_float_t offset) {
   float sum = 0;
   uint8_t n = 0;
-  GRID_LOOP(x, y)
+  GRID_LOOP_USED(x, y)
     if (!isnan(z_values[x][y])) {
       sum += z_values[x][y];
       n++;
@@ -740,7 +740,7 @@ void unified_bed_leveling::adjust_mesh_to_mean(const bool cflag, const_float_t o
   // Sum the squares of difference from mean
   //
   float sum_of_diff_squared = 0;
-  GRID_LOOP(x, y)
+  GRID_LOOP_USED(x, y)
     if (!isnan(z_values[x][y]))
       sum_of_diff_squared += sq(z_values[x][y] - mean);
 
@@ -751,7 +751,7 @@ void unified_bed_leveling::adjust_mesh_to_mean(const bool cflag, const_float_t o
   SERIAL_ECHOLNPGM("Standard Deviation: ", p_float_t(sigma, 6));
 
   if (cflag)
-    GRID_LOOP(x, y)
+    GRID_LOOP_USED(x, y)
       if (!isnan(z_values[x][y])) {
         z_values[x][y] -= mean + offset;
         TERN_(EXTENSIBLE_UI, ExtUI::onMeshUpdate(x, y, z_values[x][y]));
@@ -762,7 +762,7 @@ void unified_bed_leveling::adjust_mesh_to_mean(const bool cflag, const_float_t o
  * G29 P6 C<offset> : Shift Mesh Height by a uniform constant.
  */
 void unified_bed_leveling::shift_mesh_height() {
-  GRID_LOOP(x, y)
+  GRID_LOOP_USED(x, y)
     if (!isnan(z_values[x][y])) {
       z_values[x][y] += param.C_constant;
       TERN_(EXTENSIBLE_UI, ExtUI::onMeshUpdate(x, y, z_values[x][y]));
@@ -962,7 +962,7 @@ void unified_bed_leveling::shift_mesh_height() {
     
     do_blocking_move_to_xy(
       constrain(nearby.x - probe.offset_xy.x, lcd_rts_settings.probe_margin_x, (X_BED_SIZE - lcd_rts_settings.probe_margin_x)),
-      constrain(nearby.y - probe.offset_xy.y, lcd_rts_settings.probe_margin_x, (Y_BED_SIZE - lcd_rts_settings.probe_margin_y))
+      constrain(nearby.y - probe.offset_xy.y, lcd_rts_settings.probe_margin_y, (Y_BED_SIZE - lcd_rts_settings.probe_margin_y))
     );
 
     TERN_(EXTENSIBLE_UI, ExtUI::onLevelingDone());
@@ -1029,7 +1029,7 @@ void set_message_with_feedback(FSTR_P const fstr) {
     do_blocking_move_to(
       xyz_pos_t({
         0.5f * ((X_BED_SIZE - lcd_rts_settings.probe_margin_x) - (lcd_rts_settings.probe_margin_x)),
-        0.5f * ((Y_BED_SIZE - lcd_rts_settings.probe_margin_y) - (lcd_rts_settings.probe_margin_x)),
+        0.5f * ((Y_BED_SIZE - lcd_rts_settings.probe_margin_y) - (lcd_rts_settings.probe_margin_y)),
         MANUAL_PROBE_START_Z
         #ifdef SAFE_BED_LEVELING_START_I
           , SAFE_BED_LEVELING_START_I
@@ -1584,30 +1584,36 @@ bool unified_bed_leveling::smart_fill_one(const uint8_t x, const uint8_t y, cons
 typedef struct { uint8_t sx, ex, sy, ey; bool yfirst; } smart_fill_info;
 
 void unified_bed_leveling::smart_fill_mesh() {
-  static const smart_fill_info
-    info0 PROGMEM = { 0, GRID_MAX_POINTS_X,       0, (GRID_MAX_POINTS_Y) - 2, false },  // Bottom of the mesh looking up
-    info1 PROGMEM = { 0, GRID_MAX_POINTS_X,     (GRID_MAX_POINTS_Y) - 1, 0,   false },  // Top of the mesh looking down
-    info2 PROGMEM = { 0, (GRID_MAX_POINTS_X) - 2, 0, GRID_MAX_POINTS_Y,       true  },  // Left side of the mesh looking right
-    info3 PROGMEM = { (GRID_MAX_POINTS_X) - 1, 0, 0, GRID_MAX_POINTS_Y,       true  };  // Right side of the mesh looking left
-  static const smart_fill_info * const info[] PROGMEM = { &info0, &info1, &info2, &info3 };
+    // Ensure GRID_USED_POINTS_X and GRID_USED_POINTS_Y are greater than the values being subtracted
+    if (GRID_USED_POINTS_X < 2 || GRID_USED_POINTS_Y < 2) {
+        // Handle error condition: maybe return, set an error flag, etc.
+        return;
+    }
 
-  for (uint8_t i = 0; i < COUNT(info); ++i) {
-    const smart_fill_info *f = (smart_fill_info*)pgm_read_ptr(&info[i]);
-    const int8_t sx = pgm_read_byte(&f->sx), sy = pgm_read_byte(&f->sy),
-                 ex = pgm_read_byte(&f->ex), ey = pgm_read_byte(&f->ey);
-    if (pgm_read_byte(&f->yfirst)) {
-      const int8_t dir = ex > sx ? 1 : -1;
-      for (uint8_t y = sy; y != ey; ++y)
-        for (uint8_t x = sx; x != ex; x += dir)
-          if (smart_fill_one(x, y, dir, 0)) break;
+    static smart_fill_info
+        info0 = { 0, static_cast<uint8_t>(GRID_USED_POINTS_X), 0, static_cast<uint8_t>(GRID_USED_POINTS_Y - 2), false }, // Bottom
+        info1 = { 0, static_cast<uint8_t>(GRID_USED_POINTS_X), static_cast<uint8_t>(GRID_USED_POINTS_Y - 1), 0, false }, // Top
+        info2 = { 0, static_cast<uint8_t>(GRID_USED_POINTS_X - 2), 0, static_cast<uint8_t>(GRID_USED_POINTS_Y), true },   // Left
+        info3 = { static_cast<uint8_t>(GRID_USED_POINTS_X - 1), 0, 0, static_cast<uint8_t>(GRID_USED_POINTS_Y), true };   // Right
+    static const smart_fill_info * const info[] = { &info0, &info1, &info2, &info3 };
+
+    for (uint8_t i = 0; i < COUNT(info); ++i) {
+        const smart_fill_info *f = info[i];
+        const uint8_t sx = f->sx, sy = f->sy,
+                      ex = f->ex, ey = f->ey;
+        if (f->yfirst) {
+            const int8_t dir = ex > sx ? 1 : -1;
+            for (uint8_t y = sy; y != ey; ++y)
+                for (uint8_t x = sx; x != ex; x += dir)
+                    if (smart_fill_one(x, y, dir, 0)) break;
+        }
+        else {
+            const int8_t dir = ey > sy ? 1 : -1;
+            for (uint8_t x = sx; x != ex; ++x)
+                for (uint8_t y = sy; y != ey; y += dir)
+                    if (smart_fill_one(x, y, 0, dir)) break;
+        }
     }
-    else {
-      const int8_t dir = ey > sy ? 1 : -1;
-       for (uint8_t x = sx; x != ex; ++x)
-        for (uint8_t y = sy; y != ey; y += dir)
-          if (smart_fill_one(x, y, 0, dir)) break;
-    }
-  }
 }
 
 #if HAS_BED_PROBE
@@ -1671,7 +1677,7 @@ void unified_bed_leveling::smart_fill_mesh() {
 
       const float x_min = _MAX((X_MIN_POS) + (G29J_MESH_TILT_MARGIN), lcd_rts_settings.probe_margin_x, probe.min_x()),
                   x_max = _MIN((X_MAX_POS) - (G29J_MESH_TILT_MARGIN), (X_BED_SIZE - lcd_rts_settings.probe_margin_x), probe.max_x()),
-                  y_min = _MAX((Y_MIN_POS) + (G29J_MESH_TILT_MARGIN), lcd_rts_settings.probe_margin_x, probe.min_y()),
+                  y_min = _MAX((Y_MIN_POS) + (G29J_MESH_TILT_MARGIN), lcd_rts_settings.probe_margin_y, probe.min_y()),
                   y_max = _MIN((Y_MAX_POS) - (G29J_MESH_TILT_MARGIN), (Y_BED_SIZE - lcd_rts_settings.probe_margin_y), probe.max_y()),
                   dx = (x_max - x_min) / (param.J_grid_size - 1),
                   dy = (y_max - y_min) / (param.J_grid_size - 1);
@@ -1895,13 +1901,13 @@ void unified_bed_leveling::smart_fill_mesh() {
     #endif
 
     //SERIAL_ECHOLNPGM("lcd_rts_settings.probe_margin_x  " STRINGIFY(lcd_rts_settings.probe_margin_x) "=", (lcd_rts_settings.probe_margin_x)); serial_delay(50);
-    //SERIAL_ECHOLNPGM("lcd_rts_settings.probe_margin_x  " STRINGIFY(lcd_rts_settings.probe_margin_x) "=", (lcd_rts_settings.probe_margin_x)); serial_delay(50);
+    //SERIAL_ECHOLNPGM("lcd_rts_settings.probe_margin_y  " STRINGIFY(lcd_rts_settings.probe_margin_y) "=", (lcd_rts_settings.probe_margin_y)); serial_delay(50);
     //SERIAL_ECHOLNPGM("MESH_MAX_X  " STRINGIFY(MESH_MAX_X) "=", (MESH_MAX_X)); serial_delay(50);
     //SERIAL_ECHOLNPGM("MESH_MAX_Y  " STRINGIFY(MESH_MAX_Y) "=", (MESH_MAX_Y)); serial_delay(50);
     SERIAL_ECHOLNPGM("GRID_MAX_POINTS_X ", GRID_MAX_POINTS_X);             serial_delay(50);
     SERIAL_ECHOLNPGM("GRID_MAX_POINTS_Y ", GRID_MAX_POINTS_Y);             serial_delay(50);
     SERIAL_ECHOLNPGM("GRID_USED_POINTS_X ", GRID_USED_POINTS_X);             serial_delay(50);
-    SERIAL_ECHOLNPGM("GRID_USE_POINTS_Y ", GRID_USED_POINTS_Y);             serial_delay(50);
+    SERIAL_ECHOLNPGM("GRID_USED_POINTS_Y ", GRID_USED_POINTS_Y);             serial_delay(50);
     SERIAL_ECHOPGM("X-Axis Mesh Points at: ");
     for (uint8_t i = 0; i < GRID_USED_POINTS_X; ++i) {
       SERIAL_ECHO(p_float_t(LOGICAL_X_POSITION(get_mesh_x(i)), 3), F("  "));
