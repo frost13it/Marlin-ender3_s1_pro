@@ -86,6 +86,14 @@ class TemporaryBedLevelingState {
     #define PRINT_2D_ARRAY(X, Y, P, V, M...) print_2d_array(X, Y, P, V, M)
   #endif
 
+  struct ColorRange {
+      float lower_bound;
+      float upper_bound;
+      unsigned long color;
+  };
+
+  extern unsigned long getColor(float value, float min_value, float max_value, float median);
+
   struct mesh_index_pair {
     xy_int8_t pos;
     float distance;   // When populated, the distance from the search location

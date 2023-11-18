@@ -675,7 +675,7 @@ G29_TYPE GcodeSuite::G29() {
       bool zig = PR_OUTER_SIZE & 1;  // Always end at RIGHT and BACK_PROBE_BED_POSITION
 
       #if ENABLED(E3S1PRO_RTS)
-       uint8_t showcount = 0;
+        uint8_t showcount = 0;
       #endif
 
       // Outer loop is X with PROBE_Y_FIRST enabled
@@ -814,7 +814,8 @@ G29_TYPE GcodeSuite::G29() {
                   }else{
                   rtscheck.RTS_SndData(showcount + 1, AUTO_BED_LEVEL_CUR_POINT_VP);
                   rtscheck.RTS_SndData(z*1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
-                  showcount ++;
+                  rtscheck.RTS_SndData((unsigned long)0x073F, TrammingpointNature + (color_sp_offset + showcount + 1) * 16);
+                  showcount ++;                  
                   if (lcd_rts_settings.max_points == 5){
                     rtscheck.RTS_SndData(ExchangePageBase + 81, ExchangepageAddr);
                     change_page_font = 81;
@@ -823,10 +824,10 @@ G29_TYPE GcodeSuite::G29() {
                     rtscheck.RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
                     change_page_font = 94;
                   }
-                  if (lcd_rts_settings.max_points == 9){
-                    rtscheck.RTS_SndData(ExchangePageBase + 96, ExchangepageAddr);
-                    change_page_font = 96;
-                  }
+                  //if (lcd_rts_settings.max_points == 9){
+                  //  rtscheck.RTS_SndData(ExchangePageBase + 96, ExchangepageAddr);
+                  //  change_page_font = 96;
+                  //}
                   if (lcd_rts_settings.max_points == 10){
                     rtscheck.RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
                     change_page_font = 95;
@@ -1057,61 +1058,69 @@ G29_TYPE GcodeSuite::G29() {
     bool zig = false;
     int8_t inStart, inStop, inInc, showcount;
     showcount = 0;
-    // Initialize min_value and max_value with the first value in the range
-    float min_value = bedlevel.z_values[0][0]; 
-    float max_value = bedlevel.z_values[0][0]; 
-    float deviation; // Variable to hold the deviation
-    
-    //settings.load();
-    for (int y = 0; y < lcd_rts_settings.max_points; y++)
-    {
-      // away from origin
-      if (zig)
-      {
-        inStart = lcd_rts_settings.max_points - 1;
-        inStop = -1;
-        inInc = -1;
-      }
-      else
-      {
-        // towards origin
-        inStart = 0;
-        inStop = lcd_rts_settings.max_points;
-        inInc = 1;
-      }
-      zig ^= true;
-      
-      for (int x = inStart; x != inStop; x += inInc)
-      {
-        // Get the current z_value as a float
-        float current_z_value = bedlevel.z_values[x][y];
-        
-        // Check if it's the new minimum
-        if (current_z_value < min_value)
-        {
-          min_value = current_z_value;
+    float min_value = bedlevel.z_values[0][0];
+    float max_value = bedlevel.z_values[0][0];
+    // Determine the min and max values from the mesh data
+    for (int y = 0; y < lcd_rts_settings.max_points; y++) {
+        for (int x = 0; x < lcd_rts_settings.max_points; x++) {
+            float current_z_value = bedlevel.z_values[x][y];
+            if (current_z_value < min_value) min_value = current_z_value;
+            if (current_z_value > max_value) max_value = current_z_value;
         }
-        
-        // Check if it's the new maximum
-        if (current_z_value > max_value)
-        {
-          max_value = current_z_value;
-        }
-        
-        // Send the current_z_value (as is, no scaling) to the display
-        rtscheck.RTS_SndData(current_z_value * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
-        showcount++;
-      }
     }
-    
-    // Calculate the deviation
-    deviation = max_value - min_value;
-    
-    // Send min_value, max_value, and deviation to the display
+
+    float deviation = max_value - min_value;
+    float median = (min_value + max_value) / 2.0f;
+    ColorRange color_ranges[7];
+    int num_ranges = 0;
+
+    // Center green in the range
+    color_ranges[num_ranges++] = {median - 0.04f / 2, median + 0.04f / 2, 0x07E0};
+
+    // Calculate and add additional colors if the range exceeds GREEN_RANGE = 0.04f
+    float additional_range = (deviation - 0.04f) / 2;
+    float lower_bound = median - 0.04f / 2;
+    float upper_bound = median + 0.04f / 2;
+
+    // Add colors below green
+    while (lower_bound > min_value) {
+        float range_end = std::max(min_value, lower_bound - additional_range);
+        color_ranges[num_ranges++] = {range_end, lower_bound, 0x07E0}; // Light Green
+        lower_bound = range_end;
+    }
+
+    // Add colors above green
+    while (upper_bound < max_value) {
+        float range_start = std::min(max_value, upper_bound + additional_range);
+        color_ranges[num_ranges++] = {upper_bound, range_start, 0xFFE0}; // Yellow
+        upper_bound = range_start;
+    }
+
+    for (int y = 0; y < lcd_rts_settings.max_points; y++) {
+        if (zig) {
+            inStart = lcd_rts_settings.max_points - 1;
+            inStop = -1;
+            inInc = -1;
+        } else {
+            inStart = 0;
+            inStop = lcd_rts_settings.max_points;
+            inInc = 1;
+        }
+        zig ^= true;
+
+        for (int x = inStart; x != inStop; x += inInc) {
+            float current_z_value = bedlevel.z_values[x][y];
+            rtscheck.RTS_SndData(current_z_value * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
+            unsigned long color = getColor(current_z_value, min_value, max_value, median);
+            rtscheck.RTS_SndData(color, TrammingpointNature + (color_sp_offset + showcount + 1) * 16);
+            showcount++;
+        }
+    }
+
     rtscheck.RTS_SndData(min_value * 1000, MESH_POINT_MIN);
     rtscheck.RTS_SndData(max_value * 1000, MESH_POINT_MAX);
-    rtscheck.RTS_SndData(deviation * 1000, MESH_POINT_DEVIATION);       
-    rtscheck.RTS_SndData(lang, AUTO_LEVELING_START_TITLE_VP);    
+    rtscheck.RTS_SndData(deviation * 1000, MESH_POINT_DEVIATION);
+    rtscheck.RTS_SndData(lang, AUTO_LEVELING_START_TITLE_VP);
     RTS_AutoBedLevelPage();
   #endif
 

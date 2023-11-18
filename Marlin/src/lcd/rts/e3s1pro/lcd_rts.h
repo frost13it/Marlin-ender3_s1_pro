@@ -406,17 +406,17 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define HOTEND_X_ZOFFSET_VP                0x163A
 #define HOTEND_Y_ZOFFSET_VP                0x164A
 
-#define X_MIN_POS_EEPROM_VP                0x165A
-#define Y_MIN_POS_EEPROM_VP                0x166A
+//#define X_MIN_POS_EEPROM_VP                0x165A
+//#define Y_MIN_POS_EEPROM_VP                0x166A
 
-#define X_MIN_POS_VP                       0x167A
-#define Y_MIN_POS_VP                       0x168A
+//#define X_MIN_POS_VP                       0x167A
+//#define Y_MIN_POS_VP                       0x168A
 
-#define X_BEDSIZE_VP                       0x169A
-#define Y_BEDSIZE_VP                       0x170A 
+//#define X_BEDSIZE_VP                       0x169A
+//#define Y_BEDSIZE_VP                       0x170A 
 
-#define HOME_X_OFFSET_NEW_VP               0x171A
-#define HOME_Y_OFFSET_NEW_VP               0x172A
+//#define HOME_X_OFFSET_NEW_VP               0x171A
+//#define HOME_Y_OFFSET_NEW_VP               0x172A
 
 #define SHAPING_X_FREQUENCY_VP             0x173A
 #define SHAPING_Y_FREQUENCY_VP             0x174A
@@ -467,13 +467,7 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define WEBSITE_ABOUT_TEXT_VP              0x1814
 
 #define FilenameNature                     0x6003
-
-#define LCD_LED_CONFIG_REGISTER            0x0082
-#define LCD_TP_STATUS_REGISTER             0x0016
-#define LCD_SHUTDOWN_LIGHT_LEVEL           0x0A
-#define LCD_OPEN_LIGHT_LEVEL               0x64
-
-#define TIME_PRINT_OVER_SHUTDOWN           300
+#define TrammingpointNature                0x6153
 
 #define ABNORMAL_PAGE_TEXT_VP_SIZE         30  
 
@@ -516,19 +510,6 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define MESH_POINT_MAX                      0x2224
 #define MESH_POINT_DEVIATION                0x2226
 
-#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
-  #ifndef LCD_RTS_AUTOSCROLL_START_CYCLES
-    // Additional refresh cycles where strings beginnings are shown
-    #define LCD_RTS_AUTOSCROLL_START_CYCLES 1
-  #endif
-  #ifndef LCD_RTS_AUTOSCROLL_END_CYCLES
-    // Additional refresh cycles where strings endings are shown
-    #define LCD_RTS_AUTOSCROLL_END_CYCLES 1
-  #endif
-  #ifndef LCD_RTS_STATUS_EXPIRATION_MS
-    #define LCD_RTS_STATUS_EXPIRATION_MS 30000
-  #endif  
-#endif
 /************struct**************/
 typedef struct DataBuf
 {
@@ -586,7 +567,6 @@ struct RecData2 {
 struct lcd_rts_settings_t { // use bit fields to save space, max 48 bytes
 size_t settings_size;
 uint8_t settings_version;
-int8_t screen_rotation;
 bool display_sound;
 int16_t display_volume;
 uint8_t screen_brightness;
@@ -595,11 +575,8 @@ uint8_t standby_brightness;
 int16_t standby_time_seconds;  
 uint8_t max_points;
 uint8_t probe_margin_x;
-uint8_t probe_min_margin_x;  
 uint8_t probe_margin_y;
 uint8_t probe_min_margin_y;    
-bool gcode_preview;
-bool lcd_rts_debug;
 };
 
 static constexpr size_t eeprom_data_size = sizeof(lcd_rts_settings_t);
@@ -636,11 +613,11 @@ class RTSSHOW
     #endif
     void writeVariable(const uint16_t adr, const void * const values, uint8_t valueslen, const bool isstr=false, const char fillChar=' ');    
     void setTouchScreenConfiguration();    
-    String RTS_ReadTextField(uint16_t address);
-    void sendPacketAndReceiveResponse(uint16_t packetValue);
-    bool readDisplayVersion(uint8_t &guiVersion, uint8_t &osVersion);
+    //String RTS_ReadTextField(uint16_t address);
+    //void sendPacketAndReceiveResponse(uint16_t packetValue);
+    //bool readDisplayVersion(uint8_t &guiVersion, uint8_t &osVersion);
     static void RTS_SndText(const char string[], unsigned long addr, uint8_t textSize = 30);
-    void RTS_SndColor(uint16_t vp, uint16_t color);    
+  
     static DB recdat;
     static DB snddat;
   private:
@@ -934,6 +911,7 @@ extern uint8_t y_min_pos_eeprom;
 extern int8_t g_uiAutoPIDRuningDiff;
 extern int16_t g_uiCurveDataCnt;
 extern uint8_t leveling_running;
+extern uint8_t color_sp_offset;
 #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
   void lcd_rts_scrolling();
 #endif

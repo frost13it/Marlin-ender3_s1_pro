@@ -105,7 +105,7 @@ void GcodeSuite::G30() {
         TrammingPoint trammingPoints[10] = {
           // Center definition
           {117.50, 117.50, CRTOUCH_TRAMMING_POINT_1_VP},
-          {155.00, 157.50, CRTOUCH_TRAMMING_POINT_1_VP},
+          {155.00, 155.00, CRTOUCH_TRAMMING_POINT_1_VP},
         };
         uint16_t min_margin_x;
         uint16_t min_margin_y_front;

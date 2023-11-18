@@ -472,7 +472,7 @@ void unified_bed_leveling::G29() {
           }
           if (param.V_verbosity > 1)
             SERIAL_ECHOLN(F("Probing around ("), param.XY_pos.x, AS_CHAR(','), param.XY_pos.y, F(").\n"));
-          probe_entire_mesh(param.XY_pos, parser.seen_test('T'), parser.seen_test('E'), parser.seen_test('U'));
+          probe_entire_mesh(param.XY_pos, parser.seen_test('T'), parser.seen_test('E'), parser.seen_test('U'), color_sp_offset);
 
           report_current_position();
           probe_deployed = true;
@@ -775,7 +775,7 @@ void unified_bed_leveling::shift_mesh_height() {
    *   Probe all invalidated locations of the mesh that can be reached by the probe.
    *   This attempts to fill in locations closest to the nozzle's start location first.
    */
-  void unified_bed_leveling::probe_entire_mesh(const xy_pos_t &nearby, const bool do_ubl_mesh_map, const bool stow_probe, const bool do_furthest) {
+  void unified_bed_leveling::probe_entire_mesh(const xy_pos_t &nearby, const bool do_ubl_mesh_map, const bool stow_probe, const bool do_furthest, const uint8_t color_sp_offset) {
     probe.deploy(); // Deploy before ui.capture() to allow for PAUSE_BEFORE_DEPLOY_STOW
 
     TERN_(HAS_MARLINUI_MENU, ui.capture());
@@ -858,6 +858,7 @@ void unified_bed_leveling::shift_mesh_height() {
             rtscheck.RTS_SndData(GRID_USED_POINTS, AUTO_BED_LEVEL_END_POINT);
             rtscheck.RTS_SndData(point_num, AUTO_BED_LEVEL_CUR_POINT_VP);
             rtscheck.RTS_SndData(measured_z * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + (point_num_real - 1) * 2);
+            rtscheck.RTS_SndData((unsigned long)0x073F, TrammingpointNature + (color_sp_offset + point_num_real) * 16);
             if (lcd_rts_settings.max_points == 5){
               rtscheck.RTS_SndData(ExchangePageBase + 81, ExchangepageAddr);
               change_page_font = 81;
@@ -866,10 +867,6 @@ void unified_bed_leveling::shift_mesh_height() {
               rtscheck.RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
               change_page_font = 94;
             }
-            if (lcd_rts_settings.max_points == 9){
-              rtscheck.RTS_SndData(ExchangePageBase + 96, ExchangepageAddr);
-              change_page_font = 96;
-            }             
             if (lcd_rts_settings.max_points == 10){
               rtscheck.RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
               change_page_font = 95;
@@ -896,64 +893,6 @@ void unified_bed_leveling::shift_mesh_height() {
       }
       rtscheck.RTS_SndData(lang, AUTO_LEVELING_START_TITLE_VP);
       leveling_running = 0;
-      bool zig = false;
-      int8_t inStart, inStop, inInc, showcount;
-      showcount = 0;
-      // Initialize min_value and max_value with the first value in the range
-      float min_value = z_values[0][0]; 
-      float max_value = z_values[0][0]; 
-      float deviation; // Variable to hold the deviation
-      
-      //settings.load();
-      for (int y = 0; y < lcd_rts_settings.max_points; y++)
-      {
-        // away from origin
-        if (zig)
-        {
-          inStart = lcd_rts_settings.max_points - 1;
-          inStop = -1;
-          inInc = -1;
-        }
-        else
-        {
-          // towards origin
-          inStart = 0;
-          inStop = lcd_rts_settings.max_points;
-          inInc = 1;
-        }
-        zig ^= true;
-        
-        for (int x = inStart; x != inStop; x += inInc)
-        {
-          // Get the current z_value as a float
-          float current_z_value = z_values[x][y];
-          
-          // Check if it's the new minimum
-          if (current_z_value < min_value)
-          {
-            min_value = current_z_value;
-          }
-          
-          // Check if it's the new maximum
-          if (current_z_value > max_value)
-          {
-            max_value = current_z_value;
-          }
-          
-          // Send the current_z_value (as is, no scaling) to the display
-          rtscheck.RTS_SndData(current_z_value * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
-          showcount++;
-        }
-      }
-      
-      // Calculate the deviation
-      deviation = max_value - min_value;
-      
-      // Send min_value, max_value, and deviation to the display
-      rtscheck.RTS_SndData(min_value * 1000, MESH_POINT_MIN);
-      rtscheck.RTS_SndData(max_value * 1000, MESH_POINT_MAX);
-      rtscheck.RTS_SndData(deviation * 1000, MESH_POINT_DEVIATION);      
-      RTS_AutoBedLevelPage();
     #endif
 
     probe.move_z_after_probing();
@@ -964,6 +903,68 @@ void unified_bed_leveling::shift_mesh_height() {
       constrain(nearby.x - probe.offset_xy.x, lcd_rts_settings.probe_margin_x, (X_BED_SIZE - lcd_rts_settings.probe_margin_x)),
       constrain(nearby.y - probe.offset_xy.y, lcd_rts_settings.probe_margin_y, (Y_BED_SIZE - lcd_rts_settings.probe_margin_y))
     );
+    #if ENABLED(E3S1PRO_RTS)
+      bool zig = false;
+      int8_t inStart, inStop, inInc, showcount;
+      showcount = 0;      
+      float min_value = z_values[0][0];
+      float max_value = z_values[0][0];
+      // Determine the min and max values from the mesh data
+      for (int y = 0; y < lcd_rts_settings.max_points; y++) {
+          for (int x = 0; x < lcd_rts_settings.max_points; x++) {
+              float current_z_value = z_values[x][y];
+              if (current_z_value < min_value) min_value = current_z_value;
+              if (current_z_value > max_value) max_value = current_z_value;
+          }
+      }
+      float deviation = max_value - min_value;
+      float median = (min_value + max_value) / 2.0f;
+      ColorRange color_ranges[7];
+      int num_ranges = 0;
+      // Center green in the range
+      color_ranges[num_ranges++] = {median - 0.04f, median + 0.04f, 0x07E0};
+      // Calculate and add additional colors if the range exceeds GREEN_RANGE = 0.08f
+      float additional_range = (deviation - 0.08f) / 2;
+      float lower_bound = median - 0.04f;
+      float upper_bound = median + 0.04f;
+      // Add colors below green
+      while (lower_bound > min_value) {
+          float range_end = std::max(min_value, lower_bound - additional_range);
+          color_ranges[num_ranges++] = {range_end, lower_bound, 0x87FF}; // Light Blue
+          lower_bound = range_end;
+      }
+      // Add colors above green
+      while (upper_bound < max_value) {
+          float range_start = std::min(max_value, upper_bound + additional_range);
+          color_ranges[num_ranges++] = {upper_bound, range_start, 0xFFE0}; // Yellow
+          upper_bound = range_start;
+      }
+      //settings.load();
+      for (int y = 0; y < lcd_rts_settings.max_points; y++) {
+          if (zig) {
+              inStart = lcd_rts_settings.max_points - 1;
+              inStop = -1;
+              inInc = -1;
+          } else {
+              inStart = 0;
+              inStop = lcd_rts_settings.max_points;
+              inInc = 1;
+          }
+          zig ^= true;
+          for (int x = inStart; x != inStop; x += inInc) {
+              float current_z_value = z_values[x][y];
+              rtscheck.RTS_SndData(current_z_value * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
+              unsigned long color = getColor(current_z_value, min_value, max_value, median);
+              rtscheck.RTS_SndData(color, TrammingpointNature + (color_sp_offset + showcount + 1) * 16);
+              showcount++;
+          }
+      }
+      rtscheck.RTS_SndData(min_value * 1000, MESH_POINT_MIN);
+      rtscheck.RTS_SndData(max_value * 1000, MESH_POINT_MAX);
+      rtscheck.RTS_SndData(deviation * 1000, MESH_POINT_DEVIATION);       
+      rtscheck.RTS_SndData(lang, AUTO_LEVELING_START_TITLE_VP);
+      RTS_AutoBedLevelPage();
+    #endif
 
     TERN_(EXTENSIBLE_UI, ExtUI::onLevelingDone());
     TERN_(DWIN_LCD_PROUI, dwinLevelingDone());
