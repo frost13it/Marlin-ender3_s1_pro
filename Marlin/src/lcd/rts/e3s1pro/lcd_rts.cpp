@@ -102,13 +102,6 @@ bool StartPrint_flag = false;
   float rec_zoffset;
 #endif
 
-#if ENABLED(INPUT_SHAPING_X) && ENABLED (INPUT_SHAPING_Y)
-float x_frequency = 0.0;
-float y_frequency = 0.0;
-float x_zeta = 0.0;
-float y_zeta = 0.0;
-#endif
-
 bool power_off_type_yes = false;
 uint8_t old_leveling = 0;
 uint8_t bltouch_tramming = 0;
@@ -1589,14 +1582,10 @@ void RTSSHOW::RTS_HandleData(void)
       if(recdat.data[0] == 1)
       {
         // thermalManager.fan_speed[0] ? RTS_SndData(1, PRINTER_FANOPEN_TITLE_VP) : RTS_SndData(0, PRINTER_FANOPEN_TITLE_VP);
-        x_frequency = stepper.get_shaping_frequency(X_AXIS);
-        RTS_SndData(x_frequency * 100, SHAPING_X_FREQUENCY_VP);
-        y_frequency = stepper.get_shaping_frequency(Y_AXIS);
-        RTS_SndData(y_frequency * 100, SHAPING_Y_FREQUENCY_VP);
-        x_zeta = stepper.get_shaping_damping_ratio(X_AXIS);
-        RTS_SndData(x_zeta * 100, SHAPING_X_ZETA_VP);
-        y_zeta = stepper.get_shaping_damping_ratio(Y_AXIS);
-        RTS_SndData(y_zeta * 100, SHAPING_Y_ZETA_VP);  
+        RTS_SndData(stepper.get_shaping_frequency(X_AXIS) * 100, SHAPING_X_FREQUENCY_VP);
+        RTS_SndData(stepper.get_shaping_frequency(Y_AXIS) * 100, SHAPING_Y_FREQUENCY_VP);
+        RTS_SndData(stepper.get_shaping_damping_ratio(X_AXIS) * 100, SHAPING_X_ZETA_VP);
+        RTS_SndData(stepper.get_shaping_damping_ratio(Y_AXIS) * 100, SHAPING_Y_ZETA_VP);  
         RTS_SndData(planner.extruder_advance_K[0] * 100, ADVANCE_K_SET);              
         RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);        
         RTS_SndData(ExchangePageBase + 14, ExchangepageAddr);
@@ -3157,6 +3146,10 @@ void RTSSHOW::RTS_HandleData(void)
       break;
 
     case AutoHomeKey:
+      last_xoffset = xprobe_xoffset = probe.offset_xy.x;
+      RTS_SndData(xprobe_xoffset * 100, HOTEND_X_ZOFFSET_VP);  
+      last_yoffset = yprobe_yoffset  = probe.offset_xy.y;
+      RTS_SndData(yprobe_yoffset * 100, HOTEND_Y_ZOFFSET_VP);    
       if(recdat.data[0] == 1)
       {
         AxisUnitMode = 1;
@@ -3901,6 +3894,10 @@ void RTSSHOW::RTS_HandleData(void)
       }
       else if(recdat.data[0] == 8)
       {
+        RTS_SndData(stepper.get_shaping_frequency(X_AXIS) * 100, SHAPING_X_FREQUENCY_VP);
+        RTS_SndData(stepper.get_shaping_frequency(Y_AXIS) * 100, SHAPING_Y_FREQUENCY_VP);
+        RTS_SndData(stepper.get_shaping_damping_ratio(X_AXIS) * 100, SHAPING_X_ZETA_VP);
+        RTS_SndData(stepper.get_shaping_damping_ratio(Y_AXIS) * 100, SHAPING_Y_ZETA_VP);        
         rtscheck.RTS_SndData(ExchangePageBase + 36, ExchangepageAddr);
         change_page_font = 36;
       }
@@ -4236,8 +4233,7 @@ void RTSSHOW::RTS_HandleData(void)
       }      
       break;
     case XShapingFreqsetEnterKey:
-      x_frequency = ((float)recdat.data[0])/100;
-      stepper.set_shaping_frequency(X_AXIS, x_frequency);      
+      stepper.set_shaping_frequency(X_AXIS, (float)recdat.data[0]/100);      
       RTS_SndData(stepper.get_shaping_frequency(X_AXIS) * 100, SHAPING_X_FREQUENCY_VP);
       if(!card.isPrinting()){
         settings.save();
@@ -4245,8 +4241,7 @@ void RTSSHOW::RTS_HandleData(void)
       break;
 
     case YShapingFreqsetEnterKey:
-      y_frequency = ((float)recdat.data[0])/100;
-      stepper.set_shaping_frequency(Y_AXIS, y_frequency);      
+      stepper.set_shaping_frequency(Y_AXIS, (float)recdat.data[0]/100);      
       RTS_SndData(stepper.get_shaping_frequency(Y_AXIS) * 100, SHAPING_Y_FREQUENCY_VP);
       if(!card.isPrinting()){
         settings.save();
@@ -4254,9 +4249,7 @@ void RTSSHOW::RTS_HandleData(void)
       break;
 
     case XShapingZetasetEnterKey:  
-      float x_zeta;  
-      x_zeta = ((float)recdat.data[0])/100;
-      stepper.set_shaping_damping_ratio(X_AXIS, x_zeta);      
+      stepper.set_shaping_damping_ratio(X_AXIS, (float)recdat.data[0]/100);      
       RTS_SndData(stepper.get_shaping_damping_ratio(X_AXIS) * 100, SHAPING_X_ZETA_VP);
       if(!card.isPrinting()){
         settings.save();
@@ -4264,9 +4257,7 @@ void RTSSHOW::RTS_HandleData(void)
       break;
 
     case YShapingZetasetEnterKey:  
-      float y_zeta;  
-      y_zeta = ((float)recdat.data[0])/100;
-      stepper.set_shaping_damping_ratio(Y_AXIS, y_zeta);      
+      stepper.set_shaping_damping_ratio(Y_AXIS, (float)recdat.data[0]/100);      
       RTS_SndData(stepper.get_shaping_damping_ratio(Y_AXIS) * 100, SHAPING_Y_ZETA_VP);
       if(!card.isPrinting()){
         settings.save();
