@@ -4105,8 +4105,7 @@ void MarlinSettings::reset() {
         SERIAL_ECHO_MSG("lcd_rts_settings size: ", sizeof(lcd_rts_settings));
         SERIAL_ECHO_MSG("Grid_max_points: ", lcd_rts_settings.max_points);
         SERIAL_ECHO_MSG("Probing Margin x set to: ", lcd_rts_settings.probe_margin_x);
-        SERIAL_ECHO_MSG("Probing Margin y set to: ", lcd_rts_settings.probe_margin_y);        
-        SERIAL_ECHO_MSG("Probing Margin min x: ", lcd_rts_settings.probe_min_margin_x);
+        SERIAL_ECHO_MSG("Probing Margin y set to: ", lcd_rts_settings.probe_margin_y);
         SERIAL_ECHO_MSG("Probing Margin min y: ", lcd_rts_settings.probe_min_margin_y);
         SERIAL_ECHO_MSG("Screen brightness: ", lcd_rts_settings.screen_brightness);
         SERIAL_ECHO_MSG("Screen standby brightness: ", lcd_rts_settings.standby_brightness);      
