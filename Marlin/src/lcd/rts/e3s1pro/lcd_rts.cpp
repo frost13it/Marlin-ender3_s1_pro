@@ -865,8 +865,10 @@ void RTSSHOW::RTS_Init(void)
             inInc = 1;
         }
         zig ^= true;
+        bool isEvenMesh = (lcd_rts_settings.max_points % 2 == 0);
         for (int x = inStart; x != inStop; x += inInc) {
-            float current_z_value = bedlevel.z_values[x][y];
+            int display_x = isEvenMesh ? (lcd_rts_settings.max_points - 1 - x) : x; // Flip x-coordinate for even-sized mesh
+            float current_z_value = bedlevel.z_values[display_x][y];
             rtscheck.RTS_SndData(current_z_value * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
             unsigned long color;
             if (bedlevel.mesh_is_valid()) {
@@ -3052,8 +3054,10 @@ void RTSSHOW::RTS_HandleData(void)
                 inInc = 1;
             }
             zig ^= true;
+            bool isEvenMesh = (lcd_rts_settings.max_points % 2 == 0);        
             for (int x = inStart; x != inStop; x += inInc) {
-                float current_z_value = bedlevel.z_values[x][y];
+                int display_x = isEvenMesh ? (lcd_rts_settings.max_points - 1 - x) : x; // Flip x-coordinate for even-sized mesh
+                float current_z_value = bedlevel.z_values[display_x][y];
                 rtscheck.RTS_SndData(current_z_value * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
                 unsigned long color = getColor(current_z_value, min_value, max_value, median);
                 rtscheck.RTS_SndData(color, TrammingpointNature + (color_sp_offset + showcount + 1) * 16);
@@ -4358,64 +4362,83 @@ void RTSSHOW::RTS_HandleData(void)
       setTouchScreenConfiguration();
       break;
 
-    case EditMeshpoint: 
-    {
-      current_point = recdat.data[0] - 1;
-      uint8_t y_probe_point = current_point / lcd_rts_settings.max_points;
-      uint8_t x_probe_point;
-      if (y_probe_point % 2 == 0)
+      case EditMeshpoint: 
       {
-        x_probe_point = current_point % lcd_rts_settings.max_points;
+          current_point = recdat.data[0] - 1;
+          uint8_t y_probe_point = current_point / lcd_rts_settings.max_points;
+          uint8_t x_probe_point;
+          bool isEvenMesh = (lcd_rts_settings.max_points % 2 == 0);
+
+          if (isEvenMesh) {
+              x_probe_point = (y_probe_point % 2 == 0) 
+                              ? (lcd_rts_settings.max_points - 1) - (current_point % lcd_rts_settings.max_points)
+                              : current_point % lcd_rts_settings.max_points;
+          } else {
+              if (y_probe_point % 2 == 0) {
+                  x_probe_point = current_point % lcd_rts_settings.max_points;
+              } else {
+                  x_probe_point = lcd_rts_settings.max_points - 1 - (current_point % lcd_rts_settings.max_points);
+              }
+          }
+
+          if (current_point >= 0 && current_point <= 100) {
+              RTS_SndData(bedlevel.z_values[x_probe_point][y_probe_point] * 1000, CURRENT_MESH_POINT);
+          }
       }
-      else
-      {
-        x_probe_point = lcd_rts_settings.max_points - 1 - (current_point % lcd_rts_settings.max_points);
-      }
-      if (current_point >= 0  && current_point <= 100) {
-        RTS_SndData(bedlevel.z_values[x_probe_point][y_probe_point] * 1000, CURRENT_MESH_POINT);
-      }
-    }
       break;
 
-    case CurrentMeshpoint: 
-    {
-      if (current_point >= 0  && current_point <= 100) {
-        float new_point_height;
-        if(recdat.data[0] >= 32768)
-        {
-          new_point_height = ((float)recdat.data[0] - 65536) / 1000;
-        }
-        else
-        {
-          new_point_height = ((float)recdat.data[0]) / 1000;
-        } 
-        RTS_SndData(new_point_height * 1000, CURRENT_MESH_POINT);
-        if (current_point == 0){
-        RTS_SndData(new_point_height * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP);
-        }else{
-        RTS_SndData(new_point_height * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + current_point * 2);        
-        }
+      case CurrentMeshpoint: 
+      {
+          if (current_point >= 0 && current_point <= 100) {
+              float new_point_height;
+              if(recdat.data[0] >= 32768)
+              {
+                  new_point_height = ((float)recdat.data[0] - 65536) / 1000;
+              }
+              else
+              {
+                  new_point_height = ((float)recdat.data[0]) / 1000;
+              } 
+              RTS_SndData(new_point_height * 1000, CURRENT_MESH_POINT);
+              if (current_point == 0){
+                  RTS_SndData(new_point_height * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP);
+              }else{
+                  RTS_SndData(new_point_height * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + current_point * 2);        
+              }
 
-        uint8_t point_index = current_point;
-        uint8_t y = point_index / lcd_rts_settings.max_points;
-        uint8_t x;
-        if (y % 2 == 0)
-        {
-          x = point_index % lcd_rts_settings.max_points;
-        }
-        else
-        {
-          x = lcd_rts_settings.max_points - 1 - (point_index % lcd_rts_settings.max_points);
-        }    
-        char cmd_point[39];   
-        const char* sign = (new_point_height < 0) ? "-" : "";
-        int intPart = abs(static_cast<int>(new_point_height));
-        int fracPart = abs(static_cast<int>((new_point_height - static_cast<int>(new_point_height)) * 1000));
-        snprintf(cmd_point, sizeof(cmd_point), "M421 I%d J%d Z%s%d.%03d", static_cast<int>(x), static_cast<int>(y), sign, intPart, fracPart);
-        queue.enqueue_now_P(cmd_point);
+              uint8_t point_index = current_point;
+              uint8_t y = point_index / lcd_rts_settings.max_points;
+              uint8_t x;
+              bool isEvenMesh = (lcd_rts_settings.max_points % 2 == 0);
+
+              if (isEvenMesh) {
+                #if ENABLED(AUTO_BED_LEVELING_UBL)
+                  x = (y % 2 == 0) 
+                      ? (lcd_rts_settings.max_points - 1) - (point_index % lcd_rts_settings.max_points)
+                      : point_index % lcd_rts_settings.max_points;
+                #endif
+                #if ENABLED(AUTO_BED_LEVELING_BILINEAR)          
+                  x = (y % 2 == 0) 
+                      ? (lcd_rts_settings.max_points - 1) - (point_index % lcd_rts_settings.max_points)
+                      : point_index % lcd_rts_settings.max_points;
+                #endif
+              } else {
+                  if (y % 2 == 0) {
+                      x = point_index % lcd_rts_settings.max_points;
+                  } else {
+                      x = lcd_rts_settings.max_points - 1 - (point_index % lcd_rts_settings.max_points);
+                  }
+              }
+
+              char cmd_point[39];   
+              const char* sign = (new_point_height < 0) ? "-" : "";
+              int intPart = abs(static_cast<int>(new_point_height));
+              int fracPart = abs(static_cast<int>((new_point_height - static_cast<int>(new_point_height)) * 1000));
+              snprintf(cmd_point, sizeof(cmd_point), "M421 I%d J%d Z%s%d.%03d", static_cast<int>(x), static_cast<int>(y), sign, intPart, fracPart);
+              queue.enqueue_now_P(cmd_point);
+          }
       }
-    }
-      break; 
+      break;
 
     case SelectFileKey:
       if (RTS_SD_Detected()) {

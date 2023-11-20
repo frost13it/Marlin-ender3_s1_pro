@@ -1097,24 +1097,25 @@ G29_TYPE GcodeSuite::G29() {
     }
 
     for (int y = 0; y < lcd_rts_settings.max_points; y++) {
-        if (zig) {
-            inStart = lcd_rts_settings.max_points - 1;
-            inStop = -1;
-            inInc = -1;
-        } else {
-            inStart = 0;
-            inStop = lcd_rts_settings.max_points;
-            inInc = 1;
-        }
-        zig ^= true;
-
-        for (int x = inStart; x != inStop; x += inInc) {
-            float current_z_value = bedlevel.z_values[x][y];
-            rtscheck.RTS_SndData(current_z_value * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
-            unsigned long color = getColor(current_z_value, min_value, max_value, median);
-            rtscheck.RTS_SndData(color, TrammingpointNature + (color_sp_offset + showcount + 1) * 16);
-            showcount++;
-        }
+      if (zig) {
+          inStart = lcd_rts_settings.max_points - 1;
+          inStop = -1;
+          inInc = -1;
+      } else {
+          inStart = 0;
+          inStop = lcd_rts_settings.max_points;
+          inInc = 1;
+      }
+      zig ^= true;
+      bool isEvenMesh = (lcd_rts_settings.max_points % 2 == 0);
+      for (int x = inStart; x != inStop; x += inInc) {
+          int display_x = isEvenMesh ? (lcd_rts_settings.max_points - 1 - x) : x; // Flip x-coordinate for even-sized mesh
+          float current_z_value = bedlevel.z_values[display_x][y];
+          rtscheck.RTS_SndData(current_z_value * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
+          unsigned long color = getColor(current_z_value, min_value, max_value, median);
+          rtscheck.RTS_SndData(color, TrammingpointNature + (color_sp_offset + showcount + 1) * 16);
+          showcount++;
+      }
     }
 
     rtscheck.RTS_SndData(min_value * 1000, MESH_POINT_MIN);

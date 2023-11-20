@@ -951,8 +951,10 @@ void unified_bed_leveling::shift_mesh_height() {
               inInc = 1;
           }
           zig ^= true;
+          bool isEvenMesh = (lcd_rts_settings.max_points % 2 == 0);
           for (int x = inStart; x != inStop; x += inInc) {
-              float current_z_value = z_values[x][y];
+              int display_x = isEvenMesh ? (lcd_rts_settings.max_points - 1 - x) : x; // Flip x-coordinate for even-sized mesh
+              float current_z_value = z_values[display_x][y];
               rtscheck.RTS_SndData(current_z_value * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
               unsigned long color = getColor(current_z_value, min_value, max_value, median);
               rtscheck.RTS_SndData(color, TrammingpointNature + (color_sp_offset + showcount + 1) * 16);
