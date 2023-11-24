@@ -5,7 +5,7 @@
 //#include <arduino.h>
 #include "../../../libs/BL24CXX.h"
 #include "../../../inc/MarlinConfig.h"
-#include "lcd_rts_defines.h"
+//#include "lcd_rts_defines.h"
 
 extern bool power_off_type_yes;
 
@@ -73,6 +73,7 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define PAGE_STATUS_TEXT_TOTAL_VP          0x10D0
 
 #define SELECT_FILE_TEXT_VP                0x219A
+#define RECTANGLE_VP                       0x2490
 
 #define START_PROCESS_ICON_VP              0x1000
 #define PRINT_SPEED_RATE_VP                0x1006
@@ -448,16 +449,8 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define E0_SET_FLOW_VP                     0x193A
 
 #define AUTO_TRAM_1TEXT_VP                 0x1120
-
+// CRTOUCH_TRAMMING_POINT_1_VP to CRTOUCH_TRAMMING_POINT_9_VP with 1adr offset 0x230A, 0x230B, 0x230C, ... to 0x2312
 #define CRTOUCH_TRAMMING_POINT_1_VP        0x230A
-#define CRTOUCH_TRAMMING_POINT_2_VP        0x230B
-#define CRTOUCH_TRAMMING_POINT_3_VP        0x230C
-#define CRTOUCH_TRAMMING_POINT_4_VP        0x230D
-#define CRTOUCH_TRAMMING_POINT_5_VP        0x230E
-#define CRTOUCH_TRAMMING_POINT_6_VP        0x230F
-#define CRTOUCH_TRAMMING_POINT_7_VP        0x2310
-#define CRTOUCH_TRAMMING_POINT_8_VP        0x2311
-#define CRTOUCH_TRAMMING_POINT_9_VP        0x2312
 
 #define MACHINE_TYPE_ABOUT_TEXT_VP         0x17B0
 #define FIRMWARE_VERSION_ABOUT_TEXT_VP     0x17C4
@@ -499,11 +492,11 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define SoundIcon                           0x1152
 #define BrightnessIcon                      0x1154
 #define SET_GRID_MAX_POINTS_VP              0x1156
-#define PROBE_MARGIN_X_VP           0x1158
-#define PROBE_MARGIN_X_TEXT_VP      0x1160
-#define PROBE_MARGIN_Y_VP           0x1164
-#define PROBE_MARGIN_Y_TEXT_VP      0x1166
-//#define SET_MESH_SIZE_TEXT_VP               0x1972
+#define PROBE_MARGIN_X_VP                   0x1158
+#define PROBE_MARGIN_X_TEXT_VP              0x1160
+#define PROBE_MARGIN_Y_VP                   0x1164
+#define PROBE_MARGIN_Y_TEXT_VP              0x1166
+//#define SET_MESH_SIZE_TEXT_VP             0x1972
 #define SET_MESH_SIZE_SIZE_TEXT_VP          0x196A
 #define CURRENT_MESH_POINT                  0x2220
 #define MESH_POINT_MIN                      0x2222
@@ -538,32 +531,6 @@ typedef struct CardRecord
 
 extern CRec CardRecbuf;
 
-typedef struct {
-  bool pause_flag:1;
-  bool pause_action:1;
-  bool print_finish:1;
-  bool done_confirm_flag:1;
-  bool select_flag:1;
-  bool home_flag:1;
-  bool heat_flag:1;  // 0: heating done  1: during heating
-  bool remove_card_flag:1;
-} HMI_LCD_Flag_t;
-
-#define RECEIVED_NO_DATA         0x00
-#define RECEIVED_SHAKE_HAND_ACK  0x01
-
-extern HMI_LCD_Flag_t HMI_lcd_flag;
-
-struct RecData2 {
-  unsigned char len;
-  unsigned char head[2];
-  unsigned char command;
-  unsigned long addr;
-  unsigned long bytelen;
-  unsigned short data[32]; // Adjust the size based on the expected maximum length of data
-  unsigned char reserv[4]; // Add the reserved field, as present in ResData2 (DB) struct
-};
-
 struct lcd_rts_settings_t { // use bit fields to save space, max 48 bytes
 size_t settings_size;
 uint8_t settings_version;
@@ -586,9 +553,7 @@ class RTSSHOW
   public:
     RTSSHOW(void);
     static void EachMomentUpdate(void);
-    static float isBedLevelingFlag;
     int RTS_RecData(void);
-    int RTS_RecData2();
     void RTS_SDCardInit(void);
     bool RTS_SD_Detected(void);
     void RTS_SDCardUpdate(void);
@@ -613,6 +578,8 @@ class RTSSHOW
     #endif
     void writeVariable(const uint16_t adr, const void * const values, uint8_t valueslen, const bool isstr=false, const char fillChar=' ');    
     void setTouchScreenConfiguration();    
+    void sendRectangleCommand(uint16_t vpAddress, uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t color);
+    void calculateProbePoints(uint8_t current_point, uint8_t& x_probe_point, uint8_t& y_probe_point);
     //String RTS_ReadTextField(uint16_t address);
     //void sendPacketAndReceiveResponse(uint16_t packetValue);
     //bool readDisplayVersion(uint8_t &guiVersion, uint8_t &osVersion);
@@ -621,16 +588,10 @@ class RTSSHOW
     static DB recdat;
     static DB snddat;
   private:
-    RecData2 recData;
     unsigned char databuf[SizeofDatabuf];
 };
 
 extern RTSSHOW rtscheck;
-
-#define Z_MEASURE_PLANTFORM     10
-// #define Z_POINT_AUX_LEVEL       20
-#define Z_MEASURE_FEEDRATE_FAST Z_PROBE_FEEDRATE_FAST*4
-#define Z_MEASURE_FEEDRATE_SLOW Z_PROBE_FEEDRATE_SLOW
 
 typedef enum PROC_COM : int8_t {  
   MainEnterKey          = 0,
@@ -724,12 +685,12 @@ typedef enum PROC_COM : int8_t {
    VolumeDisplay            = 86,   
    DisplayStandbySeconds    = 87,
    SetGridMaxPoints         = 88,
-   SetAblProbeMarginX       = 89,
+   SetProbeMarginX       = 89,
    SetUblProbeMarginMinX    = 90,
    SetUblProbeMarginMaxX    = 91,
    SetUblProbeMarginMinY    = 92,
    SetUblProbeMarginMaxY    = 93,
-   SetAblProbeMarginY       = 94,
+   SetProbeMarginY       = 94,
    EditMeshpoint            = 95,
    CurrentMeshpoint         = 96
 } proc_command_t; 
@@ -827,12 +788,12 @@ const unsigned long Addrbuf[] =
    0x1146, // VolumeDisplayEnableIndicator
    0x1148, // DisplayStandbySeconds
    0x1156, // SetGridMaxPoints
-   0x1158, // SetAblProbeMarginX
+   0x1158, // SetProbeMarginX
    0x1982, // SetUblProbeMarginMinX
    0x1984, // SetUblProbeMarginMaxX
    0x1986, // SetUblProbeMarginMinY
    0x1988, // SetUblProbeMarginMaxY
-   0x1164, // SetAblProbeMarginY 
+   0x1164, // SetProbeMarginY 
    0x2218, // EditMeshpoint
    0x2220, // CurrentMeshpoint
   0
@@ -859,25 +820,17 @@ extern uint8_t lang;
 extern int Update_Time_Value;
 extern bool PoweroffContinue;
 extern bool sdcard_pause_check;
-extern bool sd_printing_autopause;
 extern bool SD_Card_status;
 extern bool home_flag;
 extern bool heat_flag;
 extern char commandbuf[30];
-extern bool StartPrint_flag;
 extern char errorway;
 extern char errornum;
-extern char error_sd_num;
-extern unsigned char Count_first;
-extern unsigned char Count_probe; 
 extern float z_offset;
 extern uint32_t last_start_time;
 extern bool eeprom_save_flag;
 
 #define EEPROM_SAVE_LANGUAGE()      {if(eeprom_save_flag) { settings.save(); eeprom_save_flag = false; }}
-void Read_lcd_Register(unsigned char len, unsigned int addr);
-void Write_lcd_Register(unsigned int addr,unsigned char data);
-void lcd_eight_language(void);
 
 void RTS_PauseMoveAxisPage(void);
 void RTS_AutoBedLevelPage(void);
@@ -886,28 +839,6 @@ void RTS_SetMeshPage();
 void RTS_MoveParkNozzle(void);
 void RTS_CommandPause(void);
 
-typedef enum
-{
-    GO_HOME_IDLE         = 0,              /* idle status          */
-    GO_HOME_DOING        = 1,              /* it's going home      */
-    GO_HOME_DONE         = 2,              /* it has gone home     */
-}AutoGoHomeSta_t;
-
-typedef struct
-{
-  /* data */
-  bool isBedLeveling;
-  unsigned char bedNozzleHeightState;
-  bool bedNozzleHeightCalFinishFlag;
-  unsigned char goHomeSta;
-  float  zCoordinateOffset;
-
-}BedNozzleHeightCalSt;
-
-extern BedNozzleHeightCalSt st_bedNozzleHeightCal;
-extern float bedNozzleHeightCalZ;
-extern uint8_t x_min_pos_eeprom;
-extern uint8_t y_min_pos_eeprom;
 extern int8_t g_uiAutoPIDRuningDiff;
 extern int16_t g_uiCurveDataCnt;
 extern uint8_t leveling_running;
@@ -920,7 +851,4 @@ void saveSettings(char * const buff);
 void loadSettings(const char * const buff);
 void resetSettings();
 int custom_ceil(float x); 
-void AutoUIBedNozzleHeightCali(void);
-void LcdAutoUIMoveXYBlock(float _posX, float _posY);
-void LcdAutoUIMoveZBlock(float _posZ);
 #endif

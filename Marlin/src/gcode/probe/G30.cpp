@@ -160,10 +160,10 @@ void GcodeSuite::G30() {
         if (min_margin_y_back <= 10){
           min_margin_y_back = 10;
         }
-        trammingPoints[2] = {static_cast<float>(min_margin_x), static_cast<float>(min_margin_y_front), CRTOUCH_TRAMMING_POINT_6_VP};
-        trammingPoints[3] = {(X_BED_SIZE - static_cast<float>(min_margin_x)), static_cast<float>(min_margin_y_front), CRTOUCH_TRAMMING_POINT_7_VP};
-        trammingPoints[4] = {static_cast<float>(min_margin_x), (Y_BED_SIZE - static_cast<float>(min_margin_y_back)), CRTOUCH_TRAMMING_POINT_8_VP};
-        trammingPoints[5] = {(X_BED_SIZE - static_cast<float>(min_margin_x)), (Y_BED_SIZE - static_cast<float>(min_margin_y_back)), CRTOUCH_TRAMMING_POINT_9_VP};
+        trammingPoints[2] = {static_cast<float>(min_margin_x), static_cast<float>(min_margin_y_front), CRTOUCH_TRAMMING_POINT_1_VP + 5};
+        trammingPoints[3] = {(X_BED_SIZE - static_cast<float>(min_margin_x)), static_cast<float>(min_margin_y_front), CRTOUCH_TRAMMING_POINT_1_VP + 6};
+        trammingPoints[4] = {static_cast<float>(min_margin_x), (Y_BED_SIZE - static_cast<float>(min_margin_y_back)), CRTOUCH_TRAMMING_POINT_1_VP + 7};
+        trammingPoints[5] = {(X_BED_SIZE - static_cast<float>(min_margin_x)), (Y_BED_SIZE - static_cast<float>(min_margin_y_back)), CRTOUCH_TRAMMING_POINT_1_VP + 8};
         int POINTS[10] = {0};
         for (int i = 0; i < 10; i++) {
           const auto& point = trammingPoints[i];

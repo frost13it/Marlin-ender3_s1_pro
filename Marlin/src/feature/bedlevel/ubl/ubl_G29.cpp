@@ -904,67 +904,6 @@ void unified_bed_leveling::shift_mesh_height() {
       constrain(nearby.y - probe.offset_xy.y, lcd_rts_settings.probe_margin_y, (Y_BED_SIZE - lcd_rts_settings.probe_margin_y))
     );
     #if ENABLED(E3S1PRO_RTS)
-      bool zig = false;
-      int8_t inStart, inStop, inInc, showcount;
-      showcount = 0;      
-      float min_value = z_values[0][0];
-      float max_value = z_values[0][0];
-      // Determine the min and max values from the mesh data
-      for (int y = 0; y < lcd_rts_settings.max_points; y++) {
-          for (int x = 0; x < lcd_rts_settings.max_points; x++) {
-              float current_z_value = z_values[x][y];
-              if (current_z_value < min_value) min_value = current_z_value;
-              if (current_z_value > max_value) max_value = current_z_value;
-          }
-      }
-      float deviation = max_value - min_value;
-      float median = (min_value + max_value) / 2.0f;
-      ColorRange color_ranges[7];
-      int num_ranges = 0;
-      // Center green in the range
-      color_ranges[num_ranges++] = {median - 0.04f, median + 0.04f, 0x07E0};
-      // Calculate and add additional colors if the range exceeds GREEN_RANGE = 0.08f
-      float additional_range = (deviation - 0.08f) / 2;
-      float lower_bound = median - 0.04f;
-      float upper_bound = median + 0.04f;
-      // Add colors below green
-      while (lower_bound > min_value) {
-          float range_end = std::max(min_value, lower_bound - additional_range);
-          color_ranges[num_ranges++] = {range_end, lower_bound, 0x87FF}; // Light Blue
-          lower_bound = range_end;
-      }
-      // Add colors above green
-      while (upper_bound < max_value) {
-          float range_start = std::min(max_value, upper_bound + additional_range);
-          color_ranges[num_ranges++] = {upper_bound, range_start, 0xFFE0}; // Yellow
-          upper_bound = range_start;
-      }
-      //settings.load();
-      for (int y = 0; y < lcd_rts_settings.max_points; y++) {
-          if (zig) {
-              inStart = lcd_rts_settings.max_points - 1;
-              inStop = -1;
-              inInc = -1;
-          } else {
-              inStart = 0;
-              inStop = lcd_rts_settings.max_points;
-              inInc = 1;
-          }
-          zig ^= true;
-          bool isEvenMesh = (lcd_rts_settings.max_points % 2 == 0);
-          for (int x = inStart; x != inStop; x += inInc) {
-              int display_x = isEvenMesh ? (lcd_rts_settings.max_points - 1 - x) : x; // Flip x-coordinate for even-sized mesh
-              float current_z_value = z_values[display_x][y];
-              rtscheck.RTS_SndData(current_z_value * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
-              unsigned long color = getColor(current_z_value, min_value, max_value, median);
-              rtscheck.RTS_SndData(color, TrammingpointNature + (color_sp_offset + showcount + 1) * 16);
-              showcount++;
-          }
-      }
-      rtscheck.RTS_SndData(min_value * 1000, MESH_POINT_MIN);
-      rtscheck.RTS_SndData(max_value * 1000, MESH_POINT_MAX);
-      rtscheck.RTS_SndData(deviation * 1000, MESH_POINT_DEVIATION);       
-      rtscheck.RTS_SndData(lang, AUTO_LEVELING_START_TITLE_VP);
       RTS_AutoBedLevelPage();
     #endif
 

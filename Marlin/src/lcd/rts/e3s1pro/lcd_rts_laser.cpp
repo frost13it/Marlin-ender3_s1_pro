@@ -141,7 +141,6 @@ void RTSSHOW::RTS_SDcard_Stop_laser(void)
   laser_device.quick_stop();
 
   PoweroffContinue = false;
-  // sd_printing_autopause = false;
   if(CardReader::flag.mounted)
   {
     #if ENABLED(SDSUPPORT) && ENABLED(POWER_LOSS_RECOVERY)
@@ -298,7 +297,6 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         RTS_SndData(0, PRINT_TIME_HOUR_VP);
         RTS_SndData(0, PRINT_TIME_MIN_VP);
         print_job_timer.reset();
-        // sd_printing_autopause = false;
         for(int j = 0;j < 40;j ++)
         {
           // clean screen.
@@ -1447,7 +1445,6 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         RTS_SndData(0, PRINT_TIME_HOUR_VP);
         RTS_SndData(0, PRINT_TIME_MIN_VP);
         print_job_timer.reset();
-        // sd_printing_autopause = false;
         for(int j = 0;j < 40;j ++)
         {
           // clean screen.

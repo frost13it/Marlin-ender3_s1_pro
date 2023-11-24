@@ -33,7 +33,7 @@
 #include "../../../core/types.h"
 #include "lcd_rts_ui.h"
 
-#define GRID_MIN 3
-#define GRID_MAX 10
+//#define GRID_MIN 3
+//#define GRID_MAX 10
 
 #endif

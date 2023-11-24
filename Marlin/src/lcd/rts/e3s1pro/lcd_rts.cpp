@@ -89,8 +89,6 @@ extern CardReader card;
 char errorway = 0;
 char errornum = 0;
 char home_errornum  = 0; 
-char error_sd_num = 0;
-bool StartPrint_flag = false;
 
 #if ENABLED(BABYSTEPPING)
   float zprobe_zoffset;
@@ -123,8 +121,6 @@ float default_nozzle_dtemp = DEFAULT_Kd;
 float default_hotbed_ptemp = DEFAULT_bedKp;
 float default_hotbed_itemp = DEFAULT_bedKi;
 float default_hotbed_dtemp = DEFAULT_bedKd;
-
-int AutoHomeFirstPoint = 0;
 
 uint8_t startprogress = 0;
 
@@ -176,13 +172,19 @@ float rec_dat_temp_last_y = 0.0;
 float rec_dat_temp_real_x = 0.0;
 float rec_dat_temp_real_y = 0.0;
 
+uint16_t rectWidth;
+uint16_t rectHeight;
+uint16_t rect_0_y_top;
+uint16_t rect_1_x_top_odd;
+uint16_t rect_0_x_top_even;        
+uint16_t rect_x_offset;
+uint16_t rect_y_offset;
+
 const float THRESHOLD_VALUE_X = 101.0;
 const size_t FIRST_ELEMENT_INDEX_X = 0;
 
 const float THRESHOLD_VALUE_Y = 101.0;
 const size_t FIRST_ELEMENT_INDEX_Y = 0;
-
-int FilenamesCount = 0;
 
 char cmdbuf[20] = {0};
 
@@ -199,7 +201,6 @@ char commandbuf[30];
 static bool last_card_insert_st;
 bool card_insert_st;
 bool sd_printing;
-bool sd_printing_autopause;
 
 bool home_flag = false;
 bool rts_start_print = false;  
@@ -231,8 +232,6 @@ uint8_t  last_progress_percent = 0;
 uint32_t last_start_time       = 0;
 uint32_t last_remaining_time   = 0;
 
-BedNozzleHeightCalSt st_bedNozzleHeightCal={0};
-float bedNozzleHeightCalZ=0;
 bool g_heaterLoadTempAdd = false;
 bool g_uiXYAxisEnable = false;
 bool g_uiZAxisEnable = false;
@@ -630,104 +629,7 @@ void RTSSHOW::setTouchScreenConfiguration() {
   RTS_SndData(lcd_rts_settings.standby_time_seconds, DISPLAYSTANDBY_SECONDS);
   RTS_SndData(lcd_rts_settings.display_standby ? 3 : 2, DISPLAYSTANDBY_ENABLEINDICATOR);
 }
-/*
-bool RTSSHOW::readDisplayVersion(uint8_t &guiVersion, uint8_t &osVersion) {
-  // Prepare the data packet to send to the display.
-  uint16_t addressToRead = DGUS_VERSION;
-  sendPacketAndReceiveResponse(addressToRead);
 
-  // Check if the received response is valid
-  if (recData.command == DGUS_READVAR && recData.addr == DGUS_VERSION) {
-    // Extract the version information from the received data
-    guiVersion = recData.data[0] & 0xFF; // Assuming GUI version is in the LSB
-    osVersion = recData.data[1] & 0xFF;  // Assuming OS version is in the LSB
-    return true; // Successful reading
-  } else {
-    // Handle error or invalid response here
-    return false; // Reading failed
-  }
-}
-
-String RTSSHOW::RTS_ReadTextField(uint16_t address) {
-  // Send the read command to the DGUS display to read the text field content
-  sendPacketAndReceiveResponse(address);
-
-  // Check if the received response is valid
-  if (recData.command == 0x83 && recData.addr == address) {
-    String textFieldContent = "";
-    for (unsigned int i = 0; i < recData.bytelen; i++) {
-      // Extract the character from the received data
-      char character = recData.data[i];
-
-      // Append the character to the textFieldContent
-      textFieldContent += character;
-    }
-    return textFieldContent;
-  } else {
-    // Handle error or invalid response here
-    // You can return an error code or an empty string
-    return "";
-  }
-}
-
-void RTSSHOW::sendPacketAndReceiveResponse(uint16_t packetValue) {
-  // Prepare the data packet to send to the display.
-  databuf[0] = FHONE;
-  databuf[1] = FHTWO;
-  databuf[2] = 0x03; // Length of the data packet (excluding header).
-  databuf[3] = VarAddr_R; // Command to read data from the display.
-  databuf[4] = packetValue >> 8; // MSB of the packetValue.
-  databuf[5] = packetValue & 0xFF; // LSB of the packetValue.
-
-  // Send the data packet to the display over the serial connection.
-  for (int i = 0; i < 6; i++) {
-    LCDSERIAL.write(databuf[i]);
-    delayMicroseconds(1);
-  }
-
-  // Clear the receive buffer.
-  memset(databuf, 0, sizeof(databuf));
-
-  // Wait for the response from the display.
-  delay(50); // Adjust the delay time based on the response time of the display.
-
-  // Read the response from the display.
-  int recnum = 0; // Declare the 'recnum' variable here.
-  while (LCDSERIAL.available() > 0 && recnum < SizeofDatabuf) {
-    delay(1);
-    databuf[recnum] = LCDSERIAL.read();
-    recnum++;
-  }
-
-  // Print the received data to the serial monitor for debugging.
-  #if ENABLED(LCD_RTS_DEBUG)  
-    SERIAL_ECHO("Received data from display: ");
-    for (int i = 0; i < recnum; i++) {
-      SERIAL_ECHO(databuf[i]);
-      SERIAL_ECHO(" ");
-    }
-    SERIAL_ECHOLN("");
-  #endif
-  if (recnum >= 7 && databuf[0] == FHONE && databuf[1] == FHTWO && databuf[2] == 0x04) {
-    // Extract the received data from the response.
-    recData.len = databuf[2];
-    recData.command = databuf[3];
-    recData.addr = databuf[4];
-    recData.addr = (recData.addr << 8) | databuf[5];
-    recData.bytelen = databuf[6]; // Corrected position of bytelen
-    for (unsigned int i = 0; i < recData.bytelen; i += 2) {
-      recData.data[i / 2] = databuf[7 + i];
-      recData.data[i / 2] = (recData.data[i / 2] << 8) | databuf[8 + i];
-    }
-  } else {
-    // Handle error or invalid response here.
-    #if ENABLED(LCD_RTS_DEBUG)
-      SERIAL_ECHOLN("Error: Invalid response from display.");
-    #endif
-    return;
-  }
-}
-*/
 void RTSSHOW::RTS_Init(void)
 {
 
@@ -742,7 +644,6 @@ void RTSSHOW::RTS_Init(void)
   #endif
 
   delay(50);
-
   last_zoffset = zprobe_zoffset = probe.offset.z;
   touchscreen_requested_mesh = 0;
   RTS_SndData(zprobe_zoffset * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
@@ -817,78 +718,10 @@ void RTSSHOW::RTS_Init(void)
     RTS_SndData(0, DOWNLOAD_PREVIEW_VP);
   #endif
 
-  #if ANY(AUTO_BED_LEVELING_BILINEAR, AUTO_BED_LEVELING_UBL)
-    bool zig = false;
-    int8_t inStart, inStop, inInc, showcount;
-    showcount = 0;
-    float min_value = bedlevel.z_values[0][0];
-    float max_value = bedlevel.z_values[0][0];
-    // Determine the min and max values from the mesh data
-    for (int y = 0; y < lcd_rts_settings.max_points; y++) {
-        for (int x = 0; x < lcd_rts_settings.max_points; x++) {
-            float current_z_value = bedlevel.z_values[x][y];
-            if (current_z_value < min_value) min_value = current_z_value;
-            if (current_z_value > max_value) max_value = current_z_value;
-        }
-    }
-    float deviation = max_value - min_value;
-    float median = (min_value + max_value) / 2.0f;
-    ColorRange color_ranges[7];
-    int num_ranges = 0;
-    // Center green in the range
-    color_ranges[num_ranges++] = {median - 0.04f / 2, median + 0.04f / 2, 0x07E0};
-    // Calculate and add additional colors if the range exceeds GREEN_RANGE = 0.04f
-    float additional_range = (deviation - 0.04f) / 2;
-    float lower_bound = median - 0.04f / 2;
-    float upper_bound = median + 0.04f / 2;
-    // Add colors below green
-    while (lower_bound > min_value) {
-        float range_end = std::max(min_value, lower_bound - additional_range);
-        color_ranges[num_ranges++] = {range_end, lower_bound, 0x07E0}; // Light Green
-        lower_bound = range_end;
-    }
-    // Add colors above green
-    while (upper_bound < max_value) {
-        float range_start = std::min(max_value, upper_bound + additional_range);
-        color_ranges[num_ranges++] = {upper_bound, range_start, 0xFFE0}; // Yellow
-        upper_bound = range_start;
-    }
-
-    for (int y = 0; y < lcd_rts_settings.max_points; y++) {
-        if (zig) {
-            inStart = lcd_rts_settings.max_points - 1;
-            inStop = -1;
-            inInc = -1;
-        } else {
-            inStart = 0;
-            inStop = lcd_rts_settings.max_points;
-            inInc = 1;
-        }
-        zig ^= true;
-        bool isEvenMesh = (lcd_rts_settings.max_points % 2 == 0);
-        for (int x = inStart; x != inStop; x += inInc) {
-            int display_x = isEvenMesh ? (lcd_rts_settings.max_points - 1 - x) : x; // Flip x-coordinate for even-sized mesh
-            float current_z_value = bedlevel.z_values[display_x][y];
-            rtscheck.RTS_SndData(current_z_value * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
-            unsigned long color;
-            if (bedlevel.mesh_is_valid()) {
-                color = getColor(current_z_value, min_value, max_value, median);
-            } else {            
-                color = 0x07E0; // Set color to Green if all values are zero
-            }
-            rtscheck.RTS_SndData(color, TrammingpointNature + (color_sp_offset + showcount + 1) * 16);
-            showcount++;
-        }
-    }
-    rtscheck.RTS_SndData(min_value * 1000, MESH_POINT_MIN);
-    rtscheck.RTS_SndData(max_value * 1000, MESH_POINT_MAX);
-    rtscheck.RTS_SndData(deviation * 1000, MESH_POINT_DEVIATION);       
-    rtscheck.RTS_SndData(lang, AUTO_LEVELING_START_TITLE_VP);
-    RTS_AutoBedLevelPage();
-  #endif
-
   #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-    queue.enqueue_now_P(PSTR("M420 S1"));
+    if (bedlevel.mesh_is_valid()) {
+      queue.enqueue_now_P(PSTR("M420 S1"));
+    }
   #endif
 
   /***************transmit Fan speed to screen*****************/
@@ -1241,6 +1074,61 @@ void RTSSHOW::RTS_SndText(const char string[], unsigned long addr, uint8_t textS
   rtscheck.RTS_SndData(string, addr);
 }
 
+void RTSSHOW::calculateProbePoints(uint8_t current_point, uint8_t& x_probe_point, uint8_t& y_probe_point){
+    y_probe_point = current_point / lcd_rts_settings.max_points;
+    bool isEvenMesh = (lcd_rts_settings.max_points % 2 == 0);
+
+    if (isEvenMesh) {
+        x_probe_point = (y_probe_point % 2 == 0)
+                        ? (lcd_rts_settings.max_points - 1) - (current_point % lcd_rts_settings.max_points)
+                        : current_point % lcd_rts_settings.max_points;
+    } else {
+        x_probe_point = (y_probe_point % 2 == 0)
+                        ? current_point % lcd_rts_settings.max_points
+                        : lcd_rts_settings.max_points - 1 - (current_point % lcd_rts_settings.max_points);
+    }
+}
+
+void RTSSHOW::sendRectangleCommand(uint16_t vpAddress, uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t color) {
+    uint8_t commandBuffer[] = {
+        0x5A, 0xA5, // Frame header
+        0x13,       // Data length
+        0x82,       // Write instruction
+        static_cast<uint8_t>((vpAddress >> 8) & 0xFF), // High byte of VP address
+        static_cast<uint8_t>(vpAddress & 0xFF),       // Low byte of VP address
+        0x00, 0x03, // Draw rectangle
+        0x00, 0x01, // Draw one rectangle
+        static_cast<uint8_t>((x >> 8) & 0xFF),        // Upper left coordinate x (high byte)
+        static_cast<uint8_t>(x & 0xFF),               // Upper left coordinate x (low byte)
+        static_cast<uint8_t>((y >> 8) & 0xFF),        // Upper left coordinate y (high byte)
+        static_cast<uint8_t>(y & 0xFF),               // Upper left coordinate y (low byte)
+        static_cast<uint8_t>(((x + width) >> 8) & 0xFF), // Lower right coordinate x (high byte)
+        static_cast<uint8_t>((x + width) & 0xFF),        // Lower right coordinate x (low byte)
+        static_cast<uint8_t>(((y + height) >> 8) & 0xFF), // Lower right coordinate y (high byte)
+        static_cast<uint8_t>((y + height) & 0xFF),        // Lower right coordinate y (low byte)
+        static_cast<uint8_t>((color >> 8) & 0xFF),    // Color (high byte)
+        static_cast<uint8_t>(color & 0xFF),           // Color (low byte)
+        0xFF, 0x00  // The drawing operation has ended
+    };
+    #if ENABLED(LCD_RTS_DEBUG)   
+      // Debugging: Print the data to be sent
+      SERIAL_ECHO_START();
+      SERIAL_ECHO("Data: ");
+      for(size_t i = 0; i < sizeof(commandBuffer); ++i) {
+          SERIAL_ECHO((int)commandBuffer[i]); // Cast to int for proper printing
+          if (i < sizeof(commandBuffer) - 1) {
+              SERIAL_ECHO(", ");
+          }
+      }
+      SERIAL_ECHO("\n");
+    #endif
+    // Send the buffer
+    for (size_t i = 0; i < sizeof(commandBuffer); ++i) {
+        LCDSERIAL.write(commandBuffer[i]);
+        delayMicroseconds(1);
+    }
+}
+
 void RTSSHOW::RTS_SDcard_Stop(void)
 {
 
@@ -1262,7 +1150,6 @@ void RTSSHOW::RTS_SDcard_Stop(void)
   thermalManager.zero_fan_speeds();
   wait_for_heatup = wait_for_user = false;
   PoweroffContinue = false;
-  sd_printing_autopause = false;
   if (card.flag.mounted)
   {
     #if ENABLED(SDSUPPORT) && ENABLED(POWER_LOSS_RECOVERY)
@@ -1432,7 +1319,6 @@ void RTSSHOW::RTS_HandleData(void)
         RTS_SndData(0, PRINT_REMAIN_TIME_MIN_VP);
 
         print_job_timer.reset();
-        sd_printing_autopause = false;
         for(int j = 0;j < 20; j++)
         {
           // clean screen.
@@ -1976,7 +1862,6 @@ void RTSSHOW::RTS_HandleData(void)
           print_job_timer.start();
           Update_Time_Value = 0;
           sdcard_pause_check = true;
-          sd_printing_autopause = false;
           RTS_SndData(ExchangePageBase + 10, ExchangepageAddr);
           change_page_font = 10;
           gcode.process_subcommands_now(F("M24"));
@@ -2920,7 +2805,8 @@ void RTSSHOW::RTS_HandleData(void)
             }   
           }
           if (leveling_running == 0){
-            RTS_SndData(AutoHomeFirstPoint, AUTO_BED_LEVEL_CUR_POINT_VP);
+            sendRectangleCommand(0x2490, 0, 0, 1, 1, 0x0000);
+            RTS_SndData(0, AUTO_BED_LEVEL_CUR_POINT_VP);
             RTS_SndData(lang + 10, AUTO_LEVELING_START_TITLE_VP);          
             RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT);
             leveling_running = 1;
@@ -2954,7 +2840,6 @@ void RTSSHOW::RTS_HandleData(void)
                 showcount++;
               }
             }          
-
             #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
               queue.enqueue_one_P(PSTR("G29"));
             #else
@@ -2977,21 +2862,7 @@ void RTSSHOW::RTS_HandleData(void)
           queue.enqueue_one_P(PSTR("G28"));
           RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
           change_page_font = 40;
-        }else{
-          if (lcd_rts_settings.max_points == 5){
-            RTS_SndData(ExchangePageBase + 81, ExchangepageAddr);
-            change_page_font = 81;
-          }
-          if (lcd_rts_settings.max_points == 7){
-            RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
-            change_page_font = 94;
-          }
-          if (lcd_rts_settings.max_points == 10){
-            RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
-            change_page_font = 95;
-          }                      
         }
-
         const char text_margin_x[] = "MarginX:";
         RTS_SndData(text_margin_x, PROBE_MARGIN_X_TEXT_VP);
         const char text_margin_y[] = "MarginY:";
@@ -3004,70 +2875,10 @@ void RTSSHOW::RTS_HandleData(void)
         RTS_SndData(lcd_rts_settings.max_points, SET_GRID_MAX_POINTS_VP);
         RTS_SndData(lcd_rts_settings.probe_margin_x, PROBE_MARGIN_X_VP);
         RTS_SndData(lcd_rts_settings.probe_margin_y, PROBE_MARGIN_Y_VP);   
-        rtscheck.RTS_SndData(AutoHomeFirstPoint, AUTO_BED_LEVEL_CUR_POINT_VP);
+        rtscheck.RTS_SndData(0, AUTO_BED_LEVEL_CUR_POINT_VP);
         RTS_SndData(lang, AUTO_LEVELING_START_TITLE_VP);                  
         rtscheck.RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT);
         rtscheck.RTS_SndData(0 , AUTO_LEVELING_PERCENT_DATA_VP);
-        bool zig = false;
-        int8_t inStart, inStop, inInc, showcount;
-        showcount = 0;
-        float min_value = bedlevel.z_values[0][0];
-        float max_value = bedlevel.z_values[0][0];
-        // Determine the min and max values from the mesh data
-        for (int y = 0; y < lcd_rts_settings.max_points; y++) {
-            for (int x = 0; x < lcd_rts_settings.max_points; x++) {
-                float current_z_value = bedlevel.z_values[x][y];
-                if (current_z_value < min_value) min_value = current_z_value;
-                if (current_z_value > max_value) max_value = current_z_value;
-            }
-        }
-        float deviation = max_value - min_value;
-        float median = (min_value + max_value) / 2.0f;
-        ColorRange color_ranges[7];
-        int num_ranges = 0;
-        // Center green in the range
-        color_ranges[num_ranges++] = {median - 0.04f / 2, median + 0.04f / 2, 0x07E0};
-        // Calculate and add additional colors if the range exceeds GREEN_RANGE = 0.04f
-        float additional_range = (deviation - 0.04f) / 2;
-        float lower_bound = median - 0.04f / 2;
-        float upper_bound = median + 0.04f / 2;
-        // Add colors below green
-        while (lower_bound > min_value) {
-            float range_end = std::max(min_value, lower_bound - additional_range);
-            color_ranges[num_ranges++] = {range_end, lower_bound, 0x07E0}; // Light Green
-            lower_bound = range_end;
-        }
-        // Add colors above green
-        while (upper_bound < max_value) {
-            float range_start = std::min(max_value, upper_bound + additional_range);
-            color_ranges[num_ranges++] = {upper_bound, range_start, 0xFFE0}; // Yellow
-            upper_bound = range_start;
-        }
-        for (int y = 0; y < lcd_rts_settings.max_points; y++) {
-            if (zig) {
-                inStart = lcd_rts_settings.max_points - 1;
-                inStop = -1;
-                inInc = -1;
-            } else {
-                inStart = 0;
-                inStop = lcd_rts_settings.max_points;
-                inInc = 1;
-            }
-            zig ^= true;
-            bool isEvenMesh = (lcd_rts_settings.max_points % 2 == 0);        
-            for (int x = inStart; x != inStop; x += inInc) {
-                int display_x = isEvenMesh ? (lcd_rts_settings.max_points - 1 - x) : x; // Flip x-coordinate for even-sized mesh
-                float current_z_value = bedlevel.z_values[display_x][y];
-                rtscheck.RTS_SndData(current_z_value * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
-                unsigned long color = getColor(current_z_value, min_value, max_value, median);
-                rtscheck.RTS_SndData(color, TrammingpointNature + (color_sp_offset + showcount + 1) * 16);
-                showcount++;
-            }
-        }
-        rtscheck.RTS_SndData(min_value * 1000, MESH_POINT_MIN);
-        rtscheck.RTS_SndData(max_value * 1000, MESH_POINT_MAX);
-        rtscheck.RTS_SndData(deviation * 1000, MESH_POINT_DEVIATION);       
-        rtscheck.RTS_SndData(lang, AUTO_LEVELING_START_TITLE_VP);
         RTS_AutoBedLevelPage();
         Update_Time_Value = 0;
       }
@@ -3688,146 +3499,155 @@ void RTSSHOW::RTS_HandleData(void)
 
     case SetGridMaxPoints: 
       {
-        temp_grid_max_points = recdat.data[0];
-        if (temp_grid_max_points == 5 || temp_grid_max_points == 7 || temp_grid_max_points == 10){
-          lcd_rts_settings.max_points = temp_grid_max_points;
-          if (lcd_rts_settings.max_points == 5){
-            color_sp_offset = 0;
-            queue.enqueue_now_P(PSTR("M401 S1"));            
-            RTS_SndData(ExchangePageBase + 81, ExchangepageAddr);
-            change_page_font = 81;
-          }
-          if (lcd_rts_settings.max_points == 7){
-            color_sp_offset = 25;
-            queue.enqueue_now_P(PSTR("M401 S0"));            
-            RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
-            change_page_font = 94;
-          }
-          if (lcd_rts_settings.max_points == 10){
-            color_sp_offset = 74;
-            queue.enqueue_now_P(PSTR("M401 S0"));
-            RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
-            change_page_font = 95;
-          }
-          char text_size[10]; // Make sure it's large enough to hold the result
-          sprintf(text_size, "     ");
-          RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);
-          sprintf(text_size, "%dx%d", lcd_rts_settings.max_points, lcd_rts_settings.max_points);
-          RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT);          
-          RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);  
-          RTS_SndData(temp_grid_max_points, SET_GRID_MAX_POINTS_VP);
-          bedlevel.max_points.x = temp_grid_max_points;
-          bedlevel.max_points.y = temp_grid_max_points;      
-          queue.enqueue_now_P(PSTR("M84"));
-          queue.enqueue_now_P(PSTR("G92.9Z0"));
-          RTS_SndData(1, MOTOR_FREE_ICON_VP);
-                bool zig = false;
-                int8_t inStart, inStop, inInc, showcount;
-                showcount = 0;
-                //settings.load();
-                for (int y = 0; y < lcd_rts_settings.max_points; y++)
-                {
-                  // away from origin
-                  if (zig)
+        if (leveling_running == 0){        
+          temp_grid_max_points = recdat.data[0];
+          if (temp_grid_max_points == 5 || temp_grid_max_points == 7 || temp_grid_max_points == 10){
+            lcd_rts_settings.max_points = temp_grid_max_points;
+            sendRectangleCommand(0x2490, 0, 0, 1, 1, 0x0000);
+            if (lcd_rts_settings.max_points == 5){
+              color_sp_offset = 0;
+              queue.enqueue_now_P(PSTR("M401 S1"));            
+              RTS_SndData(ExchangePageBase + 81, ExchangepageAddr);
+              change_page_font = 81;
+            }
+            if (lcd_rts_settings.max_points == 7){
+              color_sp_offset = 25;
+              queue.enqueue_now_P(PSTR("M401 S0"));            
+              RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
+              change_page_font = 94;
+            }
+            if (lcd_rts_settings.max_points == 10){
+              color_sp_offset = 74;
+              queue.enqueue_now_P(PSTR("M401 S0"));
+              RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
+              change_page_font = 95;
+            }
+            char text_size[10]; // Make sure it's large enough to hold the result
+            sprintf(text_size, "     ");
+            RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);
+            sprintf(text_size, "%dx%d", lcd_rts_settings.max_points, lcd_rts_settings.max_points);
+            RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT);          
+            RTS_SndData(text_size, SET_MESH_SIZE_SIZE_TEXT_VP);  
+            RTS_SndData(temp_grid_max_points, SET_GRID_MAX_POINTS_VP);
+            bedlevel.max_points.x = temp_grid_max_points;
+            bedlevel.max_points.y = temp_grid_max_points;      
+            queue.enqueue_now_P(PSTR("M84"));
+            queue.enqueue_now_P(PSTR("G92.9Z0"));
+            RTS_SndData(1, MOTOR_FREE_ICON_VP);
+                  bool zig = false;
+                  int8_t inStart, inStop, inInc, showcount;
+                  showcount = 0;
+                  //settings.load();
+                  for (int y = 0; y < lcd_rts_settings.max_points; y++)
                   {
-                    inStart = lcd_rts_settings.max_points - 1;
-                    inStop = -1;
-                    inInc = -1;
+                    // away from origin
+                    if (zig)
+                    {
+                      inStart = lcd_rts_settings.max_points - 1;
+                      inStop = -1;
+                      inInc = -1;
+                    }
+                    else
+                    {
+                      // towards origin
+                      inStart = 0;
+                      inStop = lcd_rts_settings.max_points;
+                      inInc = 1;
+                    }
+                    zig ^= true;
+                    for (int x = inStart; x != inStop; x += inInc)
+                    {
+                      // Set the value to 0 directly
+                      RTS_SndData(0, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
+                      RTS_SndData((unsigned long)0xFFFF, TrammingpointNature + (color_sp_offset + showcount + 1) * 16);
+                      showcount++;
+                    }
                   }
-                  else
-                  {
-                    // towards origin
-                    inStart = 0;
-                    inStop = lcd_rts_settings.max_points;
-                    inInc = 1;
-                  }
-                  zig ^= true;
-                  for (int x = inStart; x != inStop; x += inInc)
-                  {
-                    // Set the value to 0 directly
-                    RTS_SndData(0, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
-                    RTS_SndData((unsigned long)0xFFFF, TrammingpointNature + (color_sp_offset + showcount + 1) * 16);
-                    showcount++;
-                  }
-                }
-          bedlevel.reset();                       
-          settings.save();
+            bedlevel.reset();                       
+            settings.save();
+          }
         }
       }    
       break;
 
-      case SetAblProbeMarginX: {
-        temp_probe_margin_x = recdat.data[0];
-        #if ENABLED(LCD_RTS_DEBUG)
-          SERIAL_ECHO_MSG("temp_probe_margin_x ", temp_probe_margin_x);
-        #endif
-        if (probe.offset_xy.x < 0) {
-          probe_offset_x_temp = fabs(probe.offset_xy.x);
-        }else{
-          probe_offset_x_temp = -fabs(probe.offset_xy.x);
-        }
-        #if ENABLED(LCD_RTS_DEBUG)
-          SERIAL_ECHO_MSG("probe.offset_xy.x ", probe.offset_xy.x);
-          SERIAL_ECHO_MSG("X_MAX_POS ", X_MAX_POS);
-        #endif
-        int max_reachable_pos_x = X_MAX_POS - custom_ceil(probe_offset_x_temp);
-        #if ENABLED(LCD_RTS_DEBUG)          
-          SERIAL_ECHO_MSG("max_reachable_pos_x ", max_reachable_pos_x);          
-        #endif
-        int min_calc_margin_x = X_BED_SIZE - max_reachable_pos_x;
-        #if ENABLED(LCD_RTS_DEBUG)  
-          SERIAL_ECHO_MSG("min_calc_margin_x ", min_calc_margin_x); 
-        #endif
-        if(min_calc_margin_x >= temp_probe_margin_x){
-         temp_probe_margin_x = min_calc_margin_x;
-        }
-        #if ENABLED(ENDER_3S1_PLUS)
-          if(temp_probe_margin_x <= 27){
-            temp_probe_margin_x = 27;
+      case SetProbeMarginX: 
+      {
+        if (leveling_running == 0){
+          temp_probe_margin_x = recdat.data[0];
+          #if ENABLED(LCD_RTS_DEBUG)
+            SERIAL_ECHO_MSG("temp_probe_margin_x ", temp_probe_margin_x);
+          #endif
+          if (probe.offset_xy.x < 0) {
+            probe_offset_x_temp = fabs(probe.offset_xy.x);
+          }else{
+            probe_offset_x_temp = -fabs(probe.offset_xy.x);
           }
-        #endif
-        lcd_rts_settings.probe_margin_x = temp_probe_margin_x;
-        RTS_SndData(temp_probe_margin_x, PROBE_MARGIN_X_VP);
-        settings.save();
-        }    
-        break;      
+          #if ENABLED(LCD_RTS_DEBUG)
+            SERIAL_ECHO_MSG("probe.offset_xy.x ", probe.offset_xy.x);
+            SERIAL_ECHO_MSG("X_MAX_POS ", X_MAX_POS);
+          #endif
+          int max_reachable_pos_x = X_MAX_POS - custom_ceil(probe_offset_x_temp);
+          #if ENABLED(LCD_RTS_DEBUG)          
+            SERIAL_ECHO_MSG("max_reachable_pos_x ", max_reachable_pos_x);          
+          #endif
+          int min_calc_margin_x = X_BED_SIZE - max_reachable_pos_x;
+          #if ENABLED(LCD_RTS_DEBUG)  
+            SERIAL_ECHO_MSG("min_calc_margin_x ", min_calc_margin_x); 
+          #endif
+          if(min_calc_margin_x >= temp_probe_margin_x){
+          temp_probe_margin_x = min_calc_margin_x;
+          }
+          #if ENABLED(ENDER_3S1_PLUS)
+            if(temp_probe_margin_x <= 27){
+              temp_probe_margin_x = 27;
+            }
+          #endif
+          lcd_rts_settings.probe_margin_x = temp_probe_margin_x;
+          RTS_SndData(temp_probe_margin_x, PROBE_MARGIN_X_VP);
+          settings.save();
+        }
+      }    
+      break;      
 
-      case SetAblProbeMarginY: {
-        temp_probe_margin_y = recdat.data[0];
-        #if ENABLED(LCD_RTS_DEBUG)          
-          SERIAL_ECHO_MSG("temp_probe_margin_y ", temp_probe_margin_y);
-        #endif
-        if (probe.offset_xy.y < 0) {
-          probe_offset_y_temp = fabs(probe.offset_xy.y);
-        }else{
-          probe_offset_y_temp = -fabs(probe.offset_xy.y);
+      case SetProbeMarginY: 
+      {
+        if (leveling_running == 0){
+          temp_probe_margin_y = recdat.data[0];
+          #if ENABLED(LCD_RTS_DEBUG)          
+            SERIAL_ECHO_MSG("temp_probe_margin_y ", temp_probe_margin_y);
+          #endif
+          if (probe.offset_xy.y < 0) {
+            probe_offset_y_temp = fabs(probe.offset_xy.y);
+          }else{
+            probe_offset_y_temp = -fabs(probe.offset_xy.y);
+          }
+          #if ENABLED(LCD_RTS_DEBUG)          
+            SERIAL_ECHO_MSG("probe_offset_y_temp ", probe_offset_y_temp);
+            SERIAL_ECHO_MSG("probe_offset_y_temp ceil ", custom_ceil(probe_offset_y_temp));          
+            SERIAL_ECHO_MSG("probe.offset_xy.y ", probe.offset_xy.y);
+            SERIAL_ECHO_MSG("Y_MAX_POS ", Y_MAX_POS);      
+          #endif
+          int max_reachable_pos_y = Y_MAX_POS - custom_ceil(probe_offset_y_temp);
+          #if ENABLED(LCD_RTS_DEBUG)          
+            SERIAL_ECHO_MSG("max_reachable_pos_y ", max_reachable_pos_y);          
+          #endif
+          int min_calc_margin_y = Y_BED_SIZE - max_reachable_pos_y;
+          #if ENABLED(LCD_RTS_DEBUG)  
+            SERIAL_ECHO_MSG("min_calc_margin_y ", min_calc_margin_y); 
+          #endif
+          if(min_calc_margin_y_bedlevel >= temp_probe_margin_y){
+          temp_probe_margin_y = min_calc_margin_y;
+          }
+          if(temp_probe_margin_y <= 10){
+            temp_probe_margin_y = 10;
+          }
+          lcd_rts_settings.probe_margin_y = temp_probe_margin_y;
+          lcd_rts_settings.probe_min_margin_y = temp_probe_margin_y;        
+          RTS_SndData(temp_probe_margin_y, PROBE_MARGIN_Y_VP); 
+          settings.save();
         }
-        #if ENABLED(LCD_RTS_DEBUG)          
-          SERIAL_ECHO_MSG("probe_offset_y_temp ", probe_offset_y_temp);
-          SERIAL_ECHO_MSG("probe_offset_y_temp ceil ", custom_ceil(probe_offset_y_temp));          
-          SERIAL_ECHO_MSG("probe.offset_xy.y ", probe.offset_xy.y);
-          SERIAL_ECHO_MSG("Y_MAX_POS ", Y_MAX_POS);      
-        #endif
-        int max_reachable_pos_y = Y_MAX_POS - custom_ceil(probe_offset_y_temp);
-        #if ENABLED(LCD_RTS_DEBUG)          
-          SERIAL_ECHO_MSG("max_reachable_pos_y ", max_reachable_pos_y);          
-        #endif
-        int min_calc_margin_y = Y_BED_SIZE - max_reachable_pos_y;
-        #if ENABLED(LCD_RTS_DEBUG)  
-          SERIAL_ECHO_MSG("min_calc_margin_y ", min_calc_margin_y); 
-        #endif
-        if(min_calc_margin_y_bedlevel >= temp_probe_margin_y){
-         temp_probe_margin_y = min_calc_margin_y;
-        }
-        if(temp_probe_margin_y <= 10){
-          temp_probe_margin_y = 10;
-        }
-        lcd_rts_settings.probe_margin_y = temp_probe_margin_y;
-        lcd_rts_settings.probe_min_margin_y = temp_probe_margin_y;        
-        RTS_SndData(temp_probe_margin_y, PROBE_MARGIN_Y_VP); 
-        settings.save();
-        }    
-        break;      
+      }    
+      break;      
 
     case StoreMemoryKey:
       if(recdat.data[0] == 1)
@@ -4362,76 +4182,76 @@ void RTSSHOW::RTS_HandleData(void)
       setTouchScreenConfiguration();
       break;
 
-      case EditMeshpoint: 
-      {
-          current_point = recdat.data[0] - 1;
-          uint8_t y_probe_point = current_point / lcd_rts_settings.max_points;
-          uint8_t x_probe_point;
-          bool isEvenMesh = (lcd_rts_settings.max_points % 2 == 0);
-
-          if (isEvenMesh) {
-              x_probe_point = (y_probe_point % 2 == 0) 
-                              ? (lcd_rts_settings.max_points - 1) - (current_point % lcd_rts_settings.max_points)
-                              : current_point % lcd_rts_settings.max_points;
-          } else {
-              if (y_probe_point % 2 == 0) {
-                  x_probe_point = current_point % lcd_rts_settings.max_points;
-              } else {
-                  x_probe_point = lcd_rts_settings.max_points - 1 - (current_point % lcd_rts_settings.max_points);
-              }
-          }
-
-          if (current_point >= 0 && current_point <= 100) {
-              RTS_SndData(bedlevel.z_values[x_probe_point][y_probe_point] * 1000, CURRENT_MESH_POINT);
-          }
+    case EditMeshpoint:
+    {
+      if (leveling_running == 0 && bedlevel.mesh_is_valid()){      
+        current_point = recdat.data[0] - 1;
+        uint8_t x_probe_point, y_probe_point;
+        calculateProbePoints(current_point, x_probe_point, y_probe_point);
+        if (lcd_rts_settings.max_points == 5){
+          rectWidth = 80;
+          rectHeight = 30;
+          rect_0_y_top = 462;
+          rect_1_x_top_odd = 370;
+          rect_0_x_top_even = 34;        
+          rect_x_offset = 84;
+          rect_y_offset = 55;
+        }
+        if (lcd_rts_settings.max_points == 7){
+          rectWidth = 62;
+          rectHeight = 26;
+          rect_0_y_top = 464;
+          rect_1_x_top_odd = 394;
+          rect_0_x_top_even = 22;        
+          rect_x_offset = 62;
+          rect_y_offset = 36;
+        }
+        if (lcd_rts_settings.max_points == 10){
+          rectWidth = 45;
+          rectHeight = 20;
+          rect_0_y_top = 480;
+          rect_1_x_top_odd = 412;
+          rect_0_x_top_even = 25;        
+          rect_x_offset = 43;
+          rect_y_offset = 28;
+        }        
+        if (current_point >= 0 && current_point <= 100) {
+          uint16_t upperLeftX = (y_probe_point % 2 == 0) 
+                              ? rect_0_x_top_even + (x_probe_point * rect_x_offset)
+                              : rect_1_x_top_odd - ((lcd_rts_settings.max_points - 1 - x_probe_point) * rect_x_offset);
+          uint16_t upperLeftY = rect_0_y_top - (y_probe_point * rect_y_offset);
+          sendRectangleCommand(0x2490, upperLeftX, upperLeftY, rectWidth, rectHeight, 0x75DE);
+          RTS_SndData(bedlevel.z_values[x_probe_point][y_probe_point] * 1000, CURRENT_MESH_POINT);
+        }
       }
-      break;
+    }
+    break;
 
-      case CurrentMeshpoint: 
-      {
-          if (current_point >= 0 && current_point <= 100) {
-              float new_point_height;
-              if(recdat.data[0] >= 32768)
-              {
-                  new_point_height = ((float)recdat.data[0] - 65536) / 1000;
-              }
-              else
-              {
-                  new_point_height = ((float)recdat.data[0]) / 1000;
-              } 
-              RTS_SndData(new_point_height * 1000, CURRENT_MESH_POINT);
-              if (current_point == 0){
-                  RTS_SndData(new_point_height * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP);
-              }else{
-                  RTS_SndData(new_point_height * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + current_point * 2);        
-              }
+    case CurrentMeshpoint: 
+    {
+      if (leveling_running == 0 && bedlevel.mesh_is_valid()){
+        if (current_point >= 0 && current_point <= 100) {
+            float new_point_height = (recdat.data[0] >= 32768)
+                                    ? ((float)recdat.data[0] - 65536) / 1000
+                                    : ((float)recdat.data[0]) / 1000;
 
-              uint8_t point_index = current_point;
-              uint8_t y = point_index / lcd_rts_settings.max_points;
-              uint8_t x;
-              bool isEvenMesh = (lcd_rts_settings.max_points % 2 == 0);
+            RTS_SndData(new_point_height * 1000, current_point == 0 
+                                                ? AUTO_BED_LEVEL_1POINT_NEW_VP 
+                                                : AUTO_BED_LEVEL_1POINT_NEW_VP + current_point * 2);
 
-              if (isEvenMesh) {
-                  x = (y % 2 == 0) 
-                      ? (lcd_rts_settings.max_points - 1) - (point_index % lcd_rts_settings.max_points)
-                      : point_index % lcd_rts_settings.max_points;
-              } else {
-                  if (y % 2 == 0) {
-                      x = point_index % lcd_rts_settings.max_points;
-                  } else {
-                      x = lcd_rts_settings.max_points - 1 - (point_index % lcd_rts_settings.max_points);
-                  }
-              }
+            uint8_t x_probe_point, y_probe_point;
+            calculateProbePoints(current_point, x_probe_point, y_probe_point);
 
-              char cmd_point[39];   
-              const char* sign = (new_point_height < 0) ? "-" : "";
-              int intPart = abs(static_cast<int>(new_point_height));
-              int fracPart = abs(static_cast<int>((new_point_height - static_cast<int>(new_point_height)) * 1000));
-              snprintf(cmd_point, sizeof(cmd_point), "M421 I%d J%d Z%s%d.%03d", static_cast<int>(x), static_cast<int>(y), sign, intPart, fracPart);
-              queue.enqueue_now_P(cmd_point);
-          }
+            char cmd_point[39];
+            const char* sign = (new_point_height < 0) ? "-" : "";
+            int intPart = abs(static_cast<int>(new_point_height));
+            int fracPart = abs(static_cast<int>((new_point_height - static_cast<int>(new_point_height)) * 1000));
+            snprintf(cmd_point, sizeof(cmd_point), "M421 I%d J%d Z%s%d.%03d", static_cast<int>(x_probe_point), static_cast<int>(y_probe_point), sign, intPart, fracPart);
+            queue.enqueue_now_P(cmd_point);
+        }
       }
-      break;
+    }
+    break;
 
     case SelectFileKey:
       if (RTS_SD_Detected()) {
@@ -4533,7 +4353,6 @@ void RTSSHOW::RTS_HandleData(void)
 
         memset(cmdbuf, 0, sizeof(cmdbuf));
         strcpy(cmdbuf, cmd);
-        FilenamesCount = CardRecbuf.recordcount;
         #if ENABLED(FILAMENT_RUNOUT_SENSOR)
           if ((1 == READ(FIL_RUNOUT_PIN)) && (runout.enabled == true))
           {
@@ -5338,30 +5157,102 @@ void RTS_PauseMoveAxisPage(void)
 
 void RTS_AutoBedLevelPage(void)
 {
-  if(waitway == 3)
-  {
+  if(waitway != 15)
+  {  
     if(old_leveling == 1){
-      rtscheck.RTS_SndData(0, AXIS_Z_COORD_VP);
       rtscheck.RTS_SndData(ExchangePageBase + 26, ExchangepageAddr);
       change_page_font = 26;
       waitway = 0;
     }else{
+      // Added for mesh read
+      bool zig = false;
+      int8_t inStart, inStop, inInc, showcount;
+      showcount = 0;
+        float min_value = bedlevel.z_values[0][0];
+        float max_value = bedlevel.z_values[0][0];
+      // Determine the min and max values from the mesh data
+      for (int y = 0; y < lcd_rts_settings.max_points; y++) {
+          for (int x = 0; x < lcd_rts_settings.max_points; x++) {
+                float current_z_value = bedlevel.z_values[x][y];
+              if (current_z_value < min_value) min_value = current_z_value;
+              if (current_z_value > max_value) max_value = current_z_value;
+          }
+      }
+
+      float deviation = max_value - min_value;
+      float median = (min_value + max_value) / 2.0f;
+      ColorRange color_ranges[7];
+      int num_ranges = 0;
+
+      // Center green in the range
+      color_ranges[num_ranges++] = {median - 0.04f / 2, median + 0.04f / 2, 0x07E0};
+
+      // Calculate and add additional colors if the range exceeds GREEN_RANGE = 0.04f
+      float additional_range = (deviation - 0.04f) / 2;
+      float lower_bound = median - 0.04f / 2;
+      float upper_bound = median + 0.04f / 2;
+
+      // Add colors below green
+      while (lower_bound > min_value) {
+          float range_end = std::max(min_value, lower_bound - additional_range);
+          color_ranges[num_ranges++] = {range_end, lower_bound, 0x07E0}; // Light Green
+          lower_bound = range_end;
+      }
+
+      // Add colors above green
+      while (upper_bound < max_value) {
+          float range_start = std::min(max_value, upper_bound + additional_range);
+          color_ranges[num_ranges++] = {upper_bound, range_start, 0xFFE0}; // Yellow
+          upper_bound = range_start;
+      }
+
+      for (int y = 0; y < lcd_rts_settings.max_points; y++) {
+        if (zig) {
+            inStart = lcd_rts_settings.max_points - 1;
+            inStop = -1;
+            inInc = -1;
+        } else {
+            inStart = 0;
+            inStop = lcd_rts_settings.max_points;
+            inInc = 1;
+        }
+        zig ^= true;
+        bool isEvenMesh = (lcd_rts_settings.max_points % 2 == 0);
+        for (int x = inStart; x != inStop; x += inInc) {
+            int display_x = isEvenMesh ? (lcd_rts_settings.max_points - 1 - x) : x; // Flip x-coordinate for even-sized mesh
+            float current_z_value = bedlevel.z_values[display_x][y];
+            rtscheck.RTS_SndData(current_z_value * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
+            unsigned long color;
+            if (bedlevel.mesh_is_valid()) {
+                color = getColor(current_z_value, min_value, max_value, median);
+            } else {            
+                color = 0xFFFF; // Set color to Green if all values are zero
+            }
+            rtscheck.RTS_SndData(color, TrammingpointNature + (color_sp_offset + showcount + 1) * 16);
+            showcount++;
+        }
+      }
+
+      rtscheck.RTS_SndData(min_value * 1000, MESH_POINT_MIN);
+      rtscheck.RTS_SndData(max_value * 1000, MESH_POINT_MAX);
+      rtscheck.RTS_SndData(deviation * 1000, MESH_POINT_DEVIATION);
       rtscheck.RTS_SndData(lang, AUTO_LEVELING_START_TITLE_VP);
-      rtscheck.RTS_SndData(0, AXIS_Z_COORD_VP);
-          if (lcd_rts_settings.max_points == 5){
-            rtscheck.RTS_SndData(ExchangePageBase + 81, ExchangepageAddr);
-            change_page_font = 81;
-          }
-          if (lcd_rts_settings.max_points == 7){
-            rtscheck.RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
-            change_page_font = 94;
-          }
-          if (lcd_rts_settings.max_points == 10){
-            rtscheck.RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
-            change_page_font = 95;
-          }   
+      // Added for mesh read
+      if (lcd_rts_settings.max_points == 5){
+        rtscheck.RTS_SndData(ExchangePageBase + 81, ExchangepageAddr);
+        change_page_font = 81;
+      }
+      if (lcd_rts_settings.max_points == 7){
+        rtscheck.RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
+        change_page_font = 94;
+      }
+      if (lcd_rts_settings.max_points == 10){
+        rtscheck.RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
+        change_page_font = 95;
+      }   
       waitway = 0;    
     }
+    rtscheck.RTS_SndData(0, AXIS_Z_COORD_VP);
   }
 }
 
@@ -5406,34 +5297,23 @@ void RTS_MoveAxisHoming(void)
     change_page_font = 86;
     waitway = 0;
   }
-else if(waitway == 15)
-  {
-    if (lcd_rts_settings.max_points == 5){
-      rtscheck.RTS_SndData(ExchangePageBase + 81, ExchangepageAddr);
-      change_page_font = 81;
-    }
-    if (lcd_rts_settings.max_points == 7){
-      rtscheck.RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
-      change_page_font = 94;
-    }
-    if (lcd_rts_settings.max_points == 10){
-      rtscheck.RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
-      change_page_font = 95;
-    }   
-    waitway = 0;
-  }      
-else if(waitway == 16)
-  {
-    rtscheck.RTS_SndData(ExchangePageBase + 25, ExchangepageAddr);
-    change_page_font = 25;
-    waitway = 0;
-  } 
-else if(waitway == 17)
-  {
-    rtscheck.RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
-    change_page_font = 89;
-    waitway = 0;
-  }       
+  else if(waitway == 15)
+    {
+      waitway = 0;
+      RTS_AutoBedLevelPage();      
+    }      
+  else if(waitway == 16)
+    {
+      rtscheck.RTS_SndData(ExchangePageBase + 25, ExchangepageAddr);
+      change_page_font = 25;
+      waitway = 0;
+    } 
+  else if(waitway == 17)
+    {
+      rtscheck.RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
+      change_page_font = 89;
+      waitway = 0;
+    }       
 
   #if HAS_CUTTER
     if(laser_device.is_laser_device())

@@ -61,6 +61,6 @@
   #include HAL_PATH(.., inc/Conditionals_adv.h)
 #endif
 
-#if ENABLED(E3S1PRO_RTS)
-  #include "../lcd/rts/e3s1pro/lcd_rts_defines.h"
-#endif
+//#if ENABLED(E3S1PRO_RTS)
+//  #include "../lcd/rts/e3s1pro/lcd_rts_defines.h"
+//#endif
