@@ -1474,7 +1474,7 @@ void RTSSHOW::RTS_HandleData(void)
         RTS_SndData(stepper.get_shaping_frequency(Y_AXIS) * 100, SHAPING_Y_FREQUENCY_VP);
         RTS_SndData(stepper.get_shaping_damping_ratio(X_AXIS) * 100, SHAPING_X_ZETA_VP);
         RTS_SndData(stepper.get_shaping_damping_ratio(Y_AXIS) * 100, SHAPING_Y_ZETA_VP);  
-        RTS_SndData(planner.extruder_advance_K[0] * 100, ADVANCE_K_SET);              
+        RTS_SndData(planner.extruder_advance_K[0] * 1000, ADVANCE_K_SET);              
         RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);        
         RTS_SndData(ExchangePageBase + 14, ExchangepageAddr);
         change_page_font = 14;
@@ -3055,7 +3055,7 @@ void RTSSHOW::RTS_HandleData(void)
       }
       else if(recdat.data[0] == 166)
       { // 00A6
-        if(axes_should_home()) {
+        if(leveling_running == 0 && !planner.has_blocks_queued()) {
         waitway = 16;
         RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
         change_page_font = 40;
@@ -3069,7 +3069,7 @@ void RTSSHOW::RTS_HandleData(void)
       }
       else if(recdat.data[0] == 167)
       { // 00A7
-        if(axes_should_home()) {
+        if (leveling_running == 0 && !planner.has_blocks_queued()) {
         waitway = 17;
         RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
         change_page_font = 40;
@@ -3425,7 +3425,7 @@ void RTSSHOW::RTS_HandleData(void)
             int32_t ret = gcodePicDataSendToDwin(recovery.info.sd_filename,VP_OVERLAY_PIC_PTINT,PIC_FORMAT_JPG, PIC_RESOLITION_250_250);
             if (ret == PIC_OK) {
               gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, false);
-            } else {
+            } else {              
               gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, true);
             }
           #endif
@@ -3701,7 +3701,7 @@ void RTSSHOW::RTS_HandleData(void)
       }
       else if(recdat.data[0] == 4)
       {    
-        RTS_SndData(planner.extruder_advance_K[0] * 100, ADVANCE_K_SET);
+        RTS_SndData(planner.extruder_advance_K[0] * 1000, ADVANCE_K_SET);
         rtscheck.RTS_SndData(ExchangePageBase + 34, ExchangepageAddr);
         change_page_font = 34; 
         settings.save();     
@@ -4050,8 +4050,8 @@ void RTSSHOW::RTS_HandleData(void)
       break;        
     
     case Advance_K_Key:  
-      planner.extruder_advance_K[0] = ((float)recdat.data[0])/100;
-      RTS_SndData(planner.extruder_advance_K[0] * 100, ADVANCE_K_SET);
+      planner.extruder_advance_K[0] = ((float)recdat.data[0])/1000;
+      RTS_SndData(planner.extruder_advance_K[0] * 1000, ADVANCE_K_SET);
       if(!card.isPrinting()){
         settings.save();
       }      
@@ -4302,7 +4302,7 @@ void RTSSHOW::RTS_HandleData(void)
             } else {
               gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, true);
               rtscheck.RTS_SndData(0, VP_OVERLAY_PIC_PTINT);                                          
-            }          
+            }
           #endif
 
           rts_start_print = true;
@@ -4661,7 +4661,7 @@ void EachMomentUpdate(void)
   if(ms > next_rts_update_ms)
   {
   #if ENABLED(POWER_LOSS_RECOVERY)
-    // print the file before the power is off.
+    // in case of power continue this is the startup
     if(!power_off_type_yes && lcd_sd_status && recovery.recovery_flag)
     {
       rtscheck.RTS_SndData(ExchangePageBase, ExchangepageAddr);
@@ -4687,6 +4687,7 @@ void EachMomentUpdate(void)
       }
       return;
     }
+    // simple power up without power loss recovery run
     else if(!power_off_type_yes && !recovery.recovery_flag)
     {
       rtscheck.RTS_SndData(ExchangePageBase, ExchangepageAddr);

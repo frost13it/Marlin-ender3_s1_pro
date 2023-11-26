@@ -37,7 +37,7 @@ typedef struct
 #define RESOLITION_250_250_PRUSA  "250x250"
 #define VP_BRIGHTNESS_PRINT               0x8800
 
-#define VP_OVERLAY_PIC_PTINT              0xB000              /* 打印界面的预览图 */
+#define VP_OVERLAY_PIC_PTINT              0xA000              /* 打印界面的预览图 */
 
 /* 打印界面的模型亮度，用于表示倒计时的一种方式(占40字节，0xA000 ~ 0xA01F) */
 #define SP_ADDR_BRIGHTNESS_PRINT            0x9000

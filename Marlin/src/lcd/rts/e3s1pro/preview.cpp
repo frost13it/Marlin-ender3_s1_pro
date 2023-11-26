@@ -388,40 +388,40 @@ char gcodePicExistjudge(char *fileName, unsigned int targitPicAddr, const char t
     unsigned int picHigh = 0;	    // 图片模型高度
     
 
-// 读取一个字符串，以空格隔开
- #define GET_STRING_ON_GCODE()
-        {
-            // 读取一行，以换行符隔开
-            memset(strBuf, 0, sizeof(strBuf));
-            int strLenMax;
-            bool strStartFg = false;
-            uint8_t curBufLen = 0;
-            uint8_t inquireYimes = 0;   // 查找次数
-            do {
-                for (strLenMax = 0; strLenMax < STRING_MAX_LEN; strLenMax++)
-                {
-                    ret = card.get();   // 从U盘中获取一个字符
-                    if (ret != ';' && strStartFg == false) { // 读到';'为一行的开始
-                        continue;
-                    } else{
-                        strStartFg = true;
-                    }                        
-                    if ((ret == '\r' || ret == '\n') && bufIndex != 0) break;   // 读到换行符，退出
-                    strBuf[bufIndex++] = ret;
-                }
-                if (strLenMax >= STRING_MAX_LEN) {
-                    return PIC_MISS_ERR;
-                }
-                curBufLen = sizeof(strBuf);
-                if (inquireYimes++ >= 5)
-                {
-                    return PIC_MISS_ERR;
-                }
-            }while(curBufLen < 20);
+    // 读取一个字符串，以空格隔开
+    #define GET_STRING_ON_GCODE()
+    {
+        // 读取一行，以换行符隔开
+        memset(strBuf, 0, sizeof(strBuf));
+        int strLenMax;
+        bool strStartFg = false;
+        uint8_t curBufLen = 0;
+        uint8_t inquireYimes = 0;   // 查找次数
+        do {
+            for (strLenMax = 0; strLenMax < STRING_MAX_LEN; strLenMax++)
+            {
+                ret = card.get();   // 从U盘中获取一个字符
+                if (ret != ';' && strStartFg == false) { // 读到';'为一行的开始
+                    continue;
+                } else{
+                    strStartFg = true;
+                }                        
+                if ((ret == '\r' || ret == '\n') && bufIndex != 0) break;   // 读到换行符，退出
+                strBuf[bufIndex++] = ret;
+            }
+            if (strLenMax >= STRING_MAX_LEN) {
+                return PIC_MISS_ERR;
+            }
+            curBufLen = sizeof(strBuf);
+            if (inquireYimes++ >= 5)
+            {
+                return PIC_MISS_ERR;
+            }
+        }while(curBufLen < 20);
 
-            //SERIAL_ECHO_MSG("strBuf = ", strBuf);
-            //SERIAL_ECHO_MSG("curBufLen = ", curBufLen);
-        }
+        //SERIAL_ECHO_MSG("strBuf = ", strBuf);
+        //SERIAL_ECHO_MSG("curBufLen = ", curBufLen);
+    }
 
     // 1、读出一行数据
     GET_STRING_ON_GCODE();
@@ -486,6 +486,11 @@ char gcodePicExistjudge(char *fileName, unsigned int targitPicAddr, const char t
     if ( picMsgP != NULL )
     {
         picLen = atoi(picMsgP);
+
+        if (picLen > 24500) {
+            return PIC_MISS_ERR;  // Define PICLEN_ERR similar to other error codes
+        }
+
     }
 
     // 7、获取图片的起始行
