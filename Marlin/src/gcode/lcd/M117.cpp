@@ -38,10 +38,7 @@ void GcodeSuite::M117() {
 
   #if ENABLED(E3S1PRO_RTS)
     // clear out our status areas
-    for(int j = 0 ; j < TEXTBYTELEN ; j ++) {
-      rtscheck.RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
-      rtscheck.RTS_SndData(0, SELECT_FILE_TEXT_VP + j);
-    }
+    RTS_CleanPrintFile();
     if (parser.string_arg && parser.string_arg[0]) {
       char msg[20];
 

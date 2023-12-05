@@ -451,7 +451,7 @@ typedef struct {
 
       float closest = 99999.99;
 
-      GRID_LOOP(i, j) {
+      GRID_LOOP_USED(i, j) {
         if (!circle_flags.marked(i, j)) {
           // We found a circle that needs to be printed
           const xy_pos_t m = { bedlevel.get_mesh_x(i), bedlevel.get_mesh_y(j) };

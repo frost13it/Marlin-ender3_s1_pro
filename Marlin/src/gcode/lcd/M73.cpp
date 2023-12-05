@@ -53,6 +53,9 @@
  */
 void GcodeSuite::M73() {
 
+  uint16_t last_remaining_time = 0;
+  uint16_t last_progress_percent = 0;
+
   #if ENABLED(SET_PROGRESS_PERCENT)
     if (parser.seenval('P'))
       ui.set_progress((PROGRESS_SCALE) > 1
@@ -69,21 +72,39 @@ void GcodeSuite::M73() {
 
     #if ENABLED(SET_PROGRESS_PERCENT)
       if (parser.seenval('P')){
-
         #if ENABLED(E3S1PRO_RTS)
           if (parser.value_byte() == 0)
             last_start_time = HAL_GetTick();
         #endif   
-             
-        ui.set_progress((PROGRESS_SCALE) > 1
-          ? parser.value_float() * (PROGRESS_SCALE)
-          : parser.value_byte()
-        );
+        if(!lcd_rts_settings.external_m73){             
+          ui.set_progress((PROGRESS_SCALE) > 1
+            ? parser.value_float() * (PROGRESS_SCALE)
+            : parser.value_byte()
+          );
+        }else{
+          last_progress_percent = (unsigned char)((PROGRESS_SCALE) > 1
+            ? parser.value_float() * (PROGRESS_SCALE)
+            : parser.value_byte()
+          );
+          rtscheck.RTS_SndData(last_progress_percent, PRINT_PROCESS_VP);
+          rtscheck.RTS_SndData(last_progress_percent, PRINT_PROCESS_ICON_VP);
+          duration_t elapsed = print_job_timer.duration();
+          rtscheck.RTS_SndData(elapsed.value / 3600, PRINT_TIME_HOUR_VP);
+          rtscheck.RTS_SndData((elapsed.value % 3600) / 60, PRINT_TIME_MIN_VP);
+        }
       }
     #endif
 
     #if ENABLED(SET_REMAINING_TIME)
-      if (parser.seenval('R')) ui.set_remaining_time(60 * parser.value_ulong());
+      if(!lcd_rts_settings.external_m73){ 
+        if (parser.seenval('R')) ui.set_remaining_time(60 * parser.value_ulong());
+      }else{
+        if (parser.seenval('R')) {
+          last_remaining_time = 60 * parser.value_ulong();
+          rtscheck.RTS_SndData(last_remaining_time / 3600, PRINT_REMAIN_TIME_HOUR_VP);
+          rtscheck.RTS_SndData((last_remaining_time % 3600) / 60, PRINT_REMAIN_TIME_MIN_VP);
+        }      
+      }
     #endif
 
     #if ENABLED(SET_INTERACTION_TIME)

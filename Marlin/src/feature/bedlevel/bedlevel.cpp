@@ -51,19 +51,21 @@ bool leveling_is_valid() {
 }
 
 unsigned long getColor(float value, float min_value, float max_value, float median) {
+    if (!bedlevel.mesh_is_valid()) {
+        return 0x0000; // Return white color
+    }
     float greenRange = 0.08f; // Define the total green range width
     float halfGreenRange = greenRange / 2.0f; // Half width for easier calculations
-
     if (value < median - halfGreenRange - 0.05f) {
-        return 0x001F; // Blue
+        return 0x87FF; // light Blue
     } else if (value < median - halfGreenRange) {
-        return 0x87FF; // Light Blue
+        return 0x07F1; // light green tending  blue
     } else if (value < median + halfGreenRange) {
         return 0x07E0; // Green (covers the entire 0.08 range around median)
     } else if (value < median + halfGreenRange + 0.05f) {
-        return 0xFFE0; // Yellow
+        return 0x87E0; // light green tending red
     } else {
-        return 0xFBE4; // Orange
+        return 0xFFE0; // yellow
     }
 }
 

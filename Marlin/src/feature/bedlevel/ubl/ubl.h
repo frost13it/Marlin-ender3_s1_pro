@@ -297,8 +297,13 @@ public:
   #endif
 
   static bool mesh_is_valid() {
-    GRID_LOOP(x, y) if (isnan(z_values[x][y])) return false;
-    return true;
+    const float threshold = 1e-6; // Define a small threshold value
+    for (uint8_t x = 0; x < unified_bed_leveling::max_points.x; ++x) {
+        for (uint8_t y = 0; y < unified_bed_leveling::max_points.y; ++y) {
+            if (std::abs(z_values[x][y]) > threshold) return true; // Check if the value is effectively non-zero
+        }
+    }
+    return false; // Return false if all values are effectively zero
   }
 
 }; // class unified_bed_leveling

@@ -462,6 +462,9 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define FilenameNature                     0x6003
 #define TrammingpointNature                0x6153
 
+#define QR_CODE_1_VP                       0x6C40 // uses space up to 0x6C67
+#define MESH_RECTANGLE_BASE_VP             0x7000
+
 #define ABNORMAL_PAGE_TEXT_VP_SIZE         30  
 
 #if HAS_CUTTER
@@ -496,12 +499,15 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define PROBE_MARGIN_X_TEXT_VP              0x1160
 #define PROBE_MARGIN_Y_VP                   0x1164
 #define PROBE_MARGIN_Y_TEXT_VP              0x1166
-//#define SET_MESH_SIZE_TEXT_VP             0x1972
-#define SET_MESH_SIZE_SIZE_TEXT_VP          0x196A
 #define CURRENT_MESH_POINT                  0x2220
 #define MESH_POINT_MIN                      0x2222
 #define MESH_POINT_MAX                      0x2224
 #define MESH_POINT_DEVIATION                0x2226
+#define EXTERNAL_M_VP                       0x2228
+#define EXTERNAL_M73_ICON_VP                0x2230
+#define EXTERNAL_M600_ICON_VP               0x2232
+#define MESH_SIZE_ICON_VP                   0x2234
+#define MESH_SIZE_ICON_ONOFF_VP             0x2236
 
 /************struct**************/
 typedef struct DataBuf
@@ -543,7 +549,8 @@ int16_t standby_time_seconds;
 uint8_t max_points;
 uint8_t probe_margin_x;
 uint8_t probe_margin_y;
-uint8_t probe_min_margin_y;    
+uint8_t probe_min_margin_y;
+bool external_m73;    
 };
 
 static constexpr size_t eeprom_data_size = sizeof(lcd_rts_settings_t);
@@ -579,6 +586,10 @@ class RTSSHOW
     void writeVariable(const uint16_t adr, const void * const values, uint8_t valueslen, const bool isstr=false, const char fillChar=' ');    
     void setTouchScreenConfiguration();    
     void sendRectangleCommand(uint16_t vpAddress, uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t color);
+    void sendOneFilledRectangle(uint16_t baseAddress, uint16_t showcount, uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t color);
+    void RTS_ChangeLevelingPage(void);
+    void RTS_SetBltouchHSMode(void);
+    void sendQRCodeCommand(uint16_t vpAddress, const char* url);    
     void calculateProbePoints(uint8_t current_point, uint8_t& x_probe_point, uint8_t& y_probe_point);
     //String RTS_ReadTextField(uint16_t address);
     //void sendPacketAndReceiveResponse(uint16_t packetValue);
@@ -594,105 +605,102 @@ class RTSSHOW
 extern RTSSHOW rtscheck;
 
 typedef enum PROC_COM : int8_t {  
-  MainEnterKey          = 0,
-  AdjustEnterKey        = 1,
-  PrintSpeedEnterKey    = 2,
-  StopPrintKey          = 3,
-  PausePrintKey         = 4,
-  ResumePrintKey        = 5,
-  ZoffsetEnterKey       = 6,
-  TempControlKey        = 7,
-  CoolDownKey           = 8,
-  HeaterTempEnterKey    = 9,
-  HotBedTempEnterKey    = 10,
-  PrepareEnterKey       = 11,
-  BedLevelKey           = 12,
-  AutoHomeKey           = 13,
-  XaxismoveKey          = 14,
-  YaxismoveKey          = 15,
-  ZaxismoveKey          = 16,
-  HeaterLoadEnterKey    = 17,
-  HeaterUnLoadEnterKey  = 18,
-  HeaterLoadStartKey    = 19,
-  SelectLanguageKey     = 20,
-  PowerContinuePrintKey = 21,
-  PLAHeadSetEnterKey    = 22,
-  PLABedSetEnterKey     = 23,
-  ABSHeadSetEnterKey    = 24,
-  ABSBedSetEnterKey     = 25,
-  StoreMemoryKey        = 26,
-  FanSpeedEnterKey      = 27,
-  VelocityXaxisEnterKey = 28,
-  VelocityYaxisEnterKey = 29,
-  VelocityZaxisEnterKey = 30,
-  VelocityEaxisEnterKey = 31,
-  AccelXaxisEnterKey    = 32,
-  AccelYaxisEnterKey    = 33,
-  AccelZaxisEnterKey    = 34,
-  AccelEaxisEnterKey    = 35,
-  JerkXaxisEnterKey     = 36,
-  JerkYaxisEnterKey     = 37,
-  JerkZaxisEnterKey     = 38,
-  JerkEaxisEnterKey     = 39,
-  StepsmmXaxisEnterKey  = 40,
-  StepsmmYaxisEnterKey  = 41,
-  StepsmmZaxisEnterKey  = 42,
-  StepsmmEaxisEnterKey  = 43,
-  NozzlePTempEnterKey   = 44,
-  NozzleITempEnterKey   = 45,
-  NozzleDTempEnterKey   = 46,
-  HotbedPTempEnterKey   = 47,
-  HotbedITempEnterKey   = 48,
-  HotbedDTempEnterKey   = 49,
-  PrintFanSpeedkey      = 50,
-  ChangePageKey         = 51,
-  ErrorKey              = 52,
-  StartFileKey          = 53,
-  SelectFileKey         = 54,
+  MainEnterKey              = 0,
+  AdjustEnterKey            = 1,
+  PrintSpeedEnterKey        = 2,
+  StopPrintKey              = 3,
+  PausePrintKey             = 4,
+  ResumePrintKey            = 5,
+  ZoffsetEnterKey           = 6,
+  TempControlKey            = 7,
+  CoolDownKey               = 8,
+  HeaterTempEnterKey        = 9,
+  HotBedTempEnterKey        = 10,
+  PrepareEnterKey           = 11,
+  BedLevelKey               = 12,
+  AutoHomeKey               = 13,
+  XaxismoveKey              = 14,
+  YaxismoveKey              = 15,
+  ZaxismoveKey              = 16,
+  HeaterLoadEnterKey        = 17,
+  HeaterUnLoadEnterKey      = 18,
+  HeaterLoadStartKey        = 19,
+  SelectLanguageKey         = 20,
+  PowerContinuePrintKey     = 21,
+  PLAHeadSetEnterKey        = 22,
+  PLABedSetEnterKey         = 23,
+  ABSHeadSetEnterKey        = 24,
+  ABSBedSetEnterKey         = 25,
+  StoreMemoryKey            = 26,
+  FanSpeedEnterKey          = 27,
+  VelocityXaxisEnterKey     = 28,
+  VelocityYaxisEnterKey     = 29,
+  VelocityZaxisEnterKey     = 30,
+  VelocityEaxisEnterKey     = 31,
+  AccelXaxisEnterKey        = 32,
+  AccelYaxisEnterKey        = 33,
+  AccelZaxisEnterKey        = 34,
+  AccelEaxisEnterKey        = 35,
+  JerkXaxisEnterKey         = 36,
+  JerkYaxisEnterKey         = 37,
+  JerkZaxisEnterKey         = 38,
+  JerkEaxisEnterKey         = 39,
+  StepsmmXaxisEnterKey      = 40,
+  StepsmmYaxisEnterKey      = 41,
+  StepsmmZaxisEnterKey      = 42,
+  StepsmmEaxisEnterKey      = 43,
+  NozzlePTempEnterKey       = 44,
+  NozzleITempEnterKey       = 45,
+  NozzleDTempEnterKey       = 46,
+  HotbedPTempEnterKey       = 47,
+  HotbedITempEnterKey       = 48,
+  HotbedDTempEnterKey       = 49,
+  PrintFanSpeedkey          = 50,
+  ChangePageKey             = 51,
+  ErrorKey                  = 52,
+  StartFileKey              = 53,
+  SelectFileKey             = 54,
   #if HAS_CUTTER || ENABLED(E3S1PRO_RTS)
-    SwitchDeviceKey     = 55,
-    PauseEngraveingKey  = 56,
-    EngraveWarningKey   = 57,
-    AdjustFocusKey      = 58, 
-    SwAdjustFocusKey    = 59,
-    LaserMoveAxis       = 60,
-    FocusZAxisKey       = 61,
+    SwitchDeviceKey         = 55,
+    PauseEngraveingKey      = 56,
+    EngraveWarningKey       = 57,
+    AdjustFocusKey          = 58, 
+    SwAdjustFocusKey        = 59,
+    LaserMoveAxis           = 60,
+    FocusZAxisKey           = 61,
   #endif
-   AutopidSetNozzleTemp    = 62,
-   AutopidSetNozzleCycles  = 63,   
-   AutopidSetHotbedTemp    = 64,
-   AutopidSetHotbedCycles  = 65,
-   Zoffset005EnterKey      = 66,   
-   Advance_K_Key           = 67,
-   XoffsetEnterKey         = 68,
-   YoffsetEnterKey         = 69,   
-   PETGHeadSetEnterKey     = 70,
-   PETGBedSetEnterKey      = 71,
-   CUSTHeadSetEnterKey     = 72,
-   CUSTBedSetEnterKey      = 73,   
-   XShapingFreqsetEnterKey = 74,
-   YShapingFreqsetEnterKey = 75,   
-   XShapingZetasetEnterKey = 76,
-   YShapingZetasetEnterKey = 77,
-   XMinPosEepromEnterKey   = 78,
-   YMinPosEepromEnterKey   = 79,
-   XaxismoveKeyHomeOffset  = 80,
-   YaxismoveKeyHomeOffset  = 81,
-   E0FlowKey               = 82,
-   Volume                  = 83,
+   AutopidSetNozzleTemp     = 62,
+   AutopidSetNozzleCycles   = 63,   
+   AutopidSetHotbedTemp     = 64,
+   AutopidSetHotbedCycles   = 65,
+   Zoffset005EnterKey       = 66,   
+   Advance_K_Key            = 67,
+   XoffsetEnterKey          = 68,
+   YoffsetEnterKey          = 69,   
+   PETGHeadSetEnterKey      = 70,
+   PETGBedSetEnterKey       = 71,
+   CUSTHeadSetEnterKey      = 72,
+   CUSTBedSetEnterKey       = 73,   
+   XShapingFreqsetEnterKey  = 74,
+   YShapingFreqsetEnterKey  = 75,   
+   XShapingZetasetEnterKey  = 76,
+   YShapingZetasetEnterKey  = 77,
+   XMinPosEepromEnterKey    = 78,
+   YMinPosEepromEnterKey    = 79,
+   XaxismoveKeyHomeOffset   = 80,
+   YaxismoveKeyHomeOffset   = 81,
+   E0FlowKey                = 82,
+   Volume                   = 83,
    DisplayBrightness        = 84,
    DisplayStandbyBrightness = 85,
    VolumeDisplay            = 86,   
    DisplayStandbySeconds    = 87,
    SetGridMaxPoints         = 88,
-   SetProbeMarginX       = 89,
-   SetUblProbeMarginMinX    = 90,
-   SetUblProbeMarginMaxX    = 91,
-   SetUblProbeMarginMinY    = 92,
-   SetUblProbeMarginMaxY    = 93,
-   SetProbeMarginY       = 94,
-   EditMeshpoint            = 95,
-   CurrentMeshpoint         = 96
+   SetProbeMarginX          = 89,
+   ExternalMToggle        = 90,
+   SetProbeMarginY          = 91,
+   EditMeshpoint            = 92,
+   CurrentMeshpoint         = 93
 } proc_command_t; 
 
 const unsigned long Addrbuf[] = 
@@ -789,10 +797,7 @@ const unsigned long Addrbuf[] =
    0x1148, // DisplayStandbySeconds
    0x1156, // SetGridMaxPoints
    0x1158, // SetProbeMarginX
-   0x1982, // SetUblProbeMarginMinX
-   0x1984, // SetUblProbeMarginMaxX
-   0x1986, // SetUblProbeMarginMinY
-   0x1988, // SetUblProbeMarginMaxY
+   0x2228, // ExternalMToggle
    0x1164, // SetProbeMarginY 
    0x2218, // EditMeshpoint
    0x2220, // CurrentMeshpoint
@@ -834,6 +839,13 @@ extern bool eeprom_save_flag;
 
 void RTS_PauseMoveAxisPage(void);
 void RTS_AutoBedLevelPage(void);
+void RTS_LoadMeshPointOffsets(void);
+void RTS_ResetTime(void);
+void RTS_ResetMesh(void);
+void RTS_LoadMesh(void);
+void RTS_CleanPrintFile(void);
+void RTS_LoadMainPage(void);
+void RTS_ShowHomeingPage(void);
 void RTS_MoveAxisHoming(void);
 void RTS_SetMeshPage();
 void RTS_MoveParkNozzle(void);

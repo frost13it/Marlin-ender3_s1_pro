@@ -86,7 +86,7 @@ static void RTS_line_to_filelist_laser() {
   rtscheck.RTS_SndData(statStr1, PAGE_STATUS_TEXT_CURRENT_VP);
   rtscheck.RTS_SndData(statStr2, PAGE_STATUS_TEXT_TOTAL_VP);
 
-  for (int i = 0; i < 40; i += 20) {
+  for (int i = 0; i < 20; i += 20) {
     for (int j = 0; j < 20; j++) {
       rtscheck.RTS_SndData(0, FILE1_TEXT_VP + i + j);
     }
@@ -152,13 +152,7 @@ void RTSSHOW::RTS_SDcard_Stop_laser(void)
   RTS_SndData(0, PRINT_PROCESS_ICON_VP);
   RTS_SndData(0, PRINT_PROCESS_VP);
   delay(2);
-  for(int j = 0;j < 40;j ++)
-  {
-    // clean screen.
-    RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
-    // clean filename
-    RTS_SndData(0, SELECT_FILE_TEXT_VP + j);
-  }
+  RTS_CleanPrintFile();
   planner.synchronize();
 
   // RTS_SndData(ExchangePageBase + 51, ExchangepageAddr);
@@ -291,19 +285,9 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         quickstop_stepper();
         print_job_timer.stop();
         RTS_SndData(0, MOTOR_FREE_ICON_VP); // 激光时锁定
-        RTS_SndData(0, PRINT_PROCESS_ICON_VP);
-        RTS_SndData(0, PRINT_PROCESS_VP);
-        delay(2);
-        RTS_SndData(0, PRINT_TIME_HOUR_VP);
-        RTS_SndData(0, PRINT_TIME_MIN_VP);
+        RTS_ResetTime();
         print_job_timer.reset();
-        for(int j = 0;j < 40;j ++)
-        {
-          // clean screen.
-          RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
-          // clean filename
-          RTS_SndData(0, SELECT_FILE_TEXT_VP + j);
-        }
+        RTS_CleanPrintFile();
         RTS_SndData(ExchangePageBase + 51, ExchangepageAddr);
         change_page_font = 51;
       }
@@ -1134,13 +1118,13 @@ void RTSSHOW::RTS_HandleData_Laser(void)
           if (PoweroffContinue /*|| print_job_timer.isRunning()*/) return;
 
           // clean print file
-          for (int j = 0; j < 40; j++) RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
+          for (int j = 0; j < 20; j++) RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
           lcd_sd_status = IS_SD_INSERTED();
         }
         else {
           CardRecbuf.selectFlag = true;
           CardRecbuf.recordcount = recdat.data[0] - 1;
-          for (int j = 0; j < 40; j++) RTS_SndData(0, SELECT_FILE_TEXT_VP + j);
+          for (int j = 0; j < 20; j++) RTS_SndData(0, SELECT_FILE_TEXT_VP + j);
           delay(2);
           RTS_SndData((unsigned long)0xFFFF, FilenameNature + recdat.data[0] * 16);      
           RTS_SndData(ExchangePageBase + 51, ExchangepageAddr);
@@ -1289,7 +1273,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
     case ChangePageKey:
       for(int i = 0; i < MaxFileNumber; i ++)
       {
-        for (int j = 0; j < 40; j ++)
+        for (int j = 0; j < 20; j ++)
         {
           RTS_SndData(0, FILE1_TEXT_VP + i * 20 + j);
         }
@@ -1297,22 +1281,16 @@ void RTSSHOW::RTS_HandleData_Laser(void)
 
       for (int i = 0; i < CardRecbuf.Filesum; i++)
       {
-        for (int j = 0; j < 40; j++)
+        for (int j = 0; j < 20; j++)
         {
           RTS_SndData(0, CardRecbuf.addr[i] + j);
         }
         RTS_SndData((unsigned long)0xFFFF, FilenameNature + (i + 1) * 16);
       }
 
-      for (int j = 0; j < 40; j ++)
-      {
-        // clean screen.
-        RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
-        // clean filename
-        RTS_SndData(0, SELECT_FILE_TEXT_VP + j);
-      }
+      RTS_CleanPrintFile();
       // clean filename Icon
-      for (int j = 0; j < 40; j ++)
+      for (int j = 0; j < 20; j ++)
       {
         RTS_SndData(0, FILE1_SELECT_ICON_VP + j);
       }
@@ -1439,19 +1417,9 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         CardRecbuf.recordcount = -1;
         print_job_timer.stop();
         //RTS_SndData(1, MOTOR_FREE_ICON_VP);
-        RTS_SndData(0, PRINT_PROCESS_ICON_VP);
-        RTS_SndData(0, PRINT_PROCESS_VP);
-        delay(2);
-        RTS_SndData(0, PRINT_TIME_HOUR_VP);
-        RTS_SndData(0, PRINT_TIME_MIN_VP);
+        RTS_ResetTime();
         print_job_timer.reset();
-        for(int j = 0;j < 40;j ++)
-        {
-          // clean screen.
-          RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
-          // clean filename
-          RTS_SndData(0, SELECT_FILE_TEXT_VP + j);
-        }
+        RTS_CleanPrintFile();
         
         // RTS_SndData(ExchangePageBase + 51, ExchangepageAddr);
         // change_page_font = 51;

@@ -816,22 +816,7 @@ G29_TYPE GcodeSuite::G29() {
                   rtscheck.RTS_SndData(z*1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
                   rtscheck.RTS_SndData((unsigned long)0x073F, TrammingpointNature + (color_sp_offset + showcount + 1) * 16);
                   showcount ++;                  
-                  if (lcd_rts_settings.max_points == 5){
-                    rtscheck.RTS_SndData(ExchangePageBase + 81, ExchangepageAddr);
-                    change_page_font = 81;
-                  }
-                  if (lcd_rts_settings.max_points == 7){
-                    rtscheck.RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
-                    change_page_font = 94;
-                  }
-                  //if (lcd_rts_settings.max_points == 9){
-                  //  rtscheck.RTS_SndData(ExchangePageBase + 96, ExchangepageAddr);
-                  //  change_page_font = 96;
-                  //}
-                  if (lcd_rts_settings.max_points == 10){
-                    rtscheck.RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
-                    change_page_font = 95;
-                  }
+                  rtscheck.RTS_ChangeLevelingPage();
                   }
               }
             #endif
