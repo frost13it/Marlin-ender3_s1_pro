@@ -13,7 +13,7 @@
 #endif
 #define FHTWO   (0xA5)
 #define FHLENG  (0x06)
-#define TEXTBYTELEN     20
+#define TEXTBYTELEN     55
 #define MaxFileNumber   40
 #define AUTO_BED_LEVEL_PREHEAT  0
 #define FileNum             MaxFileNumber

@@ -38,9 +38,9 @@ void GcodeSuite::M117() {
 
   #if ENABLED(E3S1PRO_RTS)
     // clear out our status areas
-    RTS_CleanPrintFile();
+    RTS_CleanPrintAndSelectFile();
     if (parser.string_arg && parser.string_arg[0]) {
-      char msg[20];
+      char msg[55];
 
       if (strlen(parser.string_arg) >= TEXTBYTELEN) {
         strncpy(msg, parser.string_arg, TEXTBYTELEN - 1);
@@ -48,9 +48,13 @@ void GcodeSuite::M117() {
       } else {
         strcpy(msg, parser.string_arg);
       }
-
-      rtscheck.RTS_SndData(msg, PRINT_FILE_TEXT_VP);
-      rtscheck.RTS_SndData(msg, SELECT_FILE_TEXT_VP);
+      if (strlen(msg) > 25) {
+        rtscheck.RTS_SndData(0, PRINT_FILE_TEXT_VP);
+        rtscheck.RTS_SndData(msg, SELECT_FILE_TEXT_VP);
+      }else{
+        rtscheck.RTS_SndData(0, SELECT_FILE_TEXT_VP);        
+        rtscheck.RTS_SndData(msg, PRINT_FILE_TEXT_VP);
+      }
     }
   #else
     if (parser.string_arg && parser.string_arg[0])

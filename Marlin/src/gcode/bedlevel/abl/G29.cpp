@@ -241,6 +241,12 @@ public:
 G29_TYPE GcodeSuite::G29() {
   DEBUG_SECTION(log_G29, "G29", DEBUGGING(LEVELING));
 
+  if (IS_SD_PRINTING()){
+    RTS_ResetMesh();
+    leveling_running = 1;
+    rtscheck.RTS_ChangeLevelingPage();
+  }
+
   // Leveling state is persistent when done manually with multiple G29 commands
   TERN_(PROBE_MANUALLY, static) G29_State abl;
 
@@ -804,13 +810,12 @@ G29_TYPE GcodeSuite::G29() {
           #endif
 
           #if ENABLED(E3S1PRO_RTS)
-              if(!IS_SD_PRINTING())
-              {
+              //if(!IS_SD_PRINTING())
+              //{
                   if(old_leveling == 1){
                   rtscheck.RTS_SndData((uint16_t)((100.0 / (lcd_rts_settings.max_points * lcd_rts_settings.max_points) * pt_index) / 2) , AUTO_BED_LEVEL_TITLE_VP);
                   rtscheck.RTS_SndData((uint16_t)(100.0 / (lcd_rts_settings.max_points * lcd_rts_settings.max_points) * pt_index), AUTO_LEVELING_PERCENT_DATA_VP);
-                  rtscheck.RTS_SndData(ExchangePageBase + 26, ExchangepageAddr);
-                  change_page_font = 26;
+                  RTS_ShowPage(26);
                   }else{
                   rtscheck.RTS_SndData(showcount + 1, AUTO_BED_LEVEL_CUR_POINT_VP);
                   rtscheck.RTS_SndData(z*1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
@@ -818,7 +823,7 @@ G29_TYPE GcodeSuite::G29() {
                   showcount ++;                  
                   rtscheck.RTS_ChangeLevelingPage();
                   }
-              }
+              //}
             #endif
 
           abl.reenable = false; // Don't re-enable after modifying the mesh
@@ -1040,7 +1045,13 @@ G29_TYPE GcodeSuite::G29() {
     queue.enqueue_one_P(PSTR("M420 S1"));  
     queue.enqueue_one_P(PSTR("M500"));
     leveling_running = 0;
-    RTS_AutoBedLevelPage();
+    if (IS_SD_PRINTING()){
+      RTS_LoadMesh();
+      delay(500);      
+      RTS_ShowPage(10);
+    }else{
+      RTS_AutoBedLevelPage();
+    }
   #endif
 
   probe.use_probing_tool(false);

@@ -29,11 +29,11 @@ extern bool power_off_type_yes;
 #endif
 #define FHTWO   (0xA5)
 #define FHLENG  (0x06)
-#define TEXTBYTELEN     20
+#define TEXTBYTELEN     55
 #define MaxFileNumber   40
-#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL) 
-  #define MaxFilenameLength   128
-#endif
+//#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL) 
+#define MaxFilenameLength   128
+//#endif
 #define VALUE_INVALID                       0xFFFF
 #define VALUE_INVALID_8BIT                  0xFF
 
@@ -72,7 +72,7 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define PAGE_STATUS_TEXT_CURRENT_VP        0x10CC
 #define PAGE_STATUS_TEXT_TOTAL_VP          0x10D0
 
-#define SELECT_FILE_TEXT_VP                0x219A
+#define SELECT_FILE_TEXT_VP                0x219A // uses space up to 0x21D5 next free 0x21D6
 #define RECTANGLE_VP                       0x2490
 
 #define START_PROCESS_ICON_VP              0x1000
@@ -226,8 +226,10 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define FILE19_TEXT_VP                     0x2172
 #define FILE20_TEXT_VP                     0x2186
 
-#define PRINT_FILE_TEXT_VP                 0x21C0
-#define ABNORMAL_PAGE_TEXT_VP              0x21D4
+// uses sp space from User 0x6C9D up to 0x6CB5 next free is 0x6CB6
+#define PRINT_FILE_TEXT_VP                 0x2238 // 25 chars up to 0x2250 next free 0x2251
+#define ABNORMAL_PAGE_TEXT_VP              0x21D6 // with 30 chars up to 0x21F3 next free 0x21F4
+
 
 #define MAIN_PAGE_BLUE_TITLE_VP            0x1300
 #define SELECT_FILE_BLUE_TITLE_VP          0x1301
@@ -358,7 +360,7 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define FIRMWARE_VERSION_ABOUT_CHAR_VP     0x1401
 #define PRINTER_DISPLAY_VERSION_TITLE_VP   0x1402
 #define HARDWARE_VERSION_ABOUT_TITLE_VP    0x1403
-#define WIFI_DN_CODE_CHAR_VP               0x1404
+
 #define WEBSITE_ABOUT_CHAR_VP              0x1405
 #define PRINTER_PRINTSIZE_TITLE_VP         0x1406
 
@@ -448,9 +450,12 @@ const uint16_t DGUS_VERSION = 0x000F;
 
 #define E0_SET_FLOW_VP                     0x193A
 
-#define AUTO_TRAM_1TEXT_VP                 0x1120
 // CRTOUCH_TRAMMING_POINT_1_VP to CRTOUCH_TRAMMING_POINT_9_VP with 1adr offset 0x230A, 0x230B, 0x230C, ... to 0x2312
 #define CRTOUCH_TRAMMING_POINT_1_VP        0x230A
+// ASSISTED_TRAMMING_POINT_1_VP with 1adr offset 0x2313, 0x2314, 0x2315, 0x2316
+#define ASSISTED_TRAMMING_POINT_1_VP       0x2313
+// ASSISTED_TRAMMING_POINT_TEXT_VP with 26adr offset 0x4110, 0x412A, 0x4144, 0x415E. next free 0x4178 
+#define ASSISTED_TRAMMING_POINT_TEXT_VP    0x4110
 
 #define MACHINE_TYPE_ABOUT_TEXT_VP         0x17B0
 #define FIRMWARE_VERSION_ABOUT_TEXT_VP     0x17C4
@@ -463,6 +468,7 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define TrammingpointNature                0x6153
 
 #define QR_CODE_1_VP                       0x6C40 // uses space up to 0x6C67
+// 0x6C68 up to 0x6C9C is sp space for SELECT_PRINT_FILE_VP next free 0x6C9D
 #define MESH_RECTANGLE_BASE_VP             0x7000
 
 #define ABNORMAL_PAGE_TEXT_VP_SIZE         30  
@@ -496,9 +502,8 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define BrightnessIcon                      0x1154
 #define SET_GRID_MAX_POINTS_VP              0x1156
 #define PROBE_MARGIN_X_VP                   0x1158
-#define PROBE_MARGIN_X_TEXT_VP              0x1160
-#define PROBE_MARGIN_Y_VP                   0x1164
-#define PROBE_MARGIN_Y_TEXT_VP              0x1166
+#define PROBE_MARGIN_Y_VP                   0x1160
+#define PROBE_COUNT_VP                      0x1162
 #define CURRENT_MESH_POINT                  0x2220
 #define MESH_POINT_MIN                      0x2222
 #define MESH_POINT_MAX                      0x2224
@@ -527,10 +532,10 @@ typedef struct CardRecord
   int Filesum;
   unsigned long addr[FileNum];
   char Cardshowfilename[FileNum][FileNameLen];
-  #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)   
+  //#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)   
     char* Cardshowlongfilename[FileNum];
     int filenamelen[MaxFilenameLength];
-  #endif
+  //#endif
   char Cardfilename[FileNum][FileNameLen];
   bool selectFlag;
 }CRec;
@@ -550,7 +555,9 @@ uint8_t max_points;
 uint8_t probe_margin_x;
 uint8_t probe_margin_y;
 uint8_t probe_min_margin_y;
-bool external_m73;    
+bool external_m73;
+uint8_t extra_probing;
+uint8_t total_probing;
 };
 
 static constexpr size_t eeprom_data_size = sizeof(lcd_rts_settings_t);
@@ -697,10 +704,11 @@ typedef enum PROC_COM : int8_t {
    DisplayStandbySeconds    = 87,
    SetGridMaxPoints         = 88,
    SetProbeMarginX          = 89,
-   ExternalMToggle        = 90,
+   ExternalMToggle          = 90,
    SetProbeMarginY          = 91,
    EditMeshpoint            = 92,
-   CurrentMeshpoint         = 93
+   CurrentMeshpoint         = 93,
+   SetProbeCount            = 94
 } proc_command_t; 
 
 const unsigned long Addrbuf[] = 
@@ -798,18 +806,19 @@ const unsigned long Addrbuf[] =
    0x1156, // SetGridMaxPoints
    0x1158, // SetProbeMarginX
    0x2228, // ExternalMToggle
-   0x1164, // SetProbeMarginY 
+   0x1160, // SetProbeMarginY 
    0x2218, // EditMeshpoint
    0x2220, // CurrentMeshpoint
+   0x1162, // SetProbeCount
   0
 };
 
 extern int EndsWith(const char*, const char*);
 void ErrorHanding(void);
 extern void RTSUpdate(void);
-#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
-  extern void RTSUpdate_SCROLLING(void);
-#endif
+//#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
+//  extern void RTSUpdate_SCROLLING(void);
+//#endif
 extern void RTSInit(void);
 #if HAS_CUTTER
   extern void RTSUpdateLaser(void);
@@ -843,9 +852,23 @@ void RTS_LoadMeshPointOffsets(void);
 void RTS_ResetTime(void);
 void RTS_ResetMesh(void);
 void RTS_LoadMesh(void);
+void RTS_CleanPrintAndSelectFile(void);
 void RTS_CleanPrintFile(void);
-void RTS_LoadMainPage(void);
-void RTS_ShowHomeingPage(void);
+void RTS_ShowPage(uint8_t pageNumber);
+void RTS_ShowPreviewImage(bool status);
+void RTS_ShowMotorFreeIcon(bool status);
+void RTS_ResetHeadAndBedSetTemp(void);
+void RTS_SendMachineData(void);
+void RTS_SendCurrentPosition();
+void RTS_LoadMainsiteIcons(void);
+void RTS_SendBedTemp(void);
+void RTS_SendHeadTemp(void);
+void RTS_SendHeadCurrentTemp();
+void RTS_SendMoveaxisUnitIcon(uint8_t icon);
+void RTS_SendDefaultRates();
+void RTS_SendZoffsetFeedratePercentage(bool sendzoffset);
+void RTS_AxisZCoord();
+void RTS_LoadMargins();
 void RTS_MoveAxisHoming(void);
 void RTS_SetMeshPage();
 void RTS_MoveParkNozzle(void);
@@ -855,9 +878,11 @@ extern int8_t g_uiAutoPIDRuningDiff;
 extern int16_t g_uiCurveDataCnt;
 extern uint8_t leveling_running;
 extern uint8_t color_sp_offset;
-#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
-  void lcd_rts_scrolling();
-#endif
+extern uint8_t min_margin_y_back;
+extern uint8_t min_margin_x;
+//#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
+//  void lcd_rts_scrolling();
+//#endif
 extern lcd_rts_settings_t lcd_rts_settings;
 void saveSettings(char * const buff);
 void loadSettings(const char * const buff);

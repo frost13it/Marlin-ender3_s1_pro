@@ -484,8 +484,7 @@ inline void manage_inactivity(const bool no_stepper_sleep=false) {
 
     #if ENABLED(E3S1PRO_RTS)
       waitway = 0;
-      rtscheck.RTS_SndData(ExchangePageBase + 41, ExchangepageAddr);
-      change_page_font = 41;
+      RTS_ShowPage(41);
       rtscheck.RTS_SndData(Error_201, ABNORMAL_PAGE_TEXT_VP);
       errorway = 1;
     #else
@@ -906,9 +905,9 @@ void idle(const bool no_stepper_sleep/*=false*/) {
     #endif
     {
       TERN(E3S1PRO_RTS, RTSUpdate(),ui.update());
-      #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
-        TERN_(E3S1PRO_RTS, RTSUpdate_SCROLLING());
-      #endif
+      //#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
+      //  TERN_(E3S1PRO_RTS, RTSUpdate_SCROLLING());
+      //#endif
     }
   #endif
 

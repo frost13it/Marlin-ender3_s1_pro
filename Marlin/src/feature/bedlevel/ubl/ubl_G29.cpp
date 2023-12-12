@@ -787,6 +787,11 @@ void unified_bed_leveling::shift_mesh_height() {
     
     #if ENABLED(E3S1PRO_RTS)
       int16_t point_num_real;
+      leveling_running = 1;
+      if (IS_SD_PRINTING()){
+        RTS_ResetMesh();
+        rtscheck.RTS_ChangeLevelingPage();
+      }      
     #endif
 
     mesh_index_pair best;
@@ -833,8 +838,7 @@ void unified_bed_leveling::shift_mesh_height() {
             const uint16_t percent = 100 / GRID_MAX_POINTS * (GRID_MAX_POINTS - (count - 1));
             rtscheck.RTS_SndData((uint16_t) (percent / 2) , AUTO_BED_LEVEL_TITLE_VP);
             rtscheck.RTS_SndData(percent, AUTO_LEVELING_PERCENT_DATA_VP);
-            rtscheck.RTS_SndData(ExchangePageBase + 26, ExchangepageAddr);
-            change_page_font = 26;
+            RTS_ShowPage(26);
           }else{
             if (GRID_USED_POINTS_Y % 2 == 1) {
                 // When GRID_USED_POINTS_Y is odd
@@ -893,7 +897,14 @@ void unified_bed_leveling::shift_mesh_height() {
       constrain(nearby.y - probe.offset_xy.y, lcd_rts_settings.probe_margin_y, (Y_BED_SIZE - lcd_rts_settings.probe_margin_y))
     );
     #if ENABLED(E3S1PRO_RTS)
+    leveling_running = 0;
+    if (IS_SD_PRINTING()){
+      RTS_LoadMesh();
+      delay(500);
+      RTS_ShowPage(10);
+    }else{
       RTS_AutoBedLevelPage();
+    }
     #endif
 
     TERN_(EXTENSIBLE_UI, ExtUI::onLevelingDone());

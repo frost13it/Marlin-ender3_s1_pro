@@ -100,6 +100,9 @@ char home_errornum  = 0;
   float rec_zoffset;
 #endif
 
+uint8_t min_margin_y_back;
+uint8_t min_margin_x;
+
 bool power_off_type_yes = false;
 uint8_t old_leveling = 0;
 uint8_t bltouch_tramming = 0;
@@ -136,6 +139,7 @@ bool pause_action_flag = false;
 bool print_preheat_check = false;
 bool probe_offset_flag = false;
 float probe_offset_x_temp;
+float probe_offset_y_temp;
 uint16_t max_reachable_pos_y;
 uint16_t min_calc_margin_y_bedlevel;
 uint16_t max_reachable_pos_x;
@@ -227,6 +231,7 @@ enum{
 
 int temp_preheat_nozzle = 0, temp_preheat_bed = 0, temp_probe_margin_x = 0, temp_probe_margin_y = 0;
 uint8_t temp_grid_max_points = 0;
+uint8_t temp_grid_probe_count = 0;
 uint8_t preheat_flag = PREHEAT_PLA; // 0=PLA，1=ABS, 2=PETG, 3=CUST
 
 uint8_t  last_progress_percent = 0;
@@ -262,13 +267,13 @@ int16_t g_uiCurveDataCnt = 0;
 int16_t advance_k_set = 0;
 uint8_t lcd_rts_settings_version = 1;
 lcd_rts_settings_t lcd_rts_settings;
-
+/*
 #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)  
   static int scrollCount = 0;
   unsigned long previousScrollMillis = 0;
   ssize_t currentScrollIndex = 0;
-  uint8_t displayWidth = 16;
-  int textLength = 16;
+  uint8_t displayWidth = 56;
+  int textLength = 56;
   bool scrollingActive = false;
   bool scrollingmanuallyDisabled = false;  
   unsigned long displayAddr = SELECT_FILE_TEXT_VP;
@@ -286,6 +291,7 @@ lcd_rts_settings_t lcd_rts_settings;
     currentScrollIndex = -1;
   }
 #endif
+*/
 
 /*************************************END***************************************/
 
@@ -310,7 +316,9 @@ void resetSettings() {
   lcd_rts_settings.probe_margin_x = 45;
   lcd_rts_settings.probe_margin_y = 45;
   lcd_rts_settings.probe_min_margin_y = 45;
-  lcd_rts_settings.external_m73 = false;  
+  lcd_rts_settings.external_m73 = false;
+  lcd_rts_settings.extra_probing = 0;
+  lcd_rts_settings.total_probing = 3;
   #if ENABLED(LCD_RTS_DEBUG)
     SERIAL_ECHOLNPGM("------Reset lcd_rts_settings from lcd_rts.cpp!-------");  
   #endif
@@ -333,7 +341,9 @@ void loadSettings(const char * const buff) {
     SERIAL_ECHOLNPGM("probe_margin x: ", lcd_rts_settings.probe_margin_x);
     SERIAL_ECHOLNPGM("probe_margin y: ", lcd_rts_settings.probe_margin_y);
     SERIAL_ECHOLNPGM("probe_min_margin y: ", lcd_rts_settings.probe_min_margin_y);
-    SERIAL_ECHOLNPGM("external m73: ", lcd_rts_settings.external_m73);    
+    SERIAL_ECHOLNPGM("external m73: ", lcd_rts_settings.external_m73);
+    SERIAL_ECHOLNPGM("extra_probing: ", lcd_rts_settings.extra_probing);
+    SERIAL_ECHOLNPGM("total_probing: ", lcd_rts_settings.total_probing);
     SERIAL_ECHOLNPGM("------Load lcd_rts_settings from lcd_rts.cpp!-------");    
   #endif
 }
@@ -355,7 +365,9 @@ void saveSettings(char * const buff) {
     SERIAL_ECHOLNPGM("probe_margin x: ", lcd_rts_settings.probe_margin_x);
     SERIAL_ECHOLNPGM("probe_margin y: ", lcd_rts_settings.probe_margin_y);
     SERIAL_ECHOLNPGM("probe_min_margin y: ", lcd_rts_settings.probe_min_margin_y);
-    SERIAL_ECHOLNPGM("external m73: ", lcd_rts_settings.external_m73);    
+    SERIAL_ECHOLNPGM("external m73: ", lcd_rts_settings.external_m73);
+    SERIAL_ECHOLNPGM("extra_probing: ", lcd_rts_settings.extra_probing);
+    SERIAL_ECHOLNPGM("total_probing: ", lcd_rts_settings.total_probing);
     SERIAL_ECHOLNPGM("------Save lcd_rts_settings from lcd_rts.cpp!-------");
   #endif
 }
@@ -382,7 +394,7 @@ static void RTS_line_to_filelist() {
   rtscheck.RTS_SndData(statStr2, PAGE_STATUS_TEXT_TOTAL_VP);
 
   for (int i = 0; i < 5; i += 5) {
-      rtscheck.RTS_SndData(0, FILE1_TEXT_VP + i * 20);
+      rtscheck.RTS_SndData(0, FILE1_TEXT_VP + i * 60);
   }
 
   // clean filename Icon
@@ -394,50 +406,81 @@ static void RTS_line_to_filelist() {
 
   int num = 0;
   for (int16_t i = (file_current_page - 1) * 5; i < (file_current_page * 5); i++) {  
-    card.selectFileByIndexSorted(i);
-    #if ENABLED(LCD_RTS_DEBUG)    
-      SERIAL_ECHO_MSG("card.longFilename ", card.longFilename); 
-    #endif
-    char *pointFilename = card.longFilename;
-    int filenamelen = strlen(card.longFilename);
-    #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)  
-      CardRecbuf.filenamelen[num] = filenamelen;
-      CardRecbuf.Cardshowlongfilename[num] = new char[filenamelen + 1]; 
-      strcpy(CardRecbuf.Cardshowlongfilename[num], card.longFilename);
-    #endif
-    int j = 1;
-    while ((strncmp(&pointFilename[j], ".gcode", 6) != 0 && strncmp(&pointFilename[j], ".GCODE", 6) != 0 && strncmp(&pointFilename[j], ".GCO", 4) != 0 && strncmp(&pointFilename[j], ".gco", 4) != 0) && (j++ < filenamelen));    
-   
-    if (j >= TEXTBYTELEN) {
-      strncpy(&card.longFilename[TEXTBYTELEN - 3], "..", 2);
-      card.longFilename[TEXTBYTELEN - 1] = '\0';
-      j = TEXTBYTELEN - 1;
-    }
-    strncpy(CardRecbuf.Cardshowfilename[num], card.longFilename, j);
-    #if ENABLED(LCD_RTS_DEBUG)
-      SERIAL_ECHO("inside rts_line_to_filelist");
-      SERIAL_ECHOLN("");
-    #endif
-    strcpy(CardRecbuf.Cardfilename[num], card.filename);
-    CardRecbuf.addr[num] = FILE1_TEXT_VP + (num * 20);
-    rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[num], CardRecbuf.addr[num]);
-    if (!EndsWith(CardRecbuf.Cardshowlongfilename[num], "gcode") && !EndsWith(CardRecbuf.Cardshowlongfilename[num], "GCO") 
-      && !EndsWith(CardRecbuf.Cardshowlongfilename[num], "GCODE") && !EndsWith(CardRecbuf.Cardshowlongfilename[num], "gco")) 
-    {
-      rtscheck.RTS_SndData((unsigned long)0x073F, FilenameNature + (num + 1) * 16);
-      rtscheck.RTS_SndData(203, FILE6_SELECT_ICON_VP + num);
-    }
-    if (EndsWith(CardRecbuf.Cardshowlongfilename[num], "gcode") || EndsWith(CardRecbuf.Cardshowlongfilename[num], "GCO") 
-      || EndsWith(CardRecbuf.Cardshowlongfilename[num], "GCODE") || EndsWith(CardRecbuf.Cardshowlongfilename[num], "gco")) 
-    {
-      rtscheck.RTS_SndData((unsigned long)0xFFFF, FilenameNature + (num + 1) * 16);
-      rtscheck.RTS_SndData(204, FILE6_SELECT_ICON_VP + num);
-    }
-    if (filenamelen == 0) 
-    {
-      rtscheck.RTS_SndData(0, FILE6_SELECT_ICON_VP + num);
-    }    
-    CardRecbuf.Filesum = (++num);
+      card.selectFileByIndexSorted(i);
+      #if ENABLED(LCD_RTS_DEBUG)    
+          SERIAL_ECHO_MSG("card.longFilename ", card.longFilename); 
+      #endif
+      char *pointFilename = card.longFilename;
+      int filenamelen = strlen(card.longFilename);
+      //CardRecbuf.filenamelen[num] = strlen(card.longFilename);      
+
+      if (!CardRecbuf.Cardshowlongfilename[num]) {
+          CardRecbuf.Cardshowlongfilename[num] = new char[filenamelen + 1];
+          strcpy(CardRecbuf.Cardshowlongfilename[num], card.longFilename);
+      }
+
+      int j = 1;
+      while ((strncmp(&pointFilename[j], ".gcode", 6) != 0 && strncmp(&pointFilename[j], ".GCODE", 6) != 0 && strncmp(&pointFilename[j], ".GCO", 4) != 0 && strncmp(&pointFilename[j], ".gco", 4) != 0) && (j++ < filenamelen));
+      int filenameLenWithoutExt = j;
+      CardRecbuf.filenamelen[num] = filenameLenWithoutExt;
+      // Check if the file extension is corrupted
+      const char* expectedExtensions[] = {".gcode", ".GCODE", ".gco", ".GCO"};
+      bool extensionCorrupted = true;
+
+      for (size_t k = 0; k < sizeof(expectedExtensions) / sizeof(expectedExtensions[0]); ++k) {
+          if (EndsWith(card.longFilename, expectedExtensions[k])) {
+              extensionCorrupted = false;
+              break;
+          }
+      }
+
+      if (j >= TEXTBYTELEN) {
+        strncpy(&card.longFilename[TEXTBYTELEN - 2], "..", 2); // Reserve 2 characters for ".."
+        card.longFilename[TEXTBYTELEN] = '\0';
+        j = TEXTBYTELEN;
+      } else {
+        j = min(j, TEXTBYTELEN); // Use the smaller of j and TEXTBYTELEN
+      }
+      if (extensionCorrupted) {
+        rtscheck.RTS_SndData((unsigned long)0xFFFF, FilenameNature + (num + 1) * 16);
+        rtscheck.RTS_SndData(204, FILE6_SELECT_ICON_VP + num);          
+      }
+      // Debugging
+      #if ENABLED(LCD_RTS_DEBUG)
+        SERIAL_ECHO_MSG("Filename after truncation: ", card.longFilename);
+        SERIAL_ECHO_MSG("j value: ", j);
+      #endif
+
+      strncpy(CardRecbuf.Cardshowfilename[num], card.longFilename, min(j, TEXTBYTELEN));
+      CardRecbuf.Cardshowfilename[num][TEXTBYTELEN - 1] = '\0';
+
+      #if ENABLED(LCD_RTS_DEBUG)
+          SERIAL_ECHO("inside rts_line_to_filelist");
+          SERIAL_ECHOLN("");
+      #endif
+
+      strcpy(CardRecbuf.Cardfilename[num], card.filename);
+      CardRecbuf.addr[num] = FILE1_TEXT_VP + (num * 60);
+      rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[num], CardRecbuf.addr[num]);
+
+      if (!EndsWith(CardRecbuf.Cardshowlongfilename[num], "gcode") && !EndsWith(CardRecbuf.Cardshowlongfilename[num], "GCO") 
+        && !EndsWith(CardRecbuf.Cardshowlongfilename[num], "GCODE") && !EndsWith(CardRecbuf.Cardshowlongfilename[num], "gco")) 
+      {
+          rtscheck.RTS_SndData((unsigned long)0x073F, FilenameNature + (num + 1) * 16);
+          rtscheck.RTS_SndData(203, FILE6_SELECT_ICON_VP + num);
+      }
+      if (EndsWith(CardRecbuf.Cardshowlongfilename[num], "gcode") || EndsWith(CardRecbuf.Cardshowlongfilename[num], "GCO") 
+        || EndsWith(CardRecbuf.Cardshowlongfilename[num], "GCODE") || EndsWith(CardRecbuf.Cardshowlongfilename[num], "gco")) 
+      {
+          rtscheck.RTS_SndData((unsigned long)0xFFFF, FilenameNature + (num + 1) * 16);
+          rtscheck.RTS_SndData(204, FILE6_SELECT_ICON_VP + num);
+      }
+
+      if (filenamelen == 0) 
+      {
+          rtscheck.RTS_SndData(0, FILE6_SELECT_ICON_VP + num);
+      }
+      CardRecbuf.Filesum = (++num);
   }
   page_total_file = CardRecbuf.Filesum;
   CardRecbuf.Filesum = ((file_total_page - 1) * 5) + page_total_file;
@@ -454,12 +497,16 @@ void RTSSHOW::RTS_SDCardInit(void) {
     card.getWorkDirName();
     if (card.filename[0] != '/') card.cdup();
 
-    if (fileCnt > 5) {
-      file_total_page = (fileCnt / 5) + 1;
-      if (file_total_page > 8) file_total_page = 8;
+    if (fileCnt > 0) {
+      file_total_page = fileCnt / 5;
+      if (fileCnt % 5 > 0) { // Add an extra page only if there are leftover files
+        file_total_page++;
+      }
+      if (file_total_page > 8) file_total_page = 8; // Limit the maximum number of pages
     }
-    else
+    else {
       file_total_page = 1;
+    }
 
     RTS_SndData(file_total_page, PAGE_STATUS_TEXT_TOTAL_VP);
     file_current_page = 1;
@@ -470,7 +517,7 @@ void RTSSHOW::RTS_SDCardInit(void) {
     if (PoweroffContinue /*|| print_job_timer.isRunning()*/) return;
 
     // clean print file
-    for (int j = 0; j < 20; j++) RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
+    RTS_CleanPrintAndSelectFile();
     lcd_sd_status = IS_SD_INSERTED();
   }
   else {
@@ -523,15 +570,13 @@ void RTSSHOW::RTS_SDCardUpdate() {
         for (int j = 0; j < 20; j++) RTS_SndData(0, CardRecbuf.addr[i] + j);
       //  RTS_SndData((unsigned long)0xFFFF, FilenameNature + (i + 1) * 16);
       }
-      RTS_CleanPrintFile();
+      RTS_CleanPrintAndSelectFile();
       for (int j = 0; j < 5; j++) {
         // clean screen.
         RTS_SndData(0, FILE6_SELECT_ICON_VP + j);
       }      
       memset(&CardRecbuf, 0, sizeof(CardRecbuf));
-      #if ENABLED(GCODE_PREVIEW_ENABLED)
-        gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, true);          
-      #endif
+      RTS_ShowPreviewImage(true);
       RTS_SndData(1, PAGE_STATUS_TEXT_TOTAL_VP);
       file_total_page = 1;
       RTS_SndData(1, PAGE_STATUS_TEXT_CURRENT_VP);
@@ -646,7 +691,8 @@ void RTSSHOW::RTS_Init(void)
   delay(50);
   last_zoffset = zprobe_zoffset = probe.offset.z;
   touchscreen_requested_mesh = 0;
-  RTS_SndData(zprobe_zoffset * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
+  feedrate_percentage = 100;
+  RTS_SendZoffsetFeedratePercentage(true);
 
   for(int i = 0;i < 9;i ++)
   {
@@ -658,15 +704,12 @@ void RTSSHOW::RTS_Init(void)
 
   last_target_temperature[0] = thermalManager.temp_hotend[0].target;
   last_target_temperature_bed = thermalManager.temp_bed.target;
-  feedrate_percentage = 100;
-  RTS_SndData(feedrate_percentage, PRINT_SPEED_RATE_VP);
 
   /***************turn off motor*****************/
-  RTS_SndData(1, MOTOR_FREE_ICON_VP);
+  RTS_ShowMotorFreeIcon(true);
 
   /***************transmit temperature to screen*****************/
-  RTS_SndData(0, HEAD_SET_TEMP_VP);
-  RTS_SndData(0, BED_SET_TEMP_VP);
+  RTS_ResetHeadAndBedSetTemp();
   RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD_CURRENT_TEMP_VP);
   RTS_SndData(thermalManager.temp_bed.celsius, BED_CURRENT_TEMP_VP);
   RTS_SndData(planner.settings.max_feedrate_mm_s[0], MAX_VELOCITY_XAXIS_DATA_VP);
@@ -699,7 +742,7 @@ void RTSSHOW::RTS_Init(void)
   GRID_USED_POINTS_X = lcd_rts_settings.max_points;
   GRID_USED_POINTS_Y = lcd_rts_settings.max_points;
   queue.enqueue_now_P(PSTR("M402"));
-  RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
+  //RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
 
   #if ENABLED(GCODE_PREVIEW_ENABLED)
     RTS_SndData(0, DEFAULT_PRINT_MODEL_VP);
@@ -717,20 +760,11 @@ void RTSSHOW::RTS_Init(void)
   RTS_SDCardInit();
 
   /***************transmit Printer information to screen*****************/
-  //RTS_SndData(MACHINE_TYPE, MACHINE_TYPE_ABOUT_TEXT_VP);
-  //RTS_SndData(FIRMWARE_VERSION, FIRMWARE_VERSION_ABOUT_TEXT_VP);
-  //RTS_SndData(PRINT_SIZE, PRINTER_PRINTSIZE_TEXT_VP);
-  #if ENABLED(GCODE_PREVIEW_ENABLED)
-    gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, true);
-  #endif
-  //RTS_SndData(HARDWARE_VERSION, HARDWARE_VERSION_ABOUT_TEXT_VP);
+  RTS_ShowPreviewImage(true);
   delay(5);
   //RTS_SndData(lang == 1 ? CORP_WEBSITE_C : CORP_WEBSITE_E, WEBSITE_ABOUT_TEXT_VP);
 
-  RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);
-  RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);
-  RTS_SndData(lcd_rts_settings.external_m73 ? 206 : 205, EXTERNAL_M73_ICON_VP);
-  RTS_SndData(bedlevel.mesh_is_valid() ? 213 : 212, MESH_SIZE_ICON_ONOFF_VP);  
+  RTS_LoadMainsiteIcons();
   RTS_SndData(207, EXTERNAL_M600_ICON_VP);
   setTouchScreenConfiguration();
 
@@ -741,10 +775,9 @@ void RTSSHOW::RTS_Init(void)
   //rtscheck.RTS_SndData(1, FILAMENT_CONTROL_ICON_VP);
 
   // Disable Filename Field on startup
-  RTS_CleanPrintFile();
+  RTS_CleanPrintAndSelectFile();
 
-  rtscheck.RTS_SndData(ExchangePageBase, ExchangepageAddr);
-  change_page_font = 0;
+  RTS_ShowPage(0);
   hal.watchdog_refresh();
   for(startprogress = 0; startprogress <= 100; startprogress++)
   {
@@ -1161,7 +1194,7 @@ void RTSSHOW::RTS_SDcard_Stop(void)
   card.flag.abort_sd_printing = true;
   queue.clear();
   if(home_flag) planner.synchronize();
-   quickstop_stepper();
+  quickstop_stepper();
   print_job_timer.stop();
   #if DISABLED(SD_ABORT_NO_COOLDOWN)
     thermalManager.disable_all_heaters();
@@ -1169,9 +1202,8 @@ void RTSSHOW::RTS_SDcard_Stop(void)
   TERN_(HOST_PAUSE_M76, hostui.cancel());
   print_job_timer.reset();
   thermalManager.setTargetHotend(0, 0);
-  RTS_SndData(0, HEAD_SET_TEMP_VP);
   thermalManager.setTargetBed(0);
-  RTS_SndData(0, BED_SET_TEMP_VP);
+  RTS_ResetHeadAndBedSetTemp();
   temphot = 0;
   thermalManager.zero_fan_speeds();
   wait_for_heatup = wait_for_user = false;
@@ -1184,16 +1216,16 @@ void RTSSHOW::RTS_SDcard_Stop(void)
   }
   // shut down the stepper motor.
   // queue.enqueue_now_P(PSTR("M84"));
-  RTS_SndData(1, MOTOR_FREE_ICON_VP);
+  RTS_ShowMotorFreeIcon(true);
   delay(2);
   RTS_ResetTime();
-  RTS_CleanPrintFile();
+  RTS_CleanPrintAndSelectFile();
   RTS_SndData(207, EXTERNAL_M600_ICON_VP);      
-  #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)  
-    CardRecbuf.selectFlag = false;
-  #endif
+  //#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)  
+  CardRecbuf.selectFlag = false;
+  //#endif
   planner.synchronize();
-  RTS_LoadMainPage();
+  RTS_ShowPage(1);
   card.flag.abort_sd_printing = true;
 }
 
@@ -1230,25 +1262,21 @@ void RTSSHOW::RTS_HandleData(void)
   #if ENABLED(LCD_RTS_DEBUG)
     SERIAL_ECHO_MSG("\nCheckkey=", Checkkey, "recdat.data[0]=", recdat.data[0]);
   #endif
-  #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
-    if(Checkkey == 0 && recdat.data[0] != 8 && CardRecbuf.selectFlag == true && scrollingActive){
-      scrollingActive = false;
-      scrollingmanuallyDisabled = true;
-      rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], SELECT_FILE_TEXT_VP);
-    }
-    if (Checkkey == 0 && recdat.data[0] == 8 && CardRecbuf.selectFlag == true && CardRecbuf.filenamelen[CardRecbuf.recordcount] > 16 && !scrollingmanuallyDisabled) {
-      scrollingActive = true;
-    }
-  #endif
+  //#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
+  //  if(Checkkey == 0 && recdat.data[0] != 8 && CardRecbuf.selectFlag == true && scrollingActive){
+  //    scrollingActive = false;
+  //    scrollingmanuallyDisabled = true;
+  //    rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], SELECT_FILE_TEXT_VP);
+  //  }
+  //  if (Checkkey == 0 && recdat.data[0] == 8 && CardRecbuf.selectFlag == true && CardRecbuf.filenamelen[CardRecbuf.recordcount] > 16 && !scrollingmanuallyDisabled) {
+  //    scrollingActive = true;
+  //  }
+  //#endif
   switch(Checkkey)
   {
     //SERIAL_ECHO_MSG("Recorded value Catchall\n", Checkkey);            
     case MainEnterKey:
-      RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);
-      RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);
-      RTS_SndData(lcd_rts_settings.external_m73 ? 206 : 205, EXTERNAL_M73_ICON_VP);
-      RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
-      RTS_SndData(bedlevel.mesh_is_valid() ? 213 : 212, MESH_SIZE_ICON_ONOFF_VP);      
+      RTS_LoadMainsiteIcons();
       if (recdat.data[0] == 1) {
         CardUpdate = true;
         CardRecbuf.recordcount = -1;
@@ -1262,20 +1290,23 @@ void RTSSHOW::RTS_HandleData(void)
         {
         int16_t fileCnt = card.get_num_items();
 
-        if (fileCnt > 5) {
-          file_total_page = (fileCnt / 5) + 1;
-          if (file_total_page > 8) file_total_page = 8;
+        if (fileCnt > 0) {
+          file_total_page = fileCnt / 5;
+          if (fileCnt % 5 > 0) { // Add an extra page only if there are leftover files
+            file_total_page++;
+          }
+          if (file_total_page > 8) file_total_page = 8; // Limit the maximum number of pages
         }
-        else
+        else {
           file_total_page = 1;
+        }
 
         RTS_SndData(file_total_page, PAGE_STATUS_TEXT_TOTAL_VP);
         file_current_page = 1;
         RTS_SndData(file_current_page, PAGE_STATUS_TEXT_CURRENT_VP);
 
         if (IS_SD_INSERTED()) RTS_line_to_filelist();
-        RTS_SndData(ExchangePageBase + 2, ExchangepageAddr);
-        change_page_font = 2;
+        RTS_ShowPage(2);
         }
         CardUpdate = false;
       }
@@ -1286,40 +1317,36 @@ void RTSSHOW::RTS_HandleData(void)
         if(axes_should_home()) {
           waitway = 4;
           queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowHomeingPage();
+          RTS_ShowPage(40);
         }else{
-          RTS_SndData(ExchangePageBase + 16, ExchangepageAddr);
-          change_page_font = 16;
-          RTS_SndData(10 * current_position[X_AXIS], AXIS_X_COORD_VP);
-          RTS_SndData(10 * current_position[Y_AXIS], AXIS_Y_COORD_VP);
-          RTS_SndData(10 * current_position[Z_AXIS], AXIS_Z_COORD_VP);
+          RTS_ShowPage(16);
+          RTS_SendCurrentPosition();
         }
         //RTS_SndData(1, FILAMENT_CONTROL_ICON_VP);
       }
       else if (recdat.data[0] == 3) {
-        RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
-        change_page_font = 21;
+        RTS_ShowPage(21);
       }
       else if (recdat.data[0] == 4) {     
-        RTS_SndData(ExchangePageBase + 25, ExchangepageAddr);
-        change_page_font = 25;
+        RTS_ShowPage(25);
         planner.synchronize();
         queue.enqueue_now_P(PSTR("G28\nG1 F200 Z0.0"));
         //RTS_SndData(1, AUTO_BED_LEVEL_TITLE_VP);
-        RTS_SndData(0, MOTOR_FREE_ICON_VP);
+        RTS_ShowMotorFreeIcon(false);
       }
       else if (recdat.data[0] == 5) {  
         queue.clear();
         quickstop_stepper();
         print_job_timer.stop();
-        RTS_SndData(1, MOTOR_FREE_ICON_VP);
+        RTS_ShowMotorFreeIcon(true);
         delay(2);
         RTS_ResetTime();
 
         print_job_timer.reset();
-        RTS_CleanPrintFile();
+        RTS_CleanPrintAndSelectFile();
         CardRecbuf.recordcount = -1;
-        RTS_LoadMainPage();
+        RTS_ShowPage(1);
+        RTS_ShowPreviewImage(true);
       }
       else if (recdat.data[0] == 6) { // Start bedleveling
         waitway = 3;
@@ -1343,7 +1370,7 @@ void RTSSHOW::RTS_HandleData(void)
           queue.enqueue_one_P(PSTR("G29 S0"));
           queue.enqueue_one_P(PSTR("M500"));          
         #endif
-        RTS_SndData(0, MOTOR_FREE_ICON_VP);        
+        RTS_ShowMotorFreeIcon(false);        
       }
       else if (recdat.data[0] == 7) {
         if (errorway == 1) {
@@ -1358,22 +1385,19 @@ void RTSSHOW::RTS_HandleData(void)
         }
       }
       else if (recdat.data[0] == 8) {
-        RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
+        RTS_ShowPage(1);
         #if ENABLED(GCODE_PREVIEW_ENABLED)
           if (false == CardRecbuf.selectFlag) {
-            gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, true);
+            gcodePicDisplayOnOff(DEFAULT_PRINT_MODEL_VP, true);
           }        
         #endif      
-        change_page_font = 1;
       }
       else if(recdat.data[0] == 9)
       {
-        RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
-        change_page_font = 11;
+        RTS_ShowPage(11);
       }else if(recdat.data[0] == 0x0A)
       {
-        RTS_SndData(ExchangePageBase + 13, ExchangepageAddr);
-        change_page_font = 13;
+        RTS_ShowPage(13);
       }
       else if(recdat.data[0] == 161)
       {
@@ -1393,8 +1417,7 @@ void RTSSHOW::RTS_HandleData(void)
         RTS_SndData(0, AUTO_PID_HOTBED_CYCLES);                
         RTS_SndData(0, WRITE_CURVE_DDR_CMD);
         RTS_SndData("                           ", PID_TEXT_OUT_VP);        
-        RTS_SndData(ExchangePageBase + 83, ExchangepageAddr);
-        change_page_font = 83;
+        RTS_ShowPage(83);
         if(g_uiAutoPIDNozzleRuningFlag == true){
         }else{          
         RTS_SndData(0, AUTO_PID_RUN_NOZZLE_TIS_VP);
@@ -1417,8 +1440,7 @@ void RTSSHOW::RTS_HandleData(void)
         RTS_SndData(0, AUTO_PID_HOTBED_CYCLES);
         RTS_SndData(0, WRITE_CURVE_DDR_CMD);    
         RTS_SndData("                           ", PID_TEXT_OUT_VP);             
-        RTS_SndData(ExchangePageBase + 84, ExchangepageAddr);
-        change_page_font = 84;
+        RTS_ShowPage(84);
         if(g_uiAutoPIDHotbedRuningFlag == true){        
         }else{
         RTS_SndData(0, AUTO_PID_RUN_HOTBED_TIS_VP);
@@ -1434,17 +1456,15 @@ void RTSSHOW::RTS_HandleData(void)
           queue.enqueue_one_P(PSTR("G28"));
           RTS_ChangeLevelingPage();  
         }else{
-          RTS_SndData(ExchangePageBase + 16, ExchangepageAddr);
-          change_page_font = 16;
-          RTS_SndData(10 * current_position[X_AXIS], AXIS_X_COORD_VP);
-          RTS_SndData(10 * current_position[Y_AXIS], AXIS_Y_COORD_VP);
-          RTS_SndData(10 * current_position[Z_AXIS], AXIS_Z_COORD_VP);
+          RTS_ShowPage(16);
+          RTS_SendCurrentPosition();
         }
         //RTS_SndData(1, FILAMENT_CONTROL_ICON_VP);
       }                                      
       break;
 
     case AdjustEnterKey:
+      RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);     
       if(recdat.data[0] == 1)
       {
         // thermalManager.fan_speed[0] ? RTS_SndData(1, PRINTER_FANOPEN_TITLE_VP) : RTS_SndData(0, PRINTER_FANOPEN_TITLE_VP);
@@ -1453,36 +1473,28 @@ void RTSSHOW::RTS_HandleData(void)
         RTS_SndData(stepper.get_shaping_damping_ratio(X_AXIS) * 100, SHAPING_X_ZETA_VP);
         RTS_SndData(stepper.get_shaping_damping_ratio(Y_AXIS) * 100, SHAPING_Y_ZETA_VP);  
         RTS_SndData(planner.extruder_advance_K[0] * 1000, ADVANCE_K_SET);              
-        RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);        
-        RTS_SndData(ExchangePageBase + 14, ExchangepageAddr);
-        change_page_font = 14;
+        RTS_ShowPage(14);
       }
       else if(recdat.data[0] == 2)
       {
         if(card.isPrinting())
         {
-          RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
-          RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);
-          RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);
-          RTS_SndData(ExchangePageBase + 10, ExchangepageAddr);
-          change_page_font = 10;
+          RTS_LoadMainsiteIcons();
+          RTS_ShowPage(10);
         }
         else
         {
-          RTS_SndData(ExchangePageBase + 12, ExchangepageAddr);
-          change_page_font = 12;
+          RTS_ShowPage(12);
         }
         settings.save();
       }
       else if(recdat.data[0] == 5)
       {
-        RTS_SndData(ExchangePageBase + 15, ExchangepageAddr);
-        change_page_font = 15;
+        RTS_ShowPage(15);
       }
       else if(recdat.data[0] == 7)
       {
-        RTS_SndData(ExchangePageBase + 14, ExchangepageAddr);
-        change_page_font = 14;
+        RTS_ShowPage(14);
         settings.save();
       }
       else if(recdat.data[0] == 8)
@@ -1524,16 +1536,14 @@ void RTSSHOW::RTS_HandleData(void)
 
     case PrintSpeedEnterKey:
       feedrate_percentage = recdat.data[0];
-      RTS_SndData(feedrate_percentage, PRINT_SPEED_RATE_VP);
+      
       break;
 
     case StopPrintKey:
-      RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);
-      RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);
+      RTS_LoadMainsiteIcons();
       if(recdat.data[0] == 1)
       {
-        RTS_SndData(ExchangePageBase + 13, ExchangepageAddr);
-        change_page_font = 13;
+        RTS_ShowPage(13);
       }
       else if(recdat.data[0] == 2)
       {
@@ -1541,21 +1551,20 @@ void RTSSHOW::RTS_HandleData(void)
 		    temphot = 0;
         runout.reset();
         wait_for_user = false;
-        RTS_LoadMainPage();
+        RTS_ShowPage(1);
+        RTS_ShowPreviewImage(true);
         RTS_SDcard_Stop();
       }
       else if(recdat.data[0] == 3)
       {
         if(card.isPrinting())
         {
-          RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
-          RTS_SndData(ExchangePageBase + 10, ExchangepageAddr);
-          change_page_font = 10;
+          //RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
+          RTS_ShowPage(10);
         }
         else
         {
-          RTS_SndData(ExchangePageBase + 12, ExchangepageAddr);
-          change_page_font = 12;
+          RTS_ShowPage(12);
         }
       }
       else if(recdat.data[0] == 4)
@@ -1565,7 +1574,7 @@ void RTSSHOW::RTS_HandleData(void)
           if(PoweroffContinue)
           {                      
             runout.filament_ran_out = false;
-            RTS_ShowHomeingPage();
+            RTS_ShowPage(40);
             waitway = 7;
             #if ENABLED(FILAMENT_RUNOUT_SENSOR)
               if(runout.enabled == true)
@@ -1602,7 +1611,7 @@ void RTSSHOW::RTS_HandleData(void)
           {
             PoweroffContinue = true;
             runout.filament_ran_out = false;
-            RTS_ShowHomeingPage();
+            RTS_ShowPage(40);
             waitway = 7;
             #if ENABLED(FILAMENT_RUNOUT_SENSOR)
               if(runout.enabled == true)
@@ -1635,7 +1644,8 @@ void RTSSHOW::RTS_HandleData(void)
             RTS_SDcard_Stop();
         
             PoweroffContinue = false;
-            RTS_LoadMainPage();
+            RTS_ShowPage(1);
+            RTS_ShowPreviewImage(true);
           }
         }
       }      
@@ -1643,13 +1653,12 @@ void RTSSHOW::RTS_HandleData(void)
       {
         if(PoweroffContinue)
         {
-          RTS_ShowHomeingPage();
+          RTS_ShowPage(40);
           waitway = 7;
           RTS_ResetTime();
           thermalManager.setTargetHotend(0, 0);
-          RTS_SndData(0, HEAD_SET_TEMP_VP);
           thermalManager.setTargetBed(0);
-          RTS_SndData(0, BED_SET_TEMP_VP);
+          RTS_ResetHeadAndBedSetTemp();
           temphot = 0;
           thermalManager.zero_fan_speeds();
           Update_Time_Value = 0;
@@ -1664,16 +1673,13 @@ void RTSSHOW::RTS_HandleData(void)
         if(card.isPrinting() && (thermalManager.temp_hotend[0].celsius > (thermalManager.temp_hotend[0].target - 5)) && (thermalManager.temp_bed.celsius > (thermalManager.temp_bed.target - 3)))
         {
           RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);
-          RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
-          change_page_font = 11;
+          RTS_ShowPage(11);
         }
         else 
         {
-          RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
-          RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);
-          RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);
-          RTS_SndData(ExchangePageBase + 10, ExchangepageAddr);
-          change_page_font = 10;
+          //RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
+          RTS_LoadMainsiteIcons();
+          RTS_ShowPage(10);
         }
       }
       else if(recdat.data[0] == 2)
@@ -1683,11 +1689,9 @@ void RTSSHOW::RTS_HandleData(void)
         }
         else 
         {
-          RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
-          RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);
-          RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);
-          RTS_SndData(ExchangePageBase + 10, ExchangepageAddr);
-          change_page_font = 10;
+          //RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
+          RTS_LoadMainsiteIcons();
+          RTS_ShowPage(10);
           break;
         }
 
@@ -1703,7 +1707,7 @@ void RTSSHOW::RTS_HandleData(void)
         TERN_(HOST_PAUSE_M76, hostui.pause());        
         pause_action_flag = true;
         Update_Time_Value = 0;
-        RTS_ShowHomeingPage();
+        RTS_ShowPage(40);
         planner.synchronize();
         sdcard_pause_check = false;
       }
@@ -1711,37 +1715,31 @@ void RTSSHOW::RTS_HandleData(void)
       {
         if(card.isPrinting())
         {
-          RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
-          RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);
-          RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);
-          RTS_SndData(ExchangePageBase + 10, ExchangepageAddr);
-          change_page_font = 10;
+          //RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
+          RTS_LoadMainsiteIcons();
+          RTS_ShowPage(10);
         }
         else
         {
-          RTS_SndData(ExchangePageBase + 12, ExchangepageAddr);
-          change_page_font = 12;
+          RTS_ShowPage(12);
         }
       }
       break;
 
     case ResumePrintKey:
-      RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
-      RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);
-      RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);
+      //RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
+      RTS_LoadMainsiteIcons();
       if(recdat.data[0] == 1)
       {
         #if ENABLED(FILAMENT_RUNOUT_SENSOR)
           if ((1 == READ(FIL_RUNOUT_PIN)) && (runout.enabled == true))
           {
-            RTS_SndData(ExchangePageBase + 7, ExchangepageAddr);
-            change_page_font = 7;
+            RTS_ShowPage(7);
             break;
           }
         #endif
 
-        RTS_SndData(ExchangePageBase + 10, ExchangepageAddr);
-        change_page_font = 10;
+        RTS_ShowPage(10);
 
         #if ENABLED(HAS_RESUME_CONTINUE)
           if(wait_for_user)
@@ -1775,13 +1773,11 @@ void RTSSHOW::RTS_HandleData(void)
         #if ENABLED(FILAMENT_RUNOUT_SENSOR)
           if ((1 == READ(FIL_RUNOUT_PIN)) && (runout.enabled == true))
           {
-            RTS_SndData(ExchangePageBase + 7, ExchangepageAddr);
-            change_page_font = 7;
+            RTS_ShowPage(7);
           }
           else
           {
-            RTS_SndData(ExchangePageBase + 8, ExchangepageAddr);
-            change_page_font = 8;
+            RTS_ShowPage(8);
           }
         #endif
       }
@@ -1790,8 +1786,7 @@ void RTSSHOW::RTS_HandleData(void)
         #if ENABLED(FILAMENT_RUNOUT_SENSOR)
           if ((1 == READ(FIL_RUNOUT_PIN)) && (runout.enabled == true))
           {
-            RTS_SndData(ExchangePageBase + 7, ExchangepageAddr);
-            change_page_font = 7;
+            RTS_ShowPage(7);
             break;
           }
         #endif    
@@ -1800,8 +1795,7 @@ void RTSSHOW::RTS_HandleData(void)
         ui.pause_show_message(PAUSE_MESSAGE_RESUME);
         queue.inject_P(PSTR("M108"));
         runout.reset();
-        RTS_SndData(ExchangePageBase + 10, ExchangepageAddr);
-        change_page_font = 10;
+        RTS_ShowPage(10);
         card.startOrResumeFilePrinting();
         print_job_timer.start();
         Update_Time_Value = 0;
@@ -1816,8 +1810,7 @@ void RTSSHOW::RTS_HandleData(void)
           print_job_timer.start();
           Update_Time_Value = 0;
           sdcard_pause_check = true;
-          RTS_SndData(ExchangePageBase + 10, ExchangepageAddr);
-          change_page_font = 10;
+          RTS_ShowPage(10);
           gcode.process_subcommands_now(F("M24"));
         }
         else {
@@ -1825,8 +1818,7 @@ void RTSSHOW::RTS_HandleData(void)
           rtscheck.RTS_SDCardUpdate();
           //card.mount();
           //SERIAL_ECHO_MSG("ROCK_MOVE_CARD1111\n");
-          RTS_SndData(ExchangePageBase + 47, ExchangepageAddr);
-          change_page_font = 47;
+          RTS_ShowPage(47);
         }
       }
       break;
@@ -1849,7 +1841,7 @@ void RTSSHOW::RTS_HandleData(void)
         //SERIAL_ECHO_MSG("babystep.add_mm():", zprobe_zoffset - last_zoffset);
       }
       probe.offset.z = zprobe_zoffset;
-      RTS_SndData(zprobe_zoffset * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
+      RTS_SendZoffsetFeedratePercentage(true);
       hal.watchdog_refresh();
       break;
 
@@ -1871,7 +1863,7 @@ void RTSSHOW::RTS_HandleData(void)
         //SERIAL_ECHO_MSG("babystep.add_mm():", zprobe_zoffset - last_zoffset);
       }
       probe.offset.z = zprobe_zoffset;
-      RTS_SndData(zprobe_zoffset * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
+      RTS_SendZoffsetFeedratePercentage(true);
       hal.watchdog_refresh();
       break;  
 
@@ -1923,8 +1915,7 @@ void RTSSHOW::RTS_HandleData(void)
       if (!card.isPrinting() && !planner.has_blocks_queued()) { 
         if(recdat.data[0] == 2)
         {
-          RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
-          change_page_font = 20;
+          RTS_ShowPage(20);
         }
         else if(recdat.data[0] == 3)
         {
@@ -1934,8 +1925,7 @@ void RTSSHOW::RTS_HandleData(void)
           RTS_SndData(ui.material_preset[0].hotend_temp, PREHEAT_PLA_SET_NOZZLE_TEMP_VP);
           RTS_SndData(ui.material_preset[0].bed_temp, PREHEAT_PLA_SET_BED_TEMP_VP);
           delay(2);
-          RTS_SndData(ExchangePageBase + 22, ExchangepageAddr);
-          change_page_font = 22;
+          RTS_ShowPage(22);
         }
         else if(recdat.data[0] == 4)
         {
@@ -1945,36 +1935,29 @@ void RTSSHOW::RTS_HandleData(void)
           RTS_SndData(ui.material_preset[1].hotend_temp, PREHEAT_ABS_SET_NOZZLE_TEMP_VP);
           RTS_SndData(ui.material_preset[1].bed_temp, PREHEAT_ABS_SET_BED_TEMP_VP);
           delay(2);
-          RTS_SndData(ExchangePageBase + 23, ExchangepageAddr);
-          change_page_font = 23;
+          RTS_ShowPage(23);
         }
         else if(recdat.data[0] == 5)
         {  
           thermalManager.temp_hotend[0].target = ui.material_preset[0].hotend_temp;
-          thermalManager.setTargetHotend(thermalManager.temp_hotend[0].target, 0);
-          RTS_SndData(thermalManager.temp_hotend[0].target, HEAD_SET_TEMP_VP);
+          RTS_SendHeadTemp();
           thermalManager.temp_bed.target = ui.material_preset[0].bed_temp;
-          thermalManager.setTargetBed(thermalManager.temp_bed.target);
-          RTS_SndData(thermalManager.temp_bed.target, BED_SET_TEMP_VP);
+          RTS_SendBedTemp();
         }
         else if(recdat.data[0] == 6)
         {
           thermalManager.temp_hotend[0].target = ui.material_preset[1].hotend_temp;
-          thermalManager.setTargetHotend(thermalManager.temp_hotend[0].target, 0);
-          RTS_SndData(thermalManager.temp_hotend[0].target, HEAD_SET_TEMP_VP);
+          RTS_SendHeadTemp();
           thermalManager.temp_bed.target = ui.material_preset[1].bed_temp;
-          thermalManager.setTargetBed(thermalManager.temp_bed.target);
-          RTS_SndData(thermalManager.temp_bed.target, BED_SET_TEMP_VP);
+          RTS_SendBedTemp();
         }
         else if(recdat.data[0] == 7)
         {
-          RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
-          change_page_font = 21;
+          RTS_ShowPage(21);
         }
         else if(recdat.data[0] == 8)
         {
-          RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
-          change_page_font = 20;
+          RTS_ShowPage(20);
         }
         else if(recdat.data[0] == 161)
         {
@@ -1984,8 +1967,7 @@ void RTSSHOW::RTS_HandleData(void)
           RTS_SndData(ui.material_preset[2].hotend_temp, PREHEAT_PETG_SET_NOZZLE_TEMP_VP);
           RTS_SndData(ui.material_preset[2].bed_temp, PREHEAT_PETG_SET_BED_TEMP_VP);
           delay(2);
-          RTS_SndData(ExchangePageBase + 90, ExchangepageAddr);
-          change_page_font = 90;
+          RTS_ShowPage(90);
         }
         else if(recdat.data[0] == 162)
         {
@@ -1995,26 +1977,21 @@ void RTSSHOW::RTS_HandleData(void)
           RTS_SndData(ui.material_preset[3].hotend_temp, PREHEAT_CUST_SET_NOZZLE_TEMP_VP);
           RTS_SndData(ui.material_preset[3].bed_temp, PREHEAT_CUST_SET_BED_TEMP_VP);
           delay(2);
-          RTS_SndData(ExchangePageBase + 91, ExchangepageAddr);
-          change_page_font = 91;
+          RTS_ShowPage(91);
         }
         else if(recdat.data[0] == 163)
         {  
           thermalManager.temp_hotend[0].target = ui.material_preset[2].hotend_temp;
-          thermalManager.setTargetHotend(thermalManager.temp_hotend[0].target, 0);
-          RTS_SndData(thermalManager.temp_hotend[0].target, HEAD_SET_TEMP_VP);
+          RTS_SendHeadTemp();
           thermalManager.temp_bed.target = ui.material_preset[2].bed_temp;
-          thermalManager.setTargetBed(thermalManager.temp_bed.target);
-          RTS_SndData(thermalManager.temp_bed.target, BED_SET_TEMP_VP);
+          RTS_SendBedTemp();
         }
         else if(recdat.data[0] == 164)
         {
           thermalManager.temp_hotend[0].target = ui.material_preset[3].hotend_temp;
-          thermalManager.setTargetHotend(thermalManager.temp_hotend[0].target, 0);
-          RTS_SndData(thermalManager.temp_hotend[0].target, HEAD_SET_TEMP_VP);
+          RTS_SendHeadTemp();
           thermalManager.temp_bed.target = ui.material_preset[3].bed_temp;
-          thermalManager.setTargetBed(thermalManager.temp_bed.target);
-          RTS_SndData(thermalManager.temp_bed.target, BED_SET_TEMP_VP);
+          RTS_SendBedTemp();
         }    
       }        
       break;
@@ -2024,20 +2001,18 @@ void RTSSHOW::RTS_HandleData(void)
         if(recdat.data[0] == 1)
         {
           thermalManager.setTargetHotend(0, 0);
-          RTS_SndData(0, HEAD_SET_TEMP_VP);
           thermalManager.setTargetBed(0);
-          RTS_SndData(0, BED_SET_TEMP_VP);
+          RTS_ResetHeadAndBedSetTemp();
           thermalManager.fan_speed[0] = 255;
           // RTS_SndData(0, PRINTER_FANOPEN_TITLE_VP);
         }
         else if(recdat.data[0] == 2)
         {
-          RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
-          change_page_font = 21;
+          RTS_ShowPage(21);
         } else if (recdat.data[0] == 3) {
           settings.save();
         }else if (recdat.data[0] == 4) {
-          RTS_SndData(ExchangePageBase + 48, ExchangepageAddr);
+          RTS_ShowPage(48);
           g_uiAutoPIDFlag = true;
           thermalManager.setTargetBed(0);
           thermalManager.setTargetHotend(0, 0);
@@ -2047,9 +2022,8 @@ void RTSSHOW::RTS_HandleData(void)
           RTS_SndData(g_autoPIDHotBedTempTarget, BED_SET_TEMP_VP);
         }else if (recdat.data[0] == 5) {
           thermalManager.setTargetHotend(0, 0);
-          RTS_SndData(0, HEAD_SET_TEMP_VP);
           thermalManager.setTargetBed(0);
-          RTS_SndData(0, BED_SET_TEMP_VP);
+          RTS_ResetHeadAndBedSetTemp();
           thermalManager.fan_speed[0] = 0;
         }
       }
@@ -2096,32 +2070,24 @@ void RTSSHOW::RTS_HandleData(void)
     case PrepareEnterKey:
       if(recdat.data[0] == 1)
       {
-        RTS_SndData(ExchangePageBase + 28, ExchangepageAddr);
-        change_page_font = 28;
+        RTS_ShowPage(28);
       }
       else if(recdat.data[0] == 2)
       {
         // jail        
         if(g_uiAutoPIDNozzleRuningFlag == true) break;          
         if(g_uiAutoPIDHotbedRuningFlag == true) break;        
-        RTS_SndData(ExchangePageBase + 33, ExchangepageAddr);
-        change_page_font = 33;
+        RTS_ShowPage(33);
       }
       else if(recdat.data[0] == 3)
       {
-        rtscheck.RTS_SndData(10 * current_position[X_AXIS], AXIS_X_COORD_VP);
-        rtscheck.RTS_SndData(10 * current_position[Y_AXIS], AXIS_Y_COORD_VP);
-        rtscheck.RTS_SndData(10 * current_position[Z_AXIS], AXIS_Z_COORD_VP);
+        RTS_SendCurrentPosition();
         delay(2);
-        RTS_SndData(ExchangePageBase + 16, ExchangepageAddr);
-        change_page_font = 16;
+        RTS_ShowPage(16);
       }
       else if(recdat.data[0] == 5)
       {  
-        RTS_SndData(MACHINE_TYPE, MACHINE_TYPE_ABOUT_TEXT_VP);
-        RTS_SndData(FIRMWARE_VERSION, FIRMWARE_VERSION_ABOUT_TEXT_VP);
-        RTS_SndData(HARDWARE_VERSION, HARDWARE_VERSION_ABOUT_TEXT_VP);
-        RTS_SndData(PRINT_SIZE, PRINTER_PRINTSIZE_TEXT_VP);
+        RTS_SendMachineData();
         delay(5);
         if(1 == lang)
         {
@@ -2131,8 +2097,7 @@ void RTSSHOW::RTS_HandleData(void)
         {
           RTS_SndData(CORP_WEBSITE_E, WEBSITE_ABOUT_TEXT_VP);
         }
-        RTS_SndData(ExchangePageBase + 24, ExchangepageAddr);
-        change_page_font = 24;
+        RTS_ShowPage(24);
         sendQRCodeCommand(QR_CODE_1_VP, "https://www.paypal.me/thomastoka");
         delay(1000);
       }
@@ -2140,12 +2105,11 @@ void RTSSHOW::RTS_HandleData(void)
       {
         queue.enqueue_now_P(PSTR("M84"));
         queue.enqueue_now_P(PSTR("G92.9Z0"));
-        RTS_SndData(1, MOTOR_FREE_ICON_VP);
+        RTS_ShowMotorFreeIcon(true);
       }
       else if(recdat.data[0] == 7)
       {
-        RTS_SndData(ExchangePageBase + 43, ExchangepageAddr);
-        change_page_font = 43;
+        RTS_ShowPage(43);
       }
       else if(recdat.data[0] == 8)
       {
@@ -2153,17 +2117,16 @@ void RTSSHOW::RTS_HandleData(void)
         ui.material_preset[preheat_flag].bed_temp = temp_preheat_bed;
 
         settings.save();
-        RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
-        change_page_font = 21;
+        RTS_ShowPage(21);
       }
       else if(recdat.data[0] == 9)
       {
-        RTS_LoadMainPage();
+        RTS_ShowPage(1);
+        RTS_ShowPreviewImage(true);
       }
       else if(recdat.data[0] == 0xA)
       {
-        RTS_SndData(ExchangePageBase + 42, ExchangepageAddr);
-        change_page_font = 42;
+        RTS_ShowPage(42);
       }
       else if(recdat.data[0] == 0xB)
       {
@@ -2174,111 +2137,51 @@ void RTSSHOW::RTS_HandleData(void)
         (void)settings.reset();
         (void)settings.save();
         RTS_Init(); 
-        RTS_LoadMainPage();
+        RTS_ShowPage(1);
       }
       else if(recdat.data[0] == 0xC)
       {
-        RTS_SndData(ExchangePageBase + 44, ExchangepageAddr);
-        change_page_font = 44;
+        RTS_ShowPage(44);
       }
       else if(recdat.data[0] == 0xD)
       {
         settings.reset();
         settings.save();
-        RTS_SndData(ExchangePageBase + 33, ExchangepageAddr);
-        change_page_font = 33;
+        RTS_ShowPage(33);
       }
       else if(recdat.data[0] == 0xE)
       {
         if(!planner.has_blocks_queued())
         {
-	        RTS_SndData(ExchangePageBase + 33, ExchangepageAddr);
-	        change_page_font = 33;
+	        RTS_ShowPage(33);
 	      }
       }
       else if(recdat.data[0] == 0xF)
       {
-        RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
-        change_page_font = 21;
-        settings.save();delay(100);
+        if(!IS_SD_PRINTING() && leveling_running == 0){
+          RTS_ShowPage(21);
+          settings.save();delay(100);
+        }
       }
       else if(recdat.data[0] == 0x10)
       {          
-        RTS_SndData(ExchangePageBase + 25, ExchangepageAddr);
-        change_page_font = 25;
+        RTS_ShowPage(25);
       }
       else if(recdat.data[0] == 0x11)
       {
-        RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
-        change_page_font = 21;
+        RTS_ShowPage(21);
       }
       break;
 
     case BedLevelKey:
-      uint8_t min_margin_x;          
-      float probe_offset_x_temp;  
-
-      if (probe.offset_xy.x < 0) {
-        probe_offset_x_temp = fabs(probe.offset_xy.x);
-      }else{
-        probe_offset_x_temp = -fabs(probe.offset_xy.x);
-      }
-
-      max_reachable_pos_x = X_MAX_POS - custom_ceil(probe_offset_x_temp);       
-      min_calc_margin_x_bedlevel = X_BED_SIZE - max_reachable_pos_x;      
-
-      if(min_calc_margin_x_bedlevel >= lcd_rts_settings.probe_margin_x){
-        min_margin_x = static_cast<int>(std::ceil(min_calc_margin_x_bedlevel));
-      }else{
-        min_margin_x = static_cast<int>(std::ceil(lcd_rts_settings.probe_margin_x));
-      }        
-      uint8_t min_margin_y_back;
-      float probe_offset_y_temp;  
-      if (probe.offset_xy.y < 0) {
-        probe_offset_y_temp = fabs(probe.offset_xy.y);
-      }else{
-        probe_offset_y_temp = -fabs(probe.offset_xy.y);
-      }
-      if (probe.offset_xy.y == 0) {
-        probe_offset_y_temp = probe.offset_xy.y;
-      }
-      max_reachable_pos_y = Y_MAX_POS - custom_ceil(probe_offset_y_temp);       
-      if (max_reachable_pos_y >= Y_BED_SIZE){
-        min_calc_margin_y_bedlevel = probe_offset_y_temp;
-      }else{
-        min_calc_margin_y_bedlevel = Y_BED_SIZE - max_reachable_pos_y;  
-      }
-      if (min_calc_margin_y_bedlevel <= 10){
-          min_calc_margin_y_bedlevel = 10;
-      }
-
-      if (min_calc_margin_y_bedlevel <= lcd_rts_settings.probe_margin_y){
-        if (min_calc_margin_x_bedlevel <= lcd_rts_settings.probe_margin_y){
-          if (lcd_rts_settings.probe_margin_y <= lcd_rts_settings.probe_margin_x){
-            lcd_rts_settings.probe_min_margin_y = lcd_rts_settings.probe_margin_y;
-          }else{
-            lcd_rts_settings.probe_min_margin_y = lcd_rts_settings.probe_margin_x;
-          }
-        }else{
-          lcd_rts_settings.probe_min_margin_y = lcd_rts_settings.probe_margin_y;
-        }
-      }else{
-        lcd_rts_settings.probe_min_margin_y = min_calc_margin_y_bedlevel;
-      }
-
-      if(min_calc_margin_y_bedlevel >= lcd_rts_settings.probe_margin_y){
-        min_margin_y_back = static_cast<int>(std::ceil(min_calc_margin_y_bedlevel));
-      }else{
-        min_margin_y_back = static_cast<int>(std::ceil(lcd_rts_settings.probe_margin_y));
-      }
+      RTS_LoadMargins();
 
       if(recdat.data[0] == 1)
       {
         planner.synchronize();
         waitway = 6;
         old_leveling = 1;
-        RTS_SndData(ExchangePageBase + 26, ExchangepageAddr);
-        change_page_font = 26;
+        RTS_ShowPage(26);
         queue.enqueue_now_P(PSTR("G28"));
         rtscheck.RTS_SndData(0 , AUTO_LEVELING_PERCENT_DATA_VP);  
         Update_Time_Value = 0;
@@ -2304,7 +2207,7 @@ void RTSSHOW::RTS_HandleData(void)
           babystep.add_mm(Z_AXIS, zprobe_zoffset - last_zoffset);
           probe.offset.z = zprobe_zoffset;
         }
-        RTS_SndData(zprobe_zoffset * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
+        RTS_SendZoffsetFeedratePercentage(true);
       }
       else if(recdat.data[0] == 3)
       {
@@ -2327,15 +2230,14 @@ void RTSSHOW::RTS_HandleData(void)
           babystep.add_mm(Z_AXIS, zprobe_zoffset - last_zoffset);
           probe.offset.z = zprobe_zoffset;
         }
-        RTS_SndData(zprobe_zoffset * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
+        RTS_SendZoffsetFeedratePercentage(true);
       }
       else if(recdat.data[0] == 4)
       {
-        if(!planner.has_blocks_queued())
+        if(!planner.has_blocks_queued() && !IS_SD_PRINTING())
         {
           bltouch_tramming = 0;            
-	        RTS_SndData(ExchangePageBase + 25, ExchangepageAddr);
-	        change_page_font = 25;
+	        RTS_ShowPage(25);
         }
       }
       else if(recdat.data[0] == 5)
@@ -2350,7 +2252,7 @@ void RTSSHOW::RTS_HandleData(void)
           waitway = 17;
           }          
           queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowHomeingPage();
+          RTS_ShowPage(40);
         }else{
           if(!planner.has_blocks_queued())
           {
@@ -2375,8 +2277,7 @@ void RTSSHOW::RTS_HandleData(void)
               rtscheck.RTS_SndData(10 * manual_level_5position[0][0], AXIS_X_COORD_VP);
               rtscheck.RTS_SndData(10 * manual_level_5position[0][1], AXIS_Y_COORD_VP);
             #endif
-            queue.enqueue_now_P(PSTR("G1 F600 Z0"));
-            rtscheck.RTS_SndData(10 * 0, AXIS_Z_COORD_VP);
+            RTS_AxisZCoord();
             }
             if (bltouch_tramming == 1){
               #if ENABLED(ENDER_3S1_PRO) || ENABLED(ENDER_3S1)
@@ -2387,8 +2288,7 @@ void RTSSHOW::RTS_HandleData(void)
                 sprintf_P(cmd, "G30 X%d Y%d", manual_level_5position[0][0],manual_level_5position[0][1]);
                 queue.enqueue_now_P(cmd);              
               #endif             
-              RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
-              change_page_font = 89;                      
+              RTS_ShowPage(89);
             }
             waitway = 0;
           }
@@ -2406,7 +2306,7 @@ void RTSSHOW::RTS_HandleData(void)
           waitway = 17;
           }
           queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowHomeingPage();
+          RTS_ShowPage(40);
         }else{     
           if(!planner.has_blocks_queued())
           {
@@ -2417,15 +2317,13 @@ void RTSSHOW::RTS_HandleData(void)
             queue.enqueue_now_P(cmd);
             rtscheck.RTS_SndData(10 * manual_level_5position[1][0], AXIS_X_COORD_VP);
             rtscheck.RTS_SndData(10 * manual_level_5position[1][1], AXIS_Y_COORD_VP);
-            queue.enqueue_now_P(PSTR("G1 F600 Z0"));
-            rtscheck.RTS_SndData(10 * 0, AXIS_Z_COORD_VP);
+            RTS_AxisZCoord();
             }
             if (bltouch_tramming == 1){
             // Cr-Touch measuring point 6
             sprintf_P(cmd, "G30 X%d Y%d", lcd_rts_settings.probe_margin_x,lcd_rts_settings.probe_min_margin_y);
             queue.enqueue_now_P(cmd);
-            RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
-            change_page_font = 89;                      
+            RTS_ShowPage(89);                  
             }
             waitway = 0;
           }
@@ -2443,7 +2341,7 @@ void RTSSHOW::RTS_HandleData(void)
           waitway = 17;
           }
           queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowHomeingPage();
+          RTS_ShowPage(40);
         }else{     
           if(!planner.has_blocks_queued())
           {
@@ -2454,15 +2352,13 @@ void RTSSHOW::RTS_HandleData(void)
             queue.enqueue_now_P(cmd);
             rtscheck.RTS_SndData(10 * manual_level_5position[2][0], AXIS_X_COORD_VP);
             rtscheck.RTS_SndData(10 * manual_level_5position[2][1], AXIS_Y_COORD_VP);
-            queue.enqueue_now_P(PSTR("G1 F600 Z0"));
-            rtscheck.RTS_SndData(10 * 0, AXIS_Z_COORD_VP);
+            RTS_AxisZCoord();
             }
             if (bltouch_tramming == 1){
             // Cr-Touch measuring point 7
             sprintf_P(cmd, "G30 X%d Y%d", (X_BED_SIZE - lcd_rts_settings.probe_margin_x),lcd_rts_settings.probe_min_margin_y);
             queue.enqueue_now_P(cmd);
-            RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
-            change_page_font = 89;                      
+            RTS_ShowPage(89);
             }
             waitway = 0;
           }
@@ -2480,7 +2376,7 @@ void RTSSHOW::RTS_HandleData(void)
           waitway = 17;
           }
           queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowHomeingPage();
+          RTS_ShowPage(40);
         }else{       
           if(!planner.has_blocks_queued())
           {
@@ -2491,16 +2387,13 @@ void RTSSHOW::RTS_HandleData(void)
             queue.enqueue_now_P(cmd);
             rtscheck.RTS_SndData(10 * manual_level_5position[3][0], AXIS_X_COORD_VP);
             rtscheck.RTS_SndData(10 * manual_level_5position[3][1], AXIS_Y_COORD_VP);
-
-            queue.enqueue_now_P(PSTR("G1 F600 Z0"));
-            rtscheck.RTS_SndData(10 * 0, AXIS_Z_COORD_VP);
+            RTS_AxisZCoord();
             }
             if (bltouch_tramming == 1){
             // Cr-Touch measuring point 8
             sprintf_P(cmd, "G30 X%d Y%d", min_margin_x,(Y_BED_SIZE - min_margin_y_back));
             queue.enqueue_now_P(cmd);
-            RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
-            change_page_font = 89;                      
+            RTS_ShowPage(89);                      
             }
             waitway = 0;
           }
@@ -2518,7 +2411,7 @@ void RTSSHOW::RTS_HandleData(void)
           waitway = 17;
           }
           queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowHomeingPage();
+          RTS_ShowPage(40);
         }else{
           if(!planner.has_blocks_queued())
           {
@@ -2529,16 +2422,13 @@ void RTSSHOW::RTS_HandleData(void)
             queue.enqueue_now_P(cmd);
             rtscheck.RTS_SndData(10 * manual_level_5position[4][0], AXIS_X_COORD_VP);
             rtscheck.RTS_SndData(10 * manual_level_5position[4][1], AXIS_Y_COORD_VP);
-
-            queue.enqueue_now_P(PSTR("G1 F600 Z0"));
-            rtscheck.RTS_SndData(10 * 0, AXIS_Z_COORD_VP);
+            RTS_AxisZCoord();
             }
             if (bltouch_tramming == 1){
             // Cr-Touch measuring point 9
             sprintf_P(cmd, "G30 X%d Y%d", (X_BED_SIZE - min_margin_x),(Y_BED_SIZE - min_margin_y_back));
             queue.enqueue_now_P(cmd);
-            RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
-            change_page_font = 89;                      
+            RTS_ShowPage(89);                    
             }  
             waitway = 0;
           }
@@ -2556,7 +2446,7 @@ void RTSSHOW::RTS_HandleData(void)
           waitway = 17;
           }
           queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowHomeingPage();
+          RTS_ShowPage(40);
         }else{     
           if(!planner.has_blocks_queued())
           {
@@ -2567,8 +2457,7 @@ void RTSSHOW::RTS_HandleData(void)
             queue.enqueue_now_P(cmd);
             rtscheck.RTS_SndData(10 * manual_level_5position[5][0], AXIS_X_COORD_VP);
             rtscheck.RTS_SndData(10 * manual_level_5position[5][1], AXIS_Y_COORD_VP);
-            queue.enqueue_now_P(PSTR("G1 F600 Z0"));
-            rtscheck.RTS_SndData(10 * 0, AXIS_Z_COORD_VP);
+            RTS_AxisZCoord();
             }
             waitway = 0;
           }
@@ -2586,7 +2475,7 @@ void RTSSHOW::RTS_HandleData(void)
           waitway = 17;
           }
           queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowHomeingPage();
+          RTS_ShowPage(40);
         }else{      
           if(!planner.has_blocks_queued())
           {
@@ -2597,8 +2486,7 @@ void RTSSHOW::RTS_HandleData(void)
             queue.enqueue_now_P(cmd);
             rtscheck.RTS_SndData(10 * manual_level_5position[6][0], AXIS_X_COORD_VP);
             rtscheck.RTS_SndData(10 * manual_level_5position[6][1], AXIS_Y_COORD_VP);
-            queue.enqueue_now_P(PSTR("G1 F600 Z0"));
-            rtscheck.RTS_SndData(10 * 0, AXIS_Z_COORD_VP);
+            RTS_AxisZCoord();
             }
             waitway = 0;
           }
@@ -2616,7 +2504,7 @@ void RTSSHOW::RTS_HandleData(void)
           waitway = 17;
           }
           queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowHomeingPage();
+          RTS_ShowPage(40);
         }else{     
           if(!planner.has_blocks_queued())
           {
@@ -2627,8 +2515,7 @@ void RTSSHOW::RTS_HandleData(void)
             queue.enqueue_now_P(cmd);
             rtscheck.RTS_SndData(10 * manual_level_5position[7][0], AXIS_X_COORD_VP);
             rtscheck.RTS_SndData(10 * manual_level_5position[7][1], AXIS_Y_COORD_VP);
-            queue.enqueue_now_P(PSTR("G1 F600 Z0"));
-            rtscheck.RTS_SndData(10 * 0, AXIS_Z_COORD_VP);
+            RTS_AxisZCoord();
             }    
             waitway = 0;          
           }
@@ -2646,7 +2533,7 @@ void RTSSHOW::RTS_HandleData(void)
           waitway = 17;
           }
           queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowHomeingPage();
+          RTS_ShowPage(40);
         }else{    
           if(!planner.has_blocks_queued())
           {
@@ -2657,8 +2544,7 @@ void RTSSHOW::RTS_HandleData(void)
             queue.enqueue_now_P(cmd);
             rtscheck.RTS_SndData(10 * manual_level_5position[8][0], AXIS_X_COORD_VP);
             rtscheck.RTS_SndData(10 * manual_level_5position[8][1], AXIS_Y_COORD_VP);
-            queue.enqueue_now_P(PSTR("G1 F600 Z0"));
-            rtscheck.RTS_SndData(10 * 0, AXIS_Z_COORD_VP);
+            RTS_AxisZCoord();
             }      
             waitway = 0;
           }
@@ -2668,8 +2554,7 @@ void RTSSHOW::RTS_HandleData(void)
       {
         if(!planner.has_blocks_queued())
         {
-	        RTS_SndData(ExchangePageBase + 26, ExchangepageAddr);
-	        change_page_font = 26;
+	        RTS_ShowPage(26);
 		    }
       }
       else if(recdat.data[0] == 161)
@@ -2693,7 +2578,7 @@ void RTSSHOW::RTS_HandleData(void)
           babystep.add_mm(Z_AXIS, zprobe_zoffset - last_zoffset);
           probe.offset.z = zprobe_zoffset;
         }
-        RTS_SndData(zprobe_zoffset * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
+        RTS_SendZoffsetFeedratePercentage(true);
       }
       else if(recdat.data[0] == 162)
       { // 00A2
@@ -2716,22 +2601,22 @@ void RTSSHOW::RTS_HandleData(void)
           babystep.add_mm(Z_AXIS, zprobe_zoffset - last_zoffset);
           probe.offset.z = zprobe_zoffset;
         }
-        RTS_SndData(zprobe_zoffset * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
+        RTS_SendZoffsetFeedratePercentage(true);
       }    
       else if (recdat.data[0] == 163)
       { // 00A3
-        #if ENABLED(BLTOUCH)
-          old_leveling = 0;
-          RTS_SndData(lang + 10, AUTO_LEVELING_START_TITLE_VP);
-          if(axes_should_home()){
-            waitway = 15;
-            queue.enqueue_one_P(PSTR("G28"));
-            RTS_ShowHomeingPage();
-          }else{
-            RTS_ChangeLevelingPage();
-          }
-          //waitway = 15;            
-          if (leveling_running == 0){
+        if(!IS_SD_PRINTING() && leveling_running == 0){
+          #if ENABLED(BLTOUCH)
+            old_leveling = 0;
+            RTS_SndData(lang + 10, AUTO_LEVELING_START_TITLE_VP);
+            if(axes_should_home()){
+              waitway = 15;
+              queue.enqueue_one_P(PSTR("G28"));
+              RTS_ShowPage(40);
+            }else{
+              RTS_ChangeLevelingPage();
+            }
+            //waitway = 15;            
             leveling_running = 1;
             RTS_ResetMesh();
             #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
@@ -2743,8 +2628,8 @@ void RTSSHOW::RTS_HandleData(void)
               queue.enqueue_one_P(PSTR("M420 S1"));
               queue.enqueue_one_P(PSTR("M500"));
             #endif
-          }
-        #endif
+          #endif
+        }
       }  
       else if(recdat.data[0] == 164)
       { // 00A4
@@ -2754,11 +2639,12 @@ void RTSSHOW::RTS_HandleData(void)
         if(axes_should_home()) {
           waitway = 15;
           queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowHomeingPage();
+          RTS_ShowPage(40);
         }
         RTS_SndData(lcd_rts_settings.max_points, SET_GRID_MAX_POINTS_VP);
         RTS_SndData(lcd_rts_settings.probe_margin_x, PROBE_MARGIN_X_VP);
-        RTS_SndData(lcd_rts_settings.probe_margin_y, PROBE_MARGIN_Y_VP);   
+        RTS_SndData(lcd_rts_settings.probe_margin_y, PROBE_MARGIN_Y_VP);
+        RTS_SndData(lcd_rts_settings.total_probing, PROBE_COUNT_VP);        
         rtscheck.RTS_SndData(0, AUTO_BED_LEVEL_CUR_POINT_VP);
         rtscheck.RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT);
         rtscheck.RTS_SndData(0 , AUTO_LEVELING_PERCENT_DATA_VP);
@@ -2770,8 +2656,8 @@ void RTSSHOW::RTS_HandleData(void)
         bltouch_tramming = 1;
         RTS_SndData(lcd_rts_settings.probe_margin_x, PROBE_MARGIN_X_VP);
         RTS_SndData(lcd_rts_settings.probe_margin_y, PROBE_MARGIN_Y_VP);
-        RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
-        change_page_font = 89;
+        RTS_SndData(lcd_rts_settings.total_probing, PROBE_COUNT_VP);         
+        RTS_ShowPage(89);
       }
       else if (recdat.data[0] == 166)
       { // 00A6 
@@ -2804,8 +2690,7 @@ void RTSSHOW::RTS_HandleData(void)
               sprintf_P(cmd1, "G30 X%d Y%d", manual_crtouch_5position[0][0],manual_crtouch_5position[0][1]);
               queue.enqueue_now_P(cmd1);
             #endif  
-            RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
-            change_page_font = 89;                      
+            RTS_ShowPage(89);                   
           }
         }
       }
@@ -2832,11 +2717,37 @@ void RTSSHOW::RTS_HandleData(void)
         setTouchScreenConfiguration();
       }
       else if (recdat.data[0] == 171) 
-      {
+      { // 0x00AB
         lcd_rts_settings.display_standby ^= true;
         setTouchScreenConfiguration();
       }
-      RTS_SndData(0, MOTOR_FREE_ICON_VP);
+      else if (recdat.data[0] == 172) 
+      { // 0x00AC
+        if(!planner.has_blocks_queued())
+        {
+          bltouch_tramming = 1;
+          RTS_SndData(190, BEDLEVELING_WAIT_TITLE_VP);                 
+	        RTS_ShowPage(98);
+        }
+      }
+      else if (recdat.data[0] == 173) 
+      { // 0x00AD
+        if (leveling_running == 0){
+          if (bltouch_tramming == 1){
+            leveling_running = 1;
+            for(int i = 0; i < 4; i++) {
+              unsigned long addr = ASSISTED_TRAMMING_POINT_TEXT_VP + i * 24;
+              for(int j = 0; j < 24; j++) {
+                rtscheck.RTS_SndData(0, addr + j);
+              }
+              rtscheck.RTS_SndData(0, ASSISTED_TRAMMING_POINT_1_VP + i);
+            }
+            queue.enqueue_now_P(PSTR("G35"));
+            RTS_ShowPage(98);
+          }
+        }
+      }
+      RTS_ShowMotorFreeIcon(false);
       break;
 
     case AutoHomeKey:
@@ -2848,92 +2759,85 @@ void RTSSHOW::RTS_HandleData(void)
       {
         AxisUnitMode = 1;
         axis_unit = 10.0;
-        RTS_SndData(ExchangePageBase + 16, ExchangepageAddr);
-        change_page_font = 16;
-        RTS_SndData(3, MOVEAXIS_UNIT_ICON_VP);
+        RTS_ShowPage(16);
+        RTS_SendMoveaxisUnitIcon(3);
       }
       else if(recdat.data[0] == 2)
       {
         AxisUnitMode = 2;
         axis_unit = 1.0;
-        RTS_SndData(ExchangePageBase + 17, ExchangepageAddr);
-        change_page_font = 17;
-        RTS_SndData(2, MOVEAXIS_UNIT_ICON_VP);
+        RTS_ShowPage(17);
+        RTS_SendMoveaxisUnitIcon(2);
       }
       else if(recdat.data[0] == 3)
       {
         AxisUnitMode = 3;
         axis_unit = 0.1;
-        RTS_SndData(ExchangePageBase + 18, ExchangepageAddr);
-        change_page_font = 18;
-        RTS_SndData(1, MOVEAXIS_UNIT_ICON_VP);
+        RTS_ShowPage(18);
+        RTS_SendMoveaxisUnitIcon(1);
       }
       else if(recdat.data[0] == 4)
       {
         waitway = 4;
-        RTS_ShowHomeingPage();
+        RTS_ShowPage(40);
         queue.enqueue_now_P(PSTR("G28 X Y"));
         Update_Time_Value = 0;
-        RTS_SndData(0, MOTOR_FREE_ICON_VP);
+        RTS_ShowMotorFreeIcon(false);
       }
       else if(recdat.data[0] == 5)
       {
         waitway = 4;
-        RTS_ShowHomeingPage();
+        RTS_ShowPage(40);
         queue.enqueue_now_P(PSTR("G28"));
-        RTS_SndData(0, MOTOR_FREE_ICON_VP);
+        RTS_ShowMotorFreeIcon(false);
         Update_Time_Value = 0;
       }
       else if(recdat.data[0] == 161)
       { // 00A1
         AxisUnitMode = 1;
         axis_unit = 10.0;
-        RTS_SndData(ExchangePageBase + 86, ExchangepageAddr);
-        change_page_font = 86;
-        RTS_SndData(3, MOVEAXIS_UNIT_ICON_VP);
+        RTS_ShowPage(86);
+        RTS_SendMoveaxisUnitIcon(3);
       }
       else if(recdat.data[0] == 162)
       { // 00A2
         AxisUnitMode = 2;
         axis_unit = 1.0;
-        RTS_SndData(ExchangePageBase + 87, ExchangepageAddr);
-        change_page_font = 87;
-        RTS_SndData(2, MOVEAXIS_UNIT_ICON_VP);
+        RTS_ShowPage(87);
+        RTS_SendMoveaxisUnitIcon(2);
       }
       else if(recdat.data[0] == 163)
       { // 00A3
         AxisUnitMode = 3;
         axis_unit = 0.1;
-        RTS_SndData(ExchangePageBase + 88, ExchangepageAddr);
-        change_page_font = 88;
-        RTS_SndData(1, MOVEAXIS_UNIT_ICON_VP);
+        RTS_ShowPage(88);
+        RTS_SendMoveaxisUnitIcon(1);
       }
       else if(recdat.data[0] == 164)
       { // 00A4
         waitway = 14;
-        RTS_ShowHomeingPage();
+        RTS_ShowPage(40);
         queue.enqueue_now_P(PSTR("G28 X Y"));
         Update_Time_Value = 0;
-        RTS_SndData(0, MOTOR_FREE_ICON_VP);
+        RTS_ShowMotorFreeIcon(false);
       }
       else if(recdat.data[0] == 165)
       { // 00A5
         waitway = 14;
-        RTS_ShowHomeingPage();
+        RTS_ShowPage(40);
         queue.enqueue_now_P(PSTR("G28"));
-        RTS_SndData(0, MOTOR_FREE_ICON_VP);
+        RTS_ShowMotorFreeIcon(false);
         Update_Time_Value = 0;
       }
       else if(recdat.data[0] == 166)
       { // 00A6
         if(leveling_running == 0 && !planner.has_blocks_queued()) {
         waitway = 16;
-        RTS_ShowHomeingPage();
+        RTS_ShowPage(40);
         queue.enqueue_now_P(PSTR("G28"));
-        RTS_SndData(0, MOTOR_FREE_ICON_VP);
+        RTS_ShowMotorFreeIcon(false);
         }else{
-        RTS_SndData(ExchangePageBase + 25, ExchangepageAddr);
-        change_page_font = 25;          
+        RTS_ShowPage(25);         
         }
         Update_Time_Value = 0;
       }
@@ -2941,26 +2845,23 @@ void RTSSHOW::RTS_HandleData(void)
       { // 00A7
         if (leveling_running == 0 && !planner.has_blocks_queued()) {
         waitway = 17;
-        RTS_ShowHomeingPage();
+        RTS_ShowPage(40);
         queue.enqueue_now_P(PSTR("G28"));
-        RTS_SndData(0, MOTOR_FREE_ICON_VP);
+        RTS_ShowMotorFreeIcon(false);
         }else{
-        RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
-        change_page_font = 89; 
+        RTS_ShowPage(89);
         }
         Update_Time_Value = 0;
       }
       else if(recdat.data[0] == 168)
       { // 00A8 // 00A1 before Offsetrouting
-        RTS_SndData(ExchangePageBase + 92, ExchangepageAddr);
-        change_page_font = 92;
+        RTS_ShowPage(92);
       }
       else if(recdat.data[0] == 169)
       { // 00A9 // Home Offsets
         RTS_SndData(home_offset.x * 10, HOME_X_OFFSET_VP);
         RTS_SndData(home_offset.y * 10, HOME_Y_OFFSET_VP);        
-        RTS_SndData(ExchangePageBase + 93, ExchangepageAddr);
-        change_page_font = 93;
+        RTS_ShowPage(93);
       } 
       else if(recdat.data[0] == 177)
       { // 00B1 Home X
@@ -2970,8 +2871,7 @@ void RTSSHOW::RTS_HandleData(void)
         queue.enqueue_now_P(PSTR("G1 Z5 F1000"));        
         RTS_SndData(0, HOME_X_OFFSET_VP);
         RTS_SndData(0, HOME_X_OFFSET_SET_VP);      
-        RTS_SndData(ExchangePageBase + 93, ExchangepageAddr);
-        change_page_font = 93; 
+        RTS_ShowPage(93); 
       }  
       else if(recdat.data[0] == 178)
       { // 00B2 Home y
@@ -2981,13 +2881,11 @@ void RTSSHOW::RTS_HandleData(void)
         queue.enqueue_now_P(PSTR("G1 Z5 F1000"));
         RTS_SndData(0, HOME_Y_OFFSET_VP);
         RTS_SndData(0, HOME_Y_OFFSET_SET_VP);            
-        RTS_SndData(ExchangePageBase + 93, ExchangepageAddr);
-        change_page_font = 93; 
+        RTS_ShowPage(93); 
       }
       else if(recdat.data[0] == 179)
       { // 00B3 // 00A1 before Offsetrouting
-        RTS_SndData(ExchangePageBase + 97, ExchangepageAddr);
-        change_page_font = 97;
+        RTS_ShowPage(97);
       }                                        
       break;
 
@@ -3008,7 +2906,7 @@ void RTSSHOW::RTS_HandleData(void)
       RTS_line_to_current(X_AXIS);
       RTS_SndData(10 * current_position[X_AXIS], AXIS_X_COORD_VP);
       delay(1);
-      RTS_SndData(0, MOTOR_FREE_ICON_VP);
+      RTS_ShowMotorFreeIcon(false);
       waitway = 0;
       break;
 
@@ -3029,7 +2927,7 @@ void RTSSHOW::RTS_HandleData(void)
       RTS_line_to_current(Y_AXIS);
       RTS_SndData(10 * current_position[Y_AXIS], AXIS_Y_COORD_VP);
       delay(1);
-      RTS_SndData(0, MOTOR_FREE_ICON_VP);
+      RTS_ShowMotorFreeIcon(false);
       waitway = 0;
       break;
 
@@ -3050,7 +2948,7 @@ void RTSSHOW::RTS_HandleData(void)
       RTS_line_to_current(Z_AXIS);
       RTS_SndData(10 * current_position[Z_AXIS], AXIS_Z_COORD_VP);
       delay(1);
-      RTS_SndData(0, MOTOR_FREE_ICON_VP);
+      RTS_ShowMotorFreeIcon(false);
       waitway = 0;
       break;
 
@@ -3067,7 +2965,7 @@ void RTSSHOW::RTS_HandleData(void)
       RTS_SndData(10 * current_position[X_AXIS], HOME_X_OFFSET_SET_VP);
       RTS_SndData(10 * current_position[X_AXIS], AXIS_X_COORD_VP);
       delay(1);
-      RTS_SndData(0, MOTOR_FREE_ICON_VP);
+      RTS_ShowMotorFreeIcon(false);
       waitway = 0;
       break;
 
@@ -3084,7 +2982,7 @@ void RTSSHOW::RTS_HandleData(void)
       RTS_SndData(10 * current_position[Y_AXIS], HOME_Y_OFFSET_SET_VP);
       RTS_SndData(10 * current_position[Y_AXIS], AXIS_Y_COORD_VP);     
       delay(1);
-      RTS_SndData(0, MOTOR_FREE_ICON_VP);
+      RTS_ShowMotorFreeIcon(false);
       waitway = 0;
       break;
 
@@ -3104,8 +3002,7 @@ void RTSSHOW::RTS_HandleData(void)
         #if ENABLED(FILAMENT_RUNOUT_SENSOR)
           if ((1 == READ(FIL_RUNOUT_PIN)) && (runout.enabled == true))
           {
-            RTS_SndData(ExchangePageBase + 46, ExchangepageAddr);
-            change_page_font = 46;
+            RTS_ShowPage(46);
             break;
           }
         #endif
@@ -3113,8 +3010,7 @@ void RTSSHOW::RTS_HandleData(void)
 
         if((thermalManager.temp_hotend[0].target > EXTRUDE_MINTEMP) && (thermalManager.temp_hotend[0].celsius < (thermalManager.temp_hotend[0].celsius - 5)))
         {
-          thermalManager.setTargetHotend(thermalManager.temp_hotend[0].target, 0);
-          RTS_SndData(thermalManager.temp_hotend[0].target, HEAD_SET_TEMP_VP);
+          RTS_SendHeadTemp();
           // break;
         }
         else if((thermalManager.temp_hotend[0].target < EXTRUDE_MINTEMP) && (thermalManager.temp_hotend[0].celsius < (ChangeFilamentTemp - 5)))
@@ -3146,8 +3042,7 @@ void RTSSHOW::RTS_HandleData(void)
         #if ENABLED(FILAMENT_RUNOUT_SENSOR)
           if ((1 == READ(FIL_RUNOUT_PIN)) && (runout.enabled == true))
           {
-            RTS_SndData(ExchangePageBase + 46, ExchangepageAddr);
-            change_page_font = 46;
+            RTS_ShowPage(46);
             break;
           }
         #endif
@@ -3156,8 +3051,7 @@ void RTSSHOW::RTS_HandleData(void)
 
         if((thermalManager.temp_hotend[0].target > EXTRUDE_MINTEMP) && (thermalManager.temp_hotend[0].celsius < (thermalManager.temp_hotend[0].celsius - 5)))
         {
-          thermalManager.setTargetHotend(thermalManager.temp_hotend[0].target, 0);
-          RTS_SndData(thermalManager.temp_hotend[0].target, HEAD_SET_TEMP_VP);
+          RTS_SendHeadTemp();
           // break;
         }
         else if((thermalManager.temp_hotend[0].target < EXTRUDE_MINTEMP) && (thermalManager.temp_hotend[0].celsius < (ChangeFilamentTemp - 5)))
@@ -3188,22 +3082,19 @@ void RTSSHOW::RTS_HandleData(void)
           #if ENABLED(FILAMENT_RUNOUT_SENSOR)
             if ((1 == READ(FIL_RUNOUT_PIN)) && (runout.enabled == true))
             {
-              RTS_SndData(ExchangePageBase + 46, ExchangepageAddr);
-              change_page_font = 46;
+              RTS_ShowPage(46);
               break;
             }
             else if(rts_start_print)
             {
-              RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
-              change_page_font = 1;
+              RTS_ShowPage(1);
               break;
             }
           #endif
 
           if((thermalManager.temp_hotend[0].target > EXTRUDE_MINTEMP) && (thermalManager.temp_hotend[0].celsius < (thermalManager.temp_hotend[0].celsius - 5)))
           {
-            thermalManager.setTargetHotend(thermalManager.temp_hotend[0].target, 0);
-            RTS_SndData(thermalManager.temp_hotend[0].target, HEAD_SET_TEMP_VP);
+            RTS_SendHeadTemp();
             break;
           }
           else if((thermalManager.temp_hotend[0].target < EXTRUDE_MINTEMP) && (thermalManager.temp_hotend[0].celsius < (ChangeFilamentTemp - 5)))
@@ -3217,22 +3108,19 @@ void RTSSHOW::RTS_HandleData(void)
             RTS_line_to_current(E_AXIS);
             planner.synchronize();
           }
-          RTS_SndData(ExchangePageBase + 19, ExchangepageAddr);
-          change_page_font = 19;
+          RTS_ShowPage(19);
         }
       }
       else if(recdat.data[0] == 2)
       {
         if(!planner.has_blocks_queued())
         {
-          RTS_SndData(ExchangePageBase + 19, ExchangepageAddr);
-          change_page_font = 19;
+          RTS_ShowPage(19);
         }
       }
       else if(recdat.data[0] == 3)
       {
-        RTS_SndData(ExchangePageBase + 19, ExchangepageAddr);
-        change_page_font = 19;
+        RTS_ShowPage(19);
       }
       break;
 
@@ -3261,33 +3149,31 @@ void RTSSHOW::RTS_HandleData(void)
           PoweroffContinue = true;
           power_off_type_yes = true;
           Update_Time_Value = 0;
-          RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
-          RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);
-          RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);          
-          RTS_SndData(ExchangePageBase + 10, ExchangepageAddr);
-          change_page_font = 10;
+          //RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
+          RTS_LoadMainsiteIcons();          
+          RTS_ShowPage(10);
           #if ENABLED(GCODE_PREVIEW_ENABLED)
-            gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, false);
+            gcodePicDisplayOnOff(DEFAULT_PRINT_MODEL_VP, false);
             int32_t ret = gcodePicDataSendToDwin(recovery.info.sd_filename,VP_OVERLAY_PIC_PTINT,PIC_FORMAT_JPG, PIC_RESOLITION_250_250);
             if (ret == PIC_OK) {
-              gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, false);
+              gcodePicDisplayOnOff(DEFAULT_PRINT_MODEL_VP, false);
             } else {              
-              gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, true);
+              gcodePicDisplayOnOff(DEFAULT_PRINT_MODEL_VP, true);
             }
           #endif
           // recovery.resume();
           queue.enqueue_now_P(PSTR("M1000"));
           sdcard_pause_check = true;
           zprobe_zoffset = probe.offset.z;
-          RTS_SndData(zprobe_zoffset * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
-          RTS_SndData(feedrate_percentage, PRINT_SPEED_RATE_VP);
+          RTS_SendZoffsetFeedratePercentage(true);
         //}
       #endif
       }
       else if(recdat.data[0] == 2)
       {
         Update_Time_Value = RTS_UPDATE_VALUE;
-        RTS_LoadMainPage();
+        RTS_ShowPage(1);
+        RTS_ShowPreviewImage(true);
         RTS_ResetTime();
         Update_Time_Value = 0;
         RTS_SDcard_Stop();
@@ -3336,7 +3222,7 @@ void RTSSHOW::RTS_HandleData(void)
 
     case SetGridMaxPoints: 
       {
-        if (leveling_running == 0){        
+        if (leveling_running == 0 && !IS_SD_PRINTING()){        
           temp_grid_max_points = recdat.data[0];
           if (temp_grid_max_points == 5 || temp_grid_max_points == 7 || temp_grid_max_points == 10){
             RTS_ResetMesh();
@@ -3350,7 +3236,7 @@ void RTSSHOW::RTS_HandleData(void)
             queue.enqueue_now_P(PSTR("M84"));
             queue.enqueue_now_P(PSTR("G92.9Z0"));
             RTS_ChangeLevelingPage();
-            RTS_SndData(1, MOTOR_FREE_ICON_VP);
+            RTS_ShowMotorFreeIcon(true);
           }
         }
       }    
@@ -3358,7 +3244,7 @@ void RTSSHOW::RTS_HandleData(void)
 
       case SetProbeMarginX: 
       {
-        if (leveling_running == 0){
+        if (leveling_running == 0 && !IS_SD_PRINTING()){
           temp_probe_margin_x = recdat.data[0];
           if (probe.offset_xy.x < 0) {
             probe_offset_x_temp = fabs(probe.offset_xy.x);
@@ -3384,7 +3270,7 @@ void RTSSHOW::RTS_HandleData(void)
 
       case SetProbeMarginY: 
       {
-        if (leveling_running == 0){
+        if (leveling_running == 0 && !IS_SD_PRINTING()){
           temp_probe_margin_y = recdat.data[0];
           if (probe.offset_xy.y < 0) {
             probe_offset_y_temp = fabs(probe.offset_xy.y);
@@ -3407,68 +3293,61 @@ void RTSSHOW::RTS_HandleData(void)
       }    
       break;      
 
+    case SetProbeCount: 
+      {
+        if (leveling_running == 0  && !IS_SD_PRINTING()){        
+          temp_grid_probe_count = recdat.data[0];
+          if (temp_grid_probe_count >= 1 && temp_grid_probe_count <= 5){
+            lcd_rts_settings.total_probing = temp_grid_probe_count;
+            RTS_SndData(temp_grid_probe_count, PROBE_COUNT_VP);
+            RTS_SetBltouchHSMode();
+          }
+          if (temp_grid_probe_count < 1){
+            temp_grid_probe_count = 1;
+            lcd_rts_settings.total_probing = temp_grid_probe_count;
+            RTS_SndData(temp_grid_probe_count, PROBE_COUNT_VP);
+            RTS_SetBltouchHSMode();
+          }
+          if (temp_grid_probe_count > 5){
+            temp_grid_probe_count = 5;
+            lcd_rts_settings.total_probing = temp_grid_probe_count;
+            RTS_SndData(temp_grid_probe_count, PROBE_COUNT_VP);
+            RTS_SetBltouchHSMode();
+          }                    
+        }
+      }    
+      break;
+
     case StoreMemoryKey:
       if(recdat.data[0] == 1)
       {
-        rtscheck.RTS_SndData(ExchangePageBase + 37, ExchangepageAddr);
-        change_page_font = 37;
+        RTS_ShowPage(37);
       }
       if(recdat.data[0] == 2)
       {
         queue.enqueue_now_P(PSTR("M502"));
-        rtscheck.RTS_SndData(ExchangePageBase + 33, ExchangepageAddr);
-        change_page_font = 33;
+        RTS_ShowPage(33);
         settings.save();
-        RTS_SndData(default_max_feedrate[X_AXIS], MAX_VELOCITY_XAXIS_DATA_VP);
-        RTS_SndData(default_max_feedrate[Y_AXIS], MAX_VELOCITY_YAXIS_DATA_VP);
-        RTS_SndData(default_max_feedrate[Z_AXIS], MAX_VELOCITY_ZAXIS_DATA_VP);
-        RTS_SndData(default_max_feedrate[E_AXIS], MAX_VELOCITY_EAXIS_DATA_VP);
-        // delay(20);
-        RTS_SndData(default_max_acceleration[X_AXIS], MAX_ACCEL_XAXIS_DATA_VP);
-        RTS_SndData(default_max_acceleration[Y_AXIS], MAX_ACCEL_YAXIS_DATA_VP);
-        RTS_SndData(default_max_acceleration[Z_AXIS], MAX_ACCEL_ZAXIS_DATA_VP);
-        RTS_SndData(default_max_acceleration[E_AXIS], MAX_ACCEL_EAXIS_DATA_VP);
-        // delay(20);
-        RTS_SndData(default_max_jerk[X_AXIS] * 100, MAX_JERK_XAXIS_DATA_VP);
-        RTS_SndData(default_max_jerk[Y_AXIS] * 100, MAX_JERK_YAXIS_DATA_VP);
-        RTS_SndData(default_max_jerk[Z_AXIS] * 100, MAX_JERK_ZAXIS_DATA_VP);
-        RTS_SndData(default_max_jerk[E_AXIS] * 100, MAX_JERK_EAXIS_DATA_VP);
-        // delay(20);
-        RTS_SndData(default_axis_steps_per_unit[X_AXIS] * 10, MAX_STEPSMM_XAXIS_DATA_VP);
-        RTS_SndData(default_axis_steps_per_unit[Y_AXIS] * 10, MAX_STEPSMM_YAXIS_DATA_VP);
-        RTS_SndData(default_axis_steps_per_unit[Z_AXIS] * 10, MAX_STEPSMM_ZAXIS_DATA_VP);
-        RTS_SndData(default_axis_steps_per_unit[E_AXIS] * 10, MAX_STEPSMM_EAXIS_DATA_VP);
-        // delay(20);
-        RTS_SndData(default_nozzle_ptemp * 100, NOZZLE_TEMP_P_DATA_VP);
-        RTS_SndData(default_nozzle_itemp * 100, NOZZLE_TEMP_I_DATA_VP);
-        RTS_SndData(default_nozzle_dtemp * 100, NOZZLE_TEMP_D_DATA_VP);
-        delay(20);
-        RTS_SndData(default_hotbed_ptemp * 100, HOTBED_TEMP_P_DATA_VP);
-        RTS_SndData(default_hotbed_itemp * 100, HOTBED_TEMP_I_DATA_VP);
-        RTS_SndData(default_hotbed_dtemp * 10, HOTBED_TEMP_D_DATA_VP);
+        RTS_SendDefaultRates();
         // delay(100);
       }
       else if(recdat.data[0] == 3)
       {
-        rtscheck.RTS_SndData(ExchangePageBase + 33, ExchangepageAddr);
-        change_page_font = 33;
+        RTS_ShowPage(33);
       }
       else if(recdat.data[0] == 4)
       {    
         RTS_SndData(planner.extruder_advance_K[0] * 1000, ADVANCE_K_SET);
-        rtscheck.RTS_SndData(ExchangePageBase + 34, ExchangepageAddr);
-        change_page_font = 34; 
+        RTS_ShowPage(34); 
         settings.save();     
       }
       else if(recdat.data[0] == 5)
       {  
-        rtscheck.RTS_SndData(ExchangePageBase + 39, ExchangepageAddr);
-        change_page_font = 39;
+        RTS_ShowPage(39);
       }
       else if(recdat.data[0] == 7)
       {
-        rtscheck.RTS_SndData(ExchangePageBase + 38, ExchangepageAddr);
-        change_page_font = 38;
+        RTS_ShowPage(38);
       }
       else if(recdat.data[0] == 8)
       {
@@ -3476,44 +3355,37 @@ void RTSSHOW::RTS_HandleData(void)
         RTS_SndData(stepper.get_shaping_frequency(Y_AXIS) * 100, SHAPING_Y_FREQUENCY_VP);
         RTS_SndData(stepper.get_shaping_damping_ratio(X_AXIS) * 100, SHAPING_X_ZETA_VP);
         RTS_SndData(stepper.get_shaping_damping_ratio(Y_AXIS) * 100, SHAPING_Y_ZETA_VP);        
-        rtscheck.RTS_SndData(ExchangePageBase + 36, ExchangepageAddr);
-        change_page_font = 36;
+        RTS_ShowPage(36);
       }
       else if(recdat.data[0] == 9)
       {
-        rtscheck.RTS_SndData(ExchangePageBase + 37, ExchangepageAddr);
-        change_page_font = 37;
+        RTS_ShowPage(37);
       }
       else if(recdat.data[0] == 0x0A)
       {
-        rtscheck.RTS_SndData(ExchangePageBase + 35, ExchangepageAddr);
-        change_page_font = 35;
+        RTS_ShowPage(35);
       }
       else if(recdat.data[0] == 0x0B)
       {
-        rtscheck.RTS_SndData(ExchangePageBase + 33, ExchangepageAddr);
-        change_page_font = 33;
+        RTS_ShowPage(33);
         settings.save();
         delay(100);
       }
       else if(recdat.data[0] == 0x0C)
       {
-        rtscheck.RTS_SndData(ExchangePageBase + 34, ExchangepageAddr);
-        change_page_font = 34;
+        RTS_ShowPage(34);
         settings.save();
         delay(100);
       }
       else if(recdat.data[0] == 0x0D)
       {         
-        rtscheck.RTS_SndData(ExchangePageBase + 33, ExchangepageAddr);
-        change_page_font = 33;
+        RTS_ShowPage(33);
         // settings.save();
         // delay(100);
       }
       else if(recdat.data[0] == 0x0E)
       {         
-        rtscheck.RTS_SndData(ExchangePageBase + 33, ExchangepageAddr);
-        change_page_font = 33;
+        RTS_ShowPage(33);
         settings.save();
         delay(100);
       }      
@@ -3590,13 +3462,11 @@ void RTSSHOW::RTS_HandleData(void)
         // Jail
         if(g_uiAutoPIDNozzleRuningFlag == true) break;          
         if(g_uiAutoPIDHotbedRuningFlag == true) break;   
-        rtscheck.RTS_SndData(ExchangePageBase + 85, ExchangepageAddr);
-        change_page_font = 85;
+        RTS_ShowPage(85);
       }
       else if(recdat.data[0] == 164)
       { // Hotend Offsets 00A4
-        rtscheck.RTS_SndData(ExchangePageBase + 86, ExchangepageAddr);
-        change_page_font = 86;
+        RTS_ShowPage(86);
       }                            
       break;
 
@@ -3956,7 +3826,7 @@ void RTSSHOW::RTS_HandleData(void)
 
     case EditMeshpoint:
     {
-      if (leveling_running == 0 && bedlevel.mesh_is_valid()){      
+      if (leveling_running == 0 && bedlevel.mesh_is_valid() && !IS_SD_PRINTING()){      
         current_point = recdat.data[0] - 1;
         uint8_t x_probe_point, y_probe_point;
         calculateProbePoints(current_point, x_probe_point, y_probe_point);
@@ -3975,7 +3845,7 @@ void RTSSHOW::RTS_HandleData(void)
 
     case CurrentMeshpoint: 
     {
-      if (leveling_running == 0 && bedlevel.mesh_is_valid()){
+      if (leveling_running == 0 && bedlevel.mesh_is_valid() && !IS_SD_PRINTING()){
         if (current_point >= 0 && current_point <= 100) {
             float new_point_height = (recdat.data[0] >= 32768)
                                     ? ((float)recdat.data[0] - 65536) / 1000
@@ -4008,12 +3878,16 @@ void RTSSHOW::RTS_HandleData(void)
           card.cd(CardRecbuf.Cardfilename[CardRecbuf.recordcount]);
           int16_t fileCnt = card.get_num_items();
           card.getWorkDirName();
-          if (fileCnt > 5) {
-          file_total_page = (fileCnt / 5) + 1;
-          if (file_total_page > 8) file_total_page = 8;
+          if (fileCnt > 0) {
+            file_total_page = fileCnt / 5;
+            if (fileCnt % 5 > 0) { // Add an extra page only if there are leftover files
+              file_total_page++;
+            }
+            if (file_total_page > 8) file_total_page = 8; // Limit the maximum number of pages
           }
-          else
+          else {
             file_total_page = 1;
+          }
           RTS_SndData(file_total_page, PAGE_STATUS_TEXT_TOTAL_VP);
           file_current_page = 1;
           RTS_SndData(file_current_page, PAGE_STATUS_TEXT_CURRENT_VP);
@@ -4021,47 +3895,53 @@ void RTSSHOW::RTS_HandleData(void)
           CardRecbuf.selectFlag = false;
           if (PoweroffContinue /*|| print_job_timer.isRunning()*/) return;
           // clean print file
-          for (int j = 0; j < 20; j++) RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
+          RTS_CleanPrintAndSelectFile();
           lcd_sd_status = IS_SD_INSERTED();
         }
         else {
           CardRecbuf.selectFlag = true;
           CardRecbuf.recordcount = recdat.data[0] - 1;
-          for (int j = 0; j < 20; j++) RTS_SndData(0, SELECT_FILE_TEXT_VP + j);
+          for (int j = 0; j < 60; j++) RTS_SndData(0, SELECT_FILE_TEXT_VP + j);
+          for (int j = 0; j < 25; j++) RTS_SndData(0, PRINT_FILE_TEXT_VP + j);          
           delay(2);
           RTS_SndData((unsigned long)0xFFFF, FilenameNature + recdat.data[0] * 16);      
-          RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
-          change_page_font = 1;
+          RTS_ShowPage(1);
           #if ENABLED(GCODE_PREVIEW_ENABLED)
             char ret;
-            gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, false);
+            gcodePicDisplayOnOff(DEFAULT_PRINT_MODEL_VP, false);
             ret = gcodePicDataSendToDwin(CardRecbuf.Cardfilename[CardRecbuf.recordcount],VP_OVERLAY_PIC_PTINT,PIC_FORMAT_JPG, PIC_RESOLITION_250_250);
             if (ret == PIC_OK) {
-              gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, false);
+              gcodePicDisplayOnOff(DEFAULT_PRINT_MODEL_VP, false);
             } else {
-              gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, true);
+              gcodePicDisplayOnOff(DEFAULT_PRINT_MODEL_VP, true);
               rtscheck.RTS_SndData(0, VP_OVERLAY_PIC_PTINT);                                          
             }
           #endif
 
           rts_start_print = true;
           delay(5);
-          #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)  
-            const char* textToScroll = CardRecbuf.Cardshowlongfilename[CardRecbuf.recordcount];
-            #if ENABLED(LCD_RTS_DEBUG)            
-              SERIAL_ECHO_MSG("CardRecbuf.Cardshowlongfilename[CardRecbuf.recordcount]", CardRecbuf.Cardshowlongfilename[CardRecbuf.recordcount]);
-            #endif
-            if (strlen(textToScroll) > 16) {
-              scrollingmanuallyDisabled = false;
-              startScrolling(textToScroll, displayAddr, textSize, scrollDelay);
-            } else {
-              // Show the filename directly if it's shorter than 16 characters
-              RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], SELECT_FILE_TEXT_VP);
-            }            
-          #else
-            // Old filename sending
+          //#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)  
+          //  const char* textToScroll = CardRecbuf.Cardshowlongfilename[CardRecbuf.recordcount];
+          //  #if ENABLED(LCD_RTS_DEBUG)            
+          ////    SERIAL_ECHO_MSG("CardRecbuf.Cardshowlongfilename[CardRecbuf.recordcount]", CardRecbuf.Cardshowlongfilename[CardRecbuf.recordcount]);
+          //  #endif
+          //  if (strlen(textToScroll) > displayWidth) {
+          //    scrollingmanuallyDisabled = false;
+          //    startScrolling(textToScroll, displayAddr, textSize, scrollDelay);
+          //  } else {
+          //    // Show the filename directly if it's shorter than 16 characters
+          //    RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], SELECT_FILE_TEXT_VP);
+          //  }            
+          //#else
+          // Old filename sending
+          if (CardRecbuf.filenamelen[CardRecbuf.recordcount] > 25){
+            SERIAL_ECHO_MSG("CardRecbuf.filenamelen[CardRecbuf.recordcount] select", CardRecbuf.filenamelen[CardRecbuf.recordcount]);
             RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], SELECT_FILE_TEXT_VP);
-          #endif
+          }else{
+            SERIAL_ECHO_MSG("CardRecbuf.filenamelen[CardRecbuf.recordcount] print", CardRecbuf.filenamelen[CardRecbuf.recordcount]);            
+            RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], PRINT_FILE_TEXT_VP);            
+          }
+          //#endif
           #if ENABLED(GCODE_PREVIEW_ENABLED)          
             RefreshBrightnessAtPrint(0);
           #endif
@@ -4095,10 +3975,8 @@ void RTSSHOW::RTS_HandleData(void)
         #if ENABLED(FILAMENT_RUNOUT_SENSOR)
           if ((1 == READ(FIL_RUNOUT_PIN)) && (runout.enabled == true))
           {
-            RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);     
-            RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);            
-            RTS_SndData(ExchangePageBase + 46, ExchangepageAddr);
-            change_page_font = 46;
+            RTS_LoadMainsiteIcons();            
+            RTS_ShowPage(46);
             sdcard_pause_check = false;
             break;
           }
@@ -4109,22 +3987,22 @@ void RTSSHOW::RTS_HandleData(void)
         queue.enqueue_one_now(cmd);
         delay(20);
         queue.enqueue_now_P(PSTR("M24"));
-        // clean screen.
-        for (int j = 0; j < 20; j ++)
-        {
-          RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
+        RTS_CleanPrintAndSelectFile();
+        if (CardRecbuf.filenamelen[CardRecbuf.recordcount] > 25){
+          RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], SELECT_FILE_TEXT_VP);
+        }else{
+          RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], PRINT_FILE_TEXT_VP);
         }
-        RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], PRINT_FILE_TEXT_VP);
+        //RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], SELECT_FILE_TEXT_VP);
         delay(2);
         #if ENABLED(BABYSTEPPING)
           RTS_SndData(0, AUTO_BED_LEVEL_ZOFFSET_VP);
         #endif
         feedrate_percentage = 100;
-        RTS_SndData(feedrate_percentage, PRINT_SPEED_RATE_VP);
         zprobe_zoffset = probe.offset.z;
-        RTS_SndData(zprobe_zoffset * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
+        RTS_SendZoffsetFeedratePercentage(true);
         PoweroffContinue = true;
-        RTS_SndData(ExchangePageBase + 10, ExchangepageAddr);
+        RTS_ShowPage(10);
         RTS_SndData(208, EXTERNAL_M600_ICON_VP);         
         Update_Time_Value = 0;
       }
@@ -4139,8 +4017,7 @@ void RTSSHOW::RTS_HandleData(void)
           if (card.flag.mounted){
             RTS_line_to_filelist();              
           }       
-          RTS_SndData(ExchangePageBase + 2, ExchangepageAddr);
-          change_page_font = 2;
+          RTS_ShowPage(2);
         }
       }
       else if(recdat.data[0] == 3)
@@ -4154,16 +4031,14 @@ void RTSSHOW::RTS_HandleData(void)
           if (card.flag.mounted){
             RTS_line_to_filelist();
           }
-          RTS_SndData(ExchangePageBase + 2, ExchangepageAddr);
-          change_page_font = 2;
+          RTS_ShowPage(2);
         }
       }
       else if(recdat.data[0] == 4)
       {
         if (!planner.has_blocks_queued()) {
           file_current_page = 1;
-          RTS_SndData(ExchangePageBase + 2, ExchangepageAddr);
-          change_page_font = 2;
+          RTS_ShowPage(2);
           RTS_line_to_filelist();
         }
 
@@ -4172,32 +4047,27 @@ void RTSSHOW::RTS_HandleData(void)
       {
         if (!planner.has_blocks_queued()) {
           file_current_page = file_total_page;
-          RTS_SndData(ExchangePageBase + 2, ExchangepageAddr);
-          change_page_font = 2;
+          RTS_ShowPage(2);
           RTS_line_to_filelist();
         }
       }
       else if(recdat.data[0] == 6)
       {
-        RTS_SndData(ExchangePageBase + 5, ExchangepageAddr);
-        change_page_font = 5;
+        RTS_ShowPage(5);
       }
       else if(recdat.data[0] == 7)
       {
-        RTS_SndData(ExchangePageBase + 4, ExchangepageAddr);
-        change_page_font = 4; 
+        RTS_ShowPage(4); 
       }
       else if(recdat.data[0] == 8)
       {
-        RTS_SndData(ExchangePageBase + 5, ExchangepageAddr);
-        change_page_font = 5;   
+        RTS_ShowPage(5);  
       }
       else if(recdat.data[0] == 9)
       {
         if (!planner.has_blocks_queued()) {
           file_current_page = 1;
-          RTS_SndData(ExchangePageBase + 2, ExchangepageAddr);
-          change_page_font = 2;
+          RTS_ShowPage(2);
           if (card.flag.mounted){
             RTS_line_to_filelist();
           }
@@ -4207,8 +4077,7 @@ void RTSSHOW::RTS_HandleData(void)
       {
         if (!planner.has_blocks_queued()) {
           file_current_page = file_total_page;
-          RTS_SndData(ExchangePageBase + 2, ExchangepageAddr);
-          change_page_font = 2;
+          RTS_ShowPage(2);
           if (card.flag.mounted){
             RTS_line_to_filelist();              
           }
@@ -4216,8 +4085,7 @@ void RTSSHOW::RTS_HandleData(void)
       }
       else if(recdat.data[0] == 0x0C)
       {
-        RTS_SndData(ExchangePageBase + 82, ExchangepageAddr);
-        change_page_font = 82;
+        RTS_ShowPage(82);
         sendQRCodeCommand(QR_CODE_1_VP, "https://www.paypal.me/thomastoka");
       }        
       break;
@@ -4234,15 +4102,10 @@ void RTSSHOW::RTS_HandleData(void)
         }
       }
 
-      RTS_SndData(MACHINE_TYPE, MACHINE_TYPE_ABOUT_TEXT_VP);
-      RTS_SndData(FIRMWARE_VERSION, FIRMWARE_VERSION_ABOUT_TEXT_VP);
-      //RTS_SndData(SCREEN_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
-      RTS_SndData(HARDWARE_VERSION, HARDWARE_VERSION_ABOUT_TEXT_VP);
-      RTS_SndData(PRINT_SIZE, PRINTER_PRINTSIZE_TEXT_VP);
+      RTS_SendMachineData();
       RTS_SndData(lang == 1 ? CORP_WEBSITE_C : CORP_WEBSITE_E, WEBSITE_ABOUT_TEXT_VP);
       RTS_SndData(card.percentDone(), PRINT_PROCESS_VP);
-      RTS_SndData(zprobe_zoffset * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
-      RTS_SndData(feedrate_percentage, PRINT_SPEED_RATE_VP);
+      RTS_SendZoffsetFeedratePercentage(true);
       RTS_SndData(thermalManager.degTargetHotend(0), HEAD_SET_TEMP_VP);
       #if ENABLED(BED_TEMP_COMP)
         if (WITHIN(thermalManager.degTargetBed(), 66, 85))
@@ -4260,44 +4123,38 @@ void RTSSHOW::RTS_HandleData(void)
       case SwitchDeviceKey:
         if(recdat.data[0] == 1)
         {
-          RTS_SndData(ExchangePageBase + 57, ExchangepageAddr);
-          //change_page_font = 57;
+          RTS_ShowPage(57);
         }else if(recdat.data[0] == 2)
         {
-          RTS_SndData(ExchangePageBase + 56, ExchangepageAddr);
-          //change_page_font = 56;
+          RTS_ShowPage(56);
         }else if(recdat.data[0] == 0x03)
         {
           if(change_page_font == 64)
           {
-            RTS_SndData(ExchangePageBase + 33, ExchangepageAddr);
-            change_page_font = 33;
+            RTS_ShowPage(33);
           }else{
-            RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
-            change_page_font = 1;
+            RTS_ShowPage(1);
           }
           laser_device.set_current_device(DEVICE_FDM);
         }else if(recdat.data[0] == 0x04)
         {
           if(change_page_font == 64)
           {
-            RTS_SndData(ExchangePageBase + 64, ExchangepageAddr);
-            change_page_font = 64;
+            RTS_ShowPage(64);
           }else{
-            RTS_SndData(ExchangePageBase + 50, ExchangepageAddr);
+            RTS_ShowPage(50);
           }
         }else if(recdat.data[0] == 0x05)
         {
           uint8_t language;
-          RTS_SndData(ExchangePageBase + 77, ExchangepageAddr);
-          //change_page_font = 77;
+          RTS_ShowPage(77);
           laser_device.set_current_device(DEVICE_LASER);
           language = language_change_font; 
           settings.reset();
           language_change_font = language;
           settings.save();
           probe.offset.z = zprobe_zoffset = 0;
-          RTS_SndData(zprobe_zoffset * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
+          RTS_SendZoffsetFeedratePercentage(true);
           queue.enqueue_now_P(PSTR("M999\nG92.9 Z0"));
           planner.synchronize();
           RTS_SndData(0, SW_FOCUS_Z_VP);
@@ -4305,17 +4162,14 @@ void RTSSHOW::RTS_HandleData(void)
         }else if(recdat.data[0] == 0x06)
         {
           if(change_page_font == 33){
-            RTS_SndData(ExchangePageBase + 33, ExchangepageAddr);
-            change_page_font = 33;
+            RTS_ShowPage(33);
           }else{
-            RTS_SndData(ExchangePageBase + 50, ExchangepageAddr);
-            change_page_font = 50;
+            RTS_ShowPage(50);
           }
         }
         else if(recdat.data[0] == 0x0B)
         {
-          RTS_SndData(ExchangePageBase + 56, ExchangepageAddr);
-          //change_page_font = 56;
+          RTS_ShowPage(56);
         }
       break;
     #endif
@@ -4325,17 +4179,16 @@ void RTSSHOW::RTS_HandleData(void)
         {
           if(printingIsActive())
           {
-            RTS_SndData(ExchangePageBase + 10, ExchangepageAddr);
-            change_page_font = 10;
+            RTS_ShowPage(10);
           }
           else if(printingIsPaused())
           {
-            RTS_SndData(ExchangePageBase + 12, ExchangepageAddr);
-            change_page_font = 12;
+            RTS_ShowPage(12);
           }
           else
           {
-            RTS_LoadMainPage();
+            RTS_ShowPage(1);
+            RTS_ShowPreviewImage(true);
           }
 
           if(errorway == 4)
@@ -4387,10 +4240,12 @@ void EachMomentUpdate(void)
         {
           if(!strcmp(CardRecbuf.Cardfilename[i], &recovery.info.sd_filename[1]))
           {
-            rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[i], PRINT_FILE_TEXT_VP);
-            rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[i], SELECT_FILE_TEXT_VP);
-            rtscheck.RTS_SndData(ExchangePageBase + 27, ExchangepageAddr);
-            change_page_font = 27;
+            if (CardRecbuf.filenamelen[i] > 25){
+              rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[i], SELECT_FILE_TEXT_VP);
+            }else{
+              rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[i], PRINT_FILE_TEXT_VP);
+            }
+            RTS_ShowPage(27);
             break;
           }
         }
@@ -4420,7 +4275,7 @@ void EachMomentUpdate(void)
           int filenamelen = strlen(card.longFilename);
           int j = 1; 
           while ((strncmp(&pointFilename[j], ".gcode", 6) != 0 && strncmp(&pointFilename[j], ".GCODE", 6) != 0 && strncmp(&pointFilename[j], ".GCO", 4) != 0 && strncmp(&pointFilename[j], ".gco", 4) != 0) && (j++ < filenamelen));
-          for (int j = 0; j < 20; j++) rtscheck.RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
+          RTS_CleanPrintAndSelectFile();
           if (j >= TEXTBYTELEN) {
             strncpy(&card.longFilename[TEXTBYTELEN - 3], "..", 2);
             card.longFilename[TEXTBYTELEN - 1] = '\0';
@@ -4428,7 +4283,7 @@ void EachMomentUpdate(void)
           }
           strncpy(CardRecbuf.Cardshowfilename[i], card.longFilename, j);
           strcpy(CardRecbuf.Cardfilename[i], card.filename);
-          CardRecbuf.addr[i] = PRINT_FILE_TEXT_VP + 20;
+          //CardRecbuf.addr[i] = PRINT_FILE_TEXT_VP + 20;
           rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[i], CardRecbuf.addr[i]);
           if (!strcmp(CardRecbuf.Cardfilename[i], &recovery.info.sd_filename[1])) {
             rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[i], PRINT_FILE_TEXT_VP);
@@ -4438,15 +4293,14 @@ void EachMomentUpdate(void)
 
         #if HAS_CUTTER
           if(laser_device.is_laser_device()){
-            rtscheck.RTS_SndData(ExchangePageBase + 51, ExchangepageAddr);
-            change_page_font = 51;
+            RTS_ShowPage(51);
           }else if(laser_device.get_current_device()== DEVICE_UNKNOWN){
-            rtscheck.RTS_SndData(ExchangePageBase + 50, ExchangepageAddr);
-            change_page_font = 50;
+            RTS_ShowPage(50);
           }else
         #endif
         {
-          RTS_LoadMainPage();
+          RTS_ShowPage(1);
+          RTS_ShowPreviewImage(true);
         }
       }    
       return;
@@ -4543,18 +4397,15 @@ void EachMomentUpdate(void)
 
       if((last_target_temperature[0] != thermalManager.temp_hotend[0].target) || (last_target_temperature_bed != thermalManager.temp_bed.target))
       {
-        thermalManager.setTargetHotend(thermalManager.temp_hotend[0].target, 0);
-        thermalManager.setTargetBed(thermalManager.temp_bed.target);
-        rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD_SET_TEMP_VP);
-        rtscheck.RTS_SndData(thermalManager.temp_bed.target, BED_SET_TEMP_VP);
+        RTS_SendHeadTemp();
+        RTS_SendBedTemp();
         last_target_temperature[0] = thermalManager.temp_hotend[0].target;
         last_target_temperature_bed = thermalManager.temp_bed.target;
       }
 
       if((thermalManager.temp_hotend[0].celsius >= thermalManager.temp_hotend[0].target) && (heatway == 1))
       {
-        rtscheck.RTS_SndData(ExchangePageBase + 19, ExchangepageAddr);
-        change_page_font = 19;
+        RTS_ShowPage(19);
         heatway = 0;
         rtscheck.RTS_SndData(10 * FilamentLOAD, HEAD_FILAMENT_LOAD_DATA_VP);
         rtscheck.RTS_SndData(10 * FilamentUnLOAD, HEAD_FILAMENT_UNLOAD_DATA_VP);
@@ -4689,7 +4540,6 @@ void RTSSHOW::languagedisplayUpdate(void)
   RTS_SndData(lang, FIRMWARE_VERSION_ABOUT_CHAR_VP);
   RTS_SndData(lang, PRINTER_DISPLAY_VERSION_TITLE_VP);
   RTS_SndData(lang, HARDWARE_VERSION_ABOUT_TITLE_VP);
-  RTS_SndData(lang, WIFI_DN_CODE_CHAR_VP);
   RTS_SndData(lang, WEBSITE_ABOUT_CHAR_VP);
   RTS_SndData(lang, PRINTER_PRINTSIZE_TITLE_VP);
   RTS_SndData(lang, PLA_SETTINGS_TITLE_VP);
@@ -4737,8 +4587,7 @@ void RTSUpdate(void)
 	sd_printing = IS_SD_PRINTING();
 	card_insert_st = IS_SD_INSERTED() ;
 	if(!card_insert_st && sd_printing){
-		rtscheck.RTS_SndData(ExchangePageBase + 47, ExchangepageAddr);	
-    change_page_font = 47;    
+		RTS_ShowPage(47);   
 		rtscheck.RTS_SndData(0, CHANGE_SDCARD_ICON_VP);
 		card.pauseSDPrint();
 		print_job_timer.pause();
@@ -4759,6 +4608,7 @@ void RTSUpdate(void)
   }
   hal.watchdog_refresh();
 }
+/*
 #if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)  
   void RTSUpdate_SCROLLING(void)
   {
@@ -4801,7 +4651,7 @@ void RTSUpdate(void)
     }
   }
 #endif
-
+*/
 void RTS_PauseMoveAxisPage(void)
 {
   #if HAS_CUTTER
@@ -4810,19 +4660,17 @@ void RTS_PauseMoveAxisPage(void)
 
   if(waitway == 1)
   {
-    rtscheck.RTS_SndData(ExchangePageBase + 12, ExchangepageAddr);
-    change_page_font = 12;
+    RTS_ShowPage(12);
     waitway = 0;
   }
   else if(waitway == 5)
   {
-    rtscheck.RTS_SndData(ExchangePageBase + 7, ExchangepageAddr);
-    change_page_font = 7;
+    RTS_ShowPage(7);
     waitway = 0;
   }
   else if (waitway == 7) {
     // Click stop print
-    RTS_LoadMainPage();
+    RTS_ShowPage(1);
     waitway = 0;
   }  
 }
@@ -4830,8 +4678,7 @@ void RTS_PauseMoveAxisPage(void)
 void RTS_AutoBedLevelPage() {
     if (waitway != 15) {
         if (old_leveling == 1) {
-            rtscheck.RTS_SndData(ExchangePageBase + 26, ExchangepageAddr);
-            change_page_font = 26;
+            RTS_ShowPage(26);
             waitway = 0;
         } else {
             bool zig = false;
@@ -4922,21 +4769,17 @@ void RTS_AutoBedLevelPage() {
 void RTSSHOW::RTS_ChangeLevelingPage(void)
 {
     if(old_leveling == 1){
-      rtscheck.RTS_SndData(ExchangePageBase + 26, ExchangepageAddr);
-      change_page_font = 26;
+      RTS_ShowPage(26);
       waitway = 0;
     }else{  
       if (lcd_rts_settings.max_points == 5){
-        rtscheck.RTS_SndData(ExchangePageBase + 81, ExchangepageAddr);
-        change_page_font = 81;
+        RTS_ShowPage(81);
       }
       if (lcd_rts_settings.max_points == 7){
-        rtscheck.RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
-        change_page_font = 94;
+        RTS_ShowPage(94);
       }
       if (lcd_rts_settings.max_points == 10){
-        rtscheck.RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
-        change_page_font = 95;
+        RTS_ShowPage(95);
       }
     }
 }
@@ -4947,10 +4790,14 @@ void RTSSHOW::RTS_SetBltouchHSMode(void)
     queue.enqueue_now_P(PSTR("M401 S1"));
   }
   if (lcd_rts_settings.max_points == 7){
-    queue.enqueue_now_P(PSTR("M401 S0"));
+    if (lcd_rts_settings.total_probing == 1){
+      queue.enqueue_now_P(PSTR("M401 S1"));
+    }else{
+      queue.enqueue_now_P(PSTR("M401 S0"));
+    }
   }
   if (lcd_rts_settings.max_points == 10){
-    queue.enqueue_now_P(PSTR("M401 S0"));
+      queue.enqueue_now_P(PSTR("M401 S0"));
   }
 }
 
@@ -4983,7 +4830,9 @@ void RTS_ResetMesh(void)
 {
   RTS_LoadMeshPointOffsets();
   rtscheck.sendRectangleCommand(0x2490, 0, 0, 1, 1, 0x1000);
-  bedlevel.reset();
+  if (!IS_SD_PRINTING()){
+    bedlevel.reset();
+  }
   bool zig = false;
   int8_t inStart, inStop, inInc, showcount;
   showcount = 0;
@@ -5015,11 +4864,21 @@ void RTS_ResetMesh(void)
   } 
   int counter1 = 0;
   for (int blupp = 0; blupp < (lcd_rts_settings.max_points * lcd_rts_settings.max_points); blupp++) {
-          rtscheck.RTS_SndData((unsigned long)0xFFFF, TrammingpointNature + (color_sp_offset + counter1 + 1) * 16);
-          counter1++;
+    rtscheck.RTS_SndData((unsigned long)0xFFFF, TrammingpointNature + (color_sp_offset + counter1 + 1) * 16);
+    counter1++;
   }
-  settings.save();
+  if (!IS_SD_PRINTING()){
+    settings.save();
+  }
   rtscheck.RTS_SndData(0, AUTO_BED_LEVEL_CUR_POINT_VP);
+  if (IS_SD_PRINTING()){
+    rtscheck.RTS_SndData(lcd_rts_settings.total_probing , PROBE_COUNT_VP);
+    rtscheck.RTS_SndData(lcd_rts_settings.max_points, SET_GRID_MAX_POINTS_VP);
+    rtscheck.RTS_SndData(lcd_rts_settings.probe_margin_x, PROBE_MARGIN_X_VP);
+    rtscheck.RTS_SndData(lcd_rts_settings.probe_margin_y, PROBE_MARGIN_Y_VP);
+    rtscheck.RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT);
+    rtscheck.RTS_SndData(lang + 10, AUTO_LEVELING_START_TITLE_VP);    
+  }
 }
 
 void RTS_LoadMesh(void)
@@ -5033,11 +4892,11 @@ void RTS_LoadMesh(void)
       float max_value = bedlevel.z_values[0][0];
       // Determine the min and max values from the mesh data
       for (int y = 0; y < lcd_rts_settings.max_points; y++) {
-          for (int x = 0; x < lcd_rts_settings.max_points; x++) {
-              float current_z_value = bedlevel.z_values[x][y];
-              if (current_z_value < min_value) min_value = current_z_value;
-              if (current_z_value > max_value) max_value = current_z_value;
-          }
+        for (int x = 0; x < lcd_rts_settings.max_points; x++) {
+            float current_z_value = bedlevel.z_values[x][y];
+            if (current_z_value < min_value) min_value = current_z_value;
+            if (current_z_value > max_value) max_value = current_z_value;
+        }
       }
       float deviation = max_value - min_value;
       float median = (min_value + max_value) / 2.0f;
@@ -5051,41 +4910,46 @@ void RTS_LoadMesh(void)
       float upper_bound = median + 0.04f / 2;
       // Add colors below green
       while (lower_bound > min_value) {
-          float range_end = std::max(min_value, lower_bound - additional_range);
-          color_ranges[num_ranges++] = {range_end, lower_bound, 0x07E0}; // Light Green
-          lower_bound = range_end;
+        float range_end = std::max(min_value, lower_bound - additional_range);
+        color_ranges[num_ranges++] = {range_end, lower_bound, 0x07E0}; // Light Green
+        lower_bound = range_end;
       }
       // Add colors above green
       while (upper_bound < max_value) {
-          float range_start = std::min(max_value, upper_bound + additional_range);
-          color_ranges[num_ranges++] = {upper_bound, range_start, 0xFFE0}; // Yellow
-          upper_bound = range_start;
+        float range_start = std::min(max_value, upper_bound + additional_range);
+        color_ranges[num_ranges++] = {upper_bound, range_start, 0xFFE0}; // Yellow
+        upper_bound = range_start;
       }
       for (int y = 0; y < lcd_rts_settings.max_points; y++) {
-          if (zig) {
-              inStart = lcd_rts_settings.max_points - 1;
-              inStop = -1;
-              inInc = -1;
-          } else {
-              inStart = 0;
-              inStop = lcd_rts_settings.max_points;
-              inInc = 1;
-          }
-          zig ^= true;
-          bool isEvenMesh = (lcd_rts_settings.max_points % 2 == 0);
-          for (int x = inStart; x != inStop; x += inInc) {
-              int display_x = isEvenMesh ? (lcd_rts_settings.max_points - 1 - x) : x; // Flip x-coordinate for even-sized mesh
-              float current_z_value = bedlevel.z_values[display_x][y];
-              rtscheck.RTS_SndData(current_z_value * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
-              rtscheck.RTS_SndData((unsigned long)0x0000, TrammingpointNature + (color_sp_offset + showcount + 1) * 16);
-              showcount++;
-          }
+        if (zig) {
+          inStart = lcd_rts_settings.max_points - 1;
+          inStop = -1;
+          inInc = -1;
+        } else {
+          inStart = 0;
+          inStop = lcd_rts_settings.max_points;
+          inInc = 1;
+        }
+        zig ^= true;
+        bool isEvenMesh = (lcd_rts_settings.max_points % 2 == 0);
+        for (int x = inStart; x != inStop; x += inInc) {
+          int display_x = isEvenMesh ? (lcd_rts_settings.max_points - 1 - x) : x; // Flip x-coordinate for even-sized mesh
+          float current_z_value = bedlevel.z_values[display_x][y];
+          rtscheck.RTS_SndData(current_z_value * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
+          rtscheck.RTS_SndData((unsigned long)0x0000, TrammingpointNature + (color_sp_offset + showcount + 1) * 16);
+          showcount++;
+        }
       }
       rtscheck.RTS_SndData(min_value * 1000, MESH_POINT_MIN);
       rtscheck.RTS_SndData(max_value * 1000, MESH_POINT_MAX);
       rtscheck.RTS_SndData(deviation * 1000, MESH_POINT_DEVIATION);
       rtscheck.RTS_SndData(lang, AUTO_LEVELING_START_TITLE_VP);
-      queue.enqueue_now_P(PSTR("M420 S1"));
+
+      if(!IS_SD_PRINTING()){
+        queue.enqueue_now_P(PSTR("M420 S1"));
+      }else{
+        RTS_LoadMainsiteIcons();
+      }
     }
 
 }
@@ -5101,28 +4965,196 @@ void RTS_ResetTime(void)
   rtscheck.RTS_SndData(0, PRINT_TIME_MIN_VP);
 }
 
+void RTS_CleanPrintAndSelectFile(void)
+{
+  for (int j = 0; j < 60; j++) {
+    rtscheck.RTS_SndData(0, SELECT_FILE_TEXT_VP + j);
+  }
+  for (int j = 0; j < 25; j++) {  
+    rtscheck.RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
+  }
+}
+
 void RTS_CleanPrintFile(void)
 {
-  for (int j = 0; j < 20; j++) {
-    // clean screen.
+  for (int j = 0; j < 25; j++) {
     rtscheck.RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
-    rtscheck.RTS_SndData(0, SELECT_FILE_TEXT_VP + j);
   }    
 }
 
-void RTS_LoadMainPage(void)
+void RTS_LoadMainsiteIcons(void)
 {
-  rtscheck.RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
-  #if ENABLED(GCODE_PREVIEW_ENABLED)
-    gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, true);
-  #endif
-  change_page_font = 1;
+  rtscheck.RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);
+  rtscheck.RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);
+  rtscheck.RTS_SndData(lcd_rts_settings.external_m73 ? 206 : 205, EXTERNAL_M73_ICON_VP);
+  rtscheck.RTS_SndData(bedlevel.mesh_is_valid() ? 213 : 212, MESH_SIZE_ICON_ONOFF_VP);   
 }
 
-void RTS_ShowHomeingPage(void)
+void RTS_ShowPage(uint8_t pageNumber)
 {
-  rtscheck.RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
-  change_page_font = 40;
+  rtscheck.RTS_SndData(ExchangePageBase + pageNumber, ExchangepageAddr);
+  change_page_font = pageNumber;
+}
+
+void RTS_ShowPreviewImage(bool status)
+{
+  #if ENABLED(GCODE_PREVIEW_ENABLED)
+    gcodePicDisplayOnOff(DEFAULT_PRINT_MODEL_VP, status);
+  #endif
+}
+
+void RTS_ShowMotorFreeIcon(bool status)
+{
+  rtscheck.RTS_SndData(status, MOTOR_FREE_ICON_VP);
+}
+
+void RTS_SendCurrentPosition(void)
+{
+  rtscheck.RTS_SndData(10 * current_position[X_AXIS], AXIS_X_COORD_VP);
+  rtscheck.RTS_SndData(10 * current_position[Y_AXIS], AXIS_Y_COORD_VP);
+  rtscheck.RTS_SndData(10 * current_position[Z_AXIS], AXIS_Z_COORD_VP);
+}
+
+void RTS_ResetHeadAndBedSetTemp(void)
+{
+  rtscheck.RTS_SndData(0, HEAD_SET_TEMP_VP);
+  rtscheck.RTS_SndData(0, BED_SET_TEMP_VP);
+}
+
+void RTS_SendMachineData(void)
+{
+  rtscheck.RTS_SndData(MACHINE_TYPE, MACHINE_TYPE_ABOUT_TEXT_VP);
+  rtscheck.RTS_SndData(FIRMWARE_VERSION, FIRMWARE_VERSION_ABOUT_TEXT_VP);
+  rtscheck.RTS_SndData(HARDWARE_VERSION, HARDWARE_VERSION_ABOUT_TEXT_VP);
+  rtscheck.RTS_SndData(PRINT_SIZE, PRINTER_PRINTSIZE_TEXT_VP);  
+}
+
+void RTS_SendBedTemp()
+{
+  thermalManager.setTargetBed(thermalManager.temp_bed.target);
+  rtscheck.RTS_SndData(thermalManager.temp_bed.target, BED_SET_TEMP_VP);
+}
+
+void RTS_SendHeadTemp()
+{
+  thermalManager.setTargetHotend(thermalManager.temp_hotend[0].target, 0);
+  rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD_SET_TEMP_VP);
+}
+
+void RTS_SendHeadCurrentTemp()
+{
+  rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD_CURRENT_TEMP_VP);
+  rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD_SET_TEMP_VP);
+}
+
+void RTS_SendMoveaxisUnitIcon(uint8_t icon)
+{
+  rtscheck.RTS_SndData(icon, MOVEAXIS_UNIT_ICON_VP);
+}
+
+void RTS_SendDefaultRates()
+{
+  rtscheck.RTS_SndData(default_max_feedrate[X_AXIS], MAX_VELOCITY_XAXIS_DATA_VP);
+  rtscheck.RTS_SndData(default_max_feedrate[Y_AXIS], MAX_VELOCITY_YAXIS_DATA_VP);
+  rtscheck.RTS_SndData(default_max_feedrate[Z_AXIS], MAX_VELOCITY_ZAXIS_DATA_VP);
+  rtscheck.RTS_SndData(default_max_feedrate[E_AXIS], MAX_VELOCITY_EAXIS_DATA_VP); 
+  delay(20);
+  rtscheck.RTS_SndData(default_max_acceleration[X_AXIS], MAX_ACCEL_XAXIS_DATA_VP);
+  rtscheck.RTS_SndData(default_max_acceleration[Y_AXIS], MAX_ACCEL_YAXIS_DATA_VP);
+  rtscheck.RTS_SndData(default_max_acceleration[Z_AXIS], MAX_ACCEL_ZAXIS_DATA_VP);
+  rtscheck.RTS_SndData(default_max_acceleration[E_AXIS], MAX_ACCEL_EAXIS_DATA_VP);
+  delay(20);
+  rtscheck.RTS_SndData(default_max_jerk[X_AXIS] * 100, MAX_JERK_XAXIS_DATA_VP);
+  rtscheck.RTS_SndData(default_max_jerk[Y_AXIS] * 100, MAX_JERK_YAXIS_DATA_VP);
+  rtscheck.RTS_SndData(default_max_jerk[Z_AXIS] * 100, MAX_JERK_ZAXIS_DATA_VP);
+  rtscheck.RTS_SndData(default_max_jerk[E_AXIS] * 100, MAX_JERK_EAXIS_DATA_VP);
+  delay(20);
+  rtscheck.RTS_SndData(default_axis_steps_per_unit[X_AXIS] * 10, MAX_STEPSMM_XAXIS_DATA_VP);
+  rtscheck.RTS_SndData(default_axis_steps_per_unit[Y_AXIS] * 10, MAX_STEPSMM_YAXIS_DATA_VP);
+  rtscheck.RTS_SndData(default_axis_steps_per_unit[Z_AXIS] * 10, MAX_STEPSMM_ZAXIS_DATA_VP);
+  rtscheck.RTS_SndData(default_axis_steps_per_unit[E_AXIS] * 10, MAX_STEPSMM_EAXIS_DATA_VP);
+  delay(20);
+  rtscheck.RTS_SndData(default_nozzle_ptemp * 100, NOZZLE_TEMP_P_DATA_VP);
+  rtscheck.RTS_SndData(default_nozzle_itemp * 100, NOZZLE_TEMP_I_DATA_VP);
+  rtscheck.RTS_SndData(default_nozzle_dtemp * 100, NOZZLE_TEMP_D_DATA_VP);
+  delay(20);
+  rtscheck.RTS_SndData(default_hotbed_ptemp * 100, HOTBED_TEMP_P_DATA_VP);
+  rtscheck.RTS_SndData(default_hotbed_itemp * 100, HOTBED_TEMP_I_DATA_VP);
+  rtscheck.RTS_SndData(default_hotbed_dtemp * 10, HOTBED_TEMP_D_DATA_VP);
+}
+
+void RTS_SendZoffsetFeedratePercentage(bool sendzoffset)
+{
+  if(sendzoffset){
+  rtscheck.RTS_SndData(zprobe_zoffset * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
+  }
+  rtscheck.RTS_SndData(feedrate_percentage, PRINT_SPEED_RATE_VP);  
+}
+
+void RTS_AxisZCoord()
+{
+  queue.enqueue_now_P(PSTR("G1 F600 Z0"));
+  rtscheck.RTS_SndData(10 * 0, AXIS_Z_COORD_VP);
+}
+
+void RTS_LoadMargins()
+{
+      //uint8_t min_margin_x;          
+      float probe_offset_x_temp;  
+
+      if (probe.offset_xy.x < 0) {
+        probe_offset_x_temp = fabs(probe.offset_xy.x);
+      }else{
+        probe_offset_x_temp = -fabs(probe.offset_xy.x);
+      }
+
+      max_reachable_pos_x = X_MAX_POS - custom_ceil(probe_offset_x_temp);       
+      min_calc_margin_x_bedlevel = X_BED_SIZE - max_reachable_pos_x;      
+
+      if(min_calc_margin_x_bedlevel >= lcd_rts_settings.probe_margin_x){
+        min_margin_x = static_cast<int>(std::ceil(min_calc_margin_x_bedlevel));
+      }else{
+        min_margin_x = static_cast<int>(std::ceil(lcd_rts_settings.probe_margin_x));
+      }        
+      //uint8_t min_margin_y_back;
+      float probe_offset_y_temp;  
+      if (probe.offset_xy.y < 0) {
+        probe_offset_y_temp = fabs(probe.offset_xy.y);
+      }else{
+        probe_offset_y_temp = -fabs(probe.offset_xy.y);
+      }
+      if (probe.offset_xy.y == 0) {
+        probe_offset_y_temp = probe.offset_xy.y;
+      }
+      max_reachable_pos_y = Y_MAX_POS - custom_ceil(probe_offset_y_temp);       
+      if (max_reachable_pos_y >= Y_BED_SIZE){
+        min_calc_margin_y_bedlevel = probe_offset_y_temp;
+      }else{
+        min_calc_margin_y_bedlevel = Y_BED_SIZE - max_reachable_pos_y;  
+      }
+      if (min_calc_margin_y_bedlevel <= 10){
+          min_calc_margin_y_bedlevel = 10;
+      }
+
+      if (min_calc_margin_y_bedlevel <= lcd_rts_settings.probe_margin_y){
+        if (min_calc_margin_x_bedlevel <= lcd_rts_settings.probe_margin_y){
+          if (lcd_rts_settings.probe_margin_y <= lcd_rts_settings.probe_margin_x){
+            lcd_rts_settings.probe_min_margin_y = lcd_rts_settings.probe_margin_y;
+          }else{
+            lcd_rts_settings.probe_min_margin_y = lcd_rts_settings.probe_margin_x;
+          }
+        }else{
+          lcd_rts_settings.probe_min_margin_y = lcd_rts_settings.probe_margin_y;
+        }
+      }else{
+        lcd_rts_settings.probe_min_margin_y = min_calc_margin_y_bedlevel;
+      }
+
+      if(min_calc_margin_y_bedlevel >= lcd_rts_settings.probe_margin_y){
+        min_margin_y_back = static_cast<int>(std::ceil(min_calc_margin_y_bedlevel));
+      }else{
+        min_margin_y_back = static_cast<int>(std::ceil(lcd_rts_settings.probe_margin_y));
+      }
 }
 
 void RTS_MoveAxisHoming(void)
@@ -5140,7 +5172,8 @@ void RTS_MoveAxisHoming(void)
   else if(waitway == 7)
   {
     // Click Print finish
-    RTS_LoadMainPage();
+    RTS_ShowPage(1);
+    RTS_ShowPreviewImage(true);
     waitway = 0;
   }else if(waitway == 8)
   {
@@ -5153,8 +5186,7 @@ void RTS_MoveAxisHoming(void)
     change_page_font = 70 + (AxisUnitMode - 1);
     waitway = 0;
   }else if(waitway == 10){
-    rtscheck.RTS_SndData(ExchangePageBase + 51 , ExchangepageAddr);
-    change_page_font = 51;
+    RTS_ShowPage(51);
     waitway = 0;
   }else if(waitway == 14)
   {
@@ -5169,14 +5201,12 @@ void RTS_MoveAxisHoming(void)
     }      
   else if(waitway == 16)
     {
-      rtscheck.RTS_SndData(ExchangePageBase + 25, ExchangepageAddr);
-      change_page_font = 25;
+      RTS_ShowPage(25);
       waitway = 0;
     } 
   else if(waitway == 17)
     {
-      rtscheck.RTS_SndData(ExchangePageBase + 89, ExchangepageAddr);
-      change_page_font = 89;
+      RTS_ShowPage(89);
       waitway = 0;
     }       
 
@@ -5197,11 +5227,9 @@ void RTS_CommandPause(void)
 {
   if(card.isPrinting())
   {
-        rtscheck.RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
-        rtscheck.RTS_SndData(recovery.enabled ? 101 : 102, POWERCONTINUE_CONTROL_ICON_VP);
-        rtscheck.RTS_SndData(runout.enabled ? 101 : 102, FILAMENT_CONTROL_ICON_VP);
-        rtscheck.RTS_SndData(ExchangePageBase + 13, ExchangepageAddr);
-        change_page_font = 13;
+        //rtscheck.RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
+        RTS_LoadMainsiteIcons();
+        RTS_ShowPage(13);
 
     // card.pauseSDPrint();
     // print_job_timer.pause();
@@ -5225,7 +5253,7 @@ void ErrorHanding(void)
       errorway = 0;
       waitway  = 4;
       queue.enqueue_now_P(PSTR("G28"));
-      rtscheck.RTS_SndData(0, MOTOR_FREE_ICON_VP);
+      RTS_ShowMotorFreeIcon(false);
       Update_Time_Value = 0;
     }
     else
@@ -5233,8 +5261,7 @@ void ErrorHanding(void)
       // After three failed returns to home, it will report the failure interface
       home_errornum = 0;
       errorway = 0;
-      rtscheck.RTS_SndData(ExchangePageBase + 41, ExchangepageAddr);
-      change_page_font = 41;
+      RTS_ShowPage(41);
       // Z axis home failed
       rtscheck.RTS_SndData(Error_202, ABNORMAL_PAGE_TEXT_VP);
       if(printingIsActive())

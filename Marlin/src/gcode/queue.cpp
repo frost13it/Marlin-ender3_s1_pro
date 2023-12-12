@@ -706,8 +706,7 @@ void GCodeQueue::get_serial_commands() {
             }else
           #endif
           {
-            rtscheck.RTS_SndData(ExchangePageBase + 9, ExchangepageAddr);
-             change_page_font = 9;
+            RTS_ShowPage(9);
           }
 
           // if(flag_over_shutdown)

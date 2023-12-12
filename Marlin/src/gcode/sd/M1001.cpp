@@ -131,8 +131,7 @@ void GcodeSuite::M1001() {
 
   #if ALL(E3S1PRO_RTS, HAS_CUTTER)
   if(laser_device.is_laser_device()){ 
-    rtscheck.RTS_SndData(ExchangePageBase + 60, ExchangepageAddr);
-    change_page_font = 60;
+    RTS_ShowPage(60);
   }
   #endif
 

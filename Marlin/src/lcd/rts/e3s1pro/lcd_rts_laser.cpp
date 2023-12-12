@@ -87,7 +87,7 @@ static void RTS_line_to_filelist_laser() {
   rtscheck.RTS_SndData(statStr2, PAGE_STATUS_TEXT_TOTAL_VP);
 
   for (int i = 0; i < 20; i += 20) {
-    for (int j = 0; j < 20; j++) {
+    for (int j = 0; j < 60; j++) {
       rtscheck.RTS_SndData(0, FILE1_TEXT_VP + i + j);
     }
   }  
@@ -102,27 +102,80 @@ static void RTS_line_to_filelist_laser() {
   memset(&CardRecbuf, 0, sizeof(CardRecbuf));
 
   int num = 0;
-  for (int16_t i = (file_current_page_laser - 1) * 5; i < (file_current_page_laser * 5); i++) {
-    card.selectFileByIndexSorted(i);
-    char *pointFilename = card.longFilename;
-    int filenamelen = strlen(card.longFilename);
-    int j = 1;
-    while ((strncmp(&pointFilename[j], ".gcode", 6) && strncmp(&pointFilename[j], ".GCODE", 6) && strncmp(&pointFilename[j], ".gco", 4) && strncmp(&pointFilename[j], ".GCO", 4)) && ((j++) < filenamelen));
+  for (int16_t i = (file_current_page_laser - 1) * 5; i < (file_current_page_laser * 5); i++) {  
+      card.selectFileByIndexSorted(i);
+      #if ENABLED(LCD_RTS_DEBUG)    
+          SERIAL_ECHO_MSG("card.longFilename ", card.longFilename); 
+      #endif
+      char *pointFilename = card.longFilename;
+      int filenamelen = strlen(card.longFilename);
 
-    if (j >= TEXTBYTELEN) {
-      strncpy(&card.longFilename[TEXTBYTELEN - 3], "..", 2);
-      card.longFilename[TEXTBYTELEN - 1] = '\0';
-      j = TEXTBYTELEN - 1;
-    }
-    strncpy(CardRecbuf.Cardshowfilename[num], card.longFilename, j);
-        #if ENABLED(LCD_RTS_DEBUG)
-        SERIAL_ECHO("inside rts_line_to_filelist_laser");
-        SERIAL_ECHOLN("");
-        #endif
-    strcpy(CardRecbuf.Cardfilename[num], card.filename);
-    CardRecbuf.addr[num] = FILE1_TEXT_VP + (num * 20);
-    rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[num], CardRecbuf.addr[num]);
-    CardRecbuf.Filesum = (++num);
+      if (!CardRecbuf.Cardshowlongfilename[num]) {
+          CardRecbuf.Cardshowlongfilename[num] = new char[filenamelen + 1];
+          strcpy(CardRecbuf.Cardshowlongfilename[num], card.longFilename);
+      }
+
+      int j = 1;
+      while ((strncmp(&pointFilename[j], ".gcode", 6) != 0 && strncmp(&pointFilename[j], ".GCODE", 6) != 0 && strncmp(&pointFilename[j], ".GCO", 4) != 0 && strncmp(&pointFilename[j], ".gco", 4) != 0) && (j++ < filenamelen));
+
+      // Check if the file extension is corrupted
+      const char* expectedExtensions[] = {".gcode", ".GCODE", ".gco", ".GCO"};
+      bool extensionCorrupted = true;
+
+      for (size_t k = 0; k < sizeof(expectedExtensions) / sizeof(expectedExtensions[0]); ++k) {
+          if (EndsWith(card.longFilename, expectedExtensions[k])) {
+              extensionCorrupted = false;
+              break;
+          }
+      }
+
+      if (j >= TEXTBYTELEN) {
+        strncpy(&card.longFilename[TEXTBYTELEN - 2], "..", 2); // Reserve 2 characters for ".."
+        card.longFilename[TEXTBYTELEN] = '\0';
+        j = TEXTBYTELEN;
+      } else {
+        j = min(j, TEXTBYTELEN); // Use the smaller of j and TEXTBYTELEN
+      }
+      if (extensionCorrupted) {
+        rtscheck.RTS_SndData((unsigned long)0xFFFF, FilenameNature + (num + 1) * 16);
+        rtscheck.RTS_SndData(204, FILE6_SELECT_ICON_VP + num);          
+      }
+      // Debugging
+      #if ENABLED(LCD_RTS_DEBUG)
+        SERIAL_ECHO_MSG("Filename after truncation: ", card.longFilename);
+        SERIAL_ECHO_MSG("j value: ", j);
+      #endif
+
+      strncpy(CardRecbuf.Cardshowfilename[num], card.longFilename, min(j, TEXTBYTELEN));
+      CardRecbuf.Cardshowfilename[num][TEXTBYTELEN - 1] = '\0';
+
+      #if ENABLED(LCD_RTS_DEBUG)
+          SERIAL_ECHO("inside rts_line_to_filelist");
+          SERIAL_ECHOLN("");
+      #endif
+
+      strcpy(CardRecbuf.Cardfilename[num], card.filename);
+      CardRecbuf.addr[num] = FILE1_TEXT_VP + (num * 60);
+      rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[num], CardRecbuf.addr[num]);
+
+      if (!EndsWith(CardRecbuf.Cardshowlongfilename[num], "gcode") && !EndsWith(CardRecbuf.Cardshowlongfilename[num], "GCO") 
+        && !EndsWith(CardRecbuf.Cardshowlongfilename[num], "GCODE") && !EndsWith(CardRecbuf.Cardshowlongfilename[num], "gco")) 
+      {
+          rtscheck.RTS_SndData((unsigned long)0x073F, FilenameNature + (num + 1) * 16);
+          rtscheck.RTS_SndData(203, FILE6_SELECT_ICON_VP + num);
+      }
+      if (EndsWith(CardRecbuf.Cardshowlongfilename[num], "gcode") || EndsWith(CardRecbuf.Cardshowlongfilename[num], "GCO") 
+        || EndsWith(CardRecbuf.Cardshowlongfilename[num], "GCODE") || EndsWith(CardRecbuf.Cardshowlongfilename[num], "gco")) 
+      {
+          rtscheck.RTS_SndData((unsigned long)0xFFFF, FilenameNature + (num + 1) * 16);
+          rtscheck.RTS_SndData(204, FILE6_SELECT_ICON_VP + num);
+      }
+
+      if (filenamelen == 0) 
+      {
+          rtscheck.RTS_SndData(0, FILE6_SELECT_ICON_VP + num);
+      }
+      CardRecbuf.Filesum = (++num);
   }
   page_total_file_laser = CardRecbuf.Filesum;
   CardRecbuf.Filesum = ((file_total_page_laser - 1) * 5) + page_total_file_laser;
@@ -148,17 +201,13 @@ void RTSSHOW::RTS_SDcard_Stop_laser(void)
     #endif
   }
 
-  RTS_SndData(1, MOTOR_FREE_ICON_VP);
+  RTS_ShowMotorFreeIcon(true);
   RTS_SndData(0, PRINT_PROCESS_ICON_VP);
   RTS_SndData(0, PRINT_PROCESS_VP);
   delay(2);
-  RTS_CleanPrintFile();
+  RTS_CleanPrintAndSelectFile();
   planner.synchronize();
-
-  // RTS_SndData(ExchangePageBase + 51, ExchangepageAddr);
-  // change_page_font = 51;
 }
-
 
 void RTSSHOW::RTS_HandleData_Laser(void)
 {
@@ -221,19 +270,22 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         {
         int16_t fileCnt_laser = card.get_num_items();
 
-        if (fileCnt_laser > 5) {
-          file_total_page_laser = (fileCnt_laser / 5) + 1;
-          if (file_total_page_laser > 8) file_total_page_laser = 8;
+        if (fileCnt_laser > 0) {
+          file_total_page_laser = fileCnt_laser / 5;
+          if (fileCnt_laser % 5 > 0) { // Add an extra page only if there are leftover files
+            file_total_page_laser++;
+          }
+          if (file_total_page_laser > 8) file_total_page_laser = 8; // Limit the maximum number of pages
         }
-        else
+        else {
           file_total_page_laser = 1;
+        }
 
         RTS_SndData(file_total_page_laser, PAGE_STATUS_TEXT_TOTAL_VP);
         file_current_page_laser = 1;
         RTS_SndData(file_current_page_laser, PAGE_STATUS_TEXT_CURRENT_VP);
 
-        RTS_SndData(ExchangePageBase + 52, ExchangepageAddr);
-        change_page_font = 52;
+        RTS_ShowPage(52);
         if (IS_SD_INSERTED()) RTS_line_to_filelist_laser();
         }
         CardUpdate = false;        
@@ -248,15 +300,13 @@ void RTSSHOW::RTS_HandleData_Laser(void)
           laser_axes_should_home = true;
           waitway = 9;
           queue.enqueue_now_P(HOME_LASER);
-          RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
-          change_page_font = 40;
+          RTS_ShowPage(40);
           
           RTS_SndData(0, AXIS_X_COORD_VP);
           RTS_SndData(10*10, AXIS_Y_COORD_VP);
 
         }else{
-          RTS_SndData(ExchangePageBase + 70, ExchangepageAddr);
-          change_page_font = 70;
+          RTS_ShowPage(70);
           RTS_SndData(10 * current_position[Y_AXIS], AXIS_Y_COORD_VP);
           RTS_SndData(10 * current_position[Z_AXIS], AXIS_Z_COORD_VP);
         }
@@ -265,18 +315,16 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       }
       else if(recdat.data[0] == 3)
       {
-        RTS_SndData(ExchangePageBase + 64, ExchangepageAddr);
-        change_page_font = 64;
+        RTS_ShowPage(64);
         EEPROM_SAVE_LANGUAGE();
       }
       else if(recdat.data[0] == 4)
       {
-        RTS_SndData(ExchangePageBase + 25, ExchangepageAddr);
-        change_page_font = 25;
+        RTS_ShowPage(25);
         planner.synchronize();
         queue.enqueue_now_P(PSTR("G28\nG1 F200 Z0.0"));
         //RTS_SndData(1, AUTO_BED_LEVEL_TITLE_VP);
-        RTS_SndData(0, MOTOR_FREE_ICON_VP);
+        RTS_ShowMotorFreeIcon(false);
       }
       else if(recdat.data[0] == 5)
       {
@@ -284,20 +332,17 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         queue.clear();
         quickstop_stepper();
         print_job_timer.stop();
-        RTS_SndData(0, MOTOR_FREE_ICON_VP); // 激光时锁定
+        RTS_ShowMotorFreeIcon(false); // 激光时锁定
         RTS_ResetTime();
         print_job_timer.reset();
-        RTS_CleanPrintFile();
-        RTS_SndData(ExchangePageBase + 51, ExchangepageAddr);
-        change_page_font = 51;
+        RTS_CleanPrintAndSelectFile();
+        RTS_ShowPage(51);
       }
       else if(recdat.data[0] == 6)
       {
         waitway = 3;
         RTS_SndData(1, AUTO_BED_LEVEL_TITLE_VP);
         RTS_SndData(AUTO_BED_LEVEL_PREHEAT, AUTO_BED_PREHEAT_HEAD_DATA_VP);
-        // RTS_SndData(ExchangePageBase + 26, ExchangepageAddr);
-        // change_page_font = 26;
         rtscheck.RTS_SndData(0 , AUTO_LEVELING_PERCENT_DATA_VP);  
         thermalManager.setTargetHotend(AUTO_BED_LEVEL_PREHEAT, 0);
         RTS_SndData(AUTO_BED_LEVEL_PREHEAT, HEAD_SET_TEMP_VP);
@@ -308,7 +353,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
 
         if(axes_should_home()) queue.enqueue_one_P(PSTR("G28"));
         queue.enqueue_one_P(PSTR("G29"));
-        RTS_SndData(0, MOTOR_FREE_ICON_VP);
+        RTS_ShowMotorFreeIcon(false);
       }
       else if(recdat.data[0] == 7)
       {
@@ -331,8 +376,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       }
       else if(recdat.data[0] == 8)
       {
-        RTS_SndData(ExchangePageBase + 51, ExchangepageAddr);
-        change_page_font = 51;
+        RTS_ShowPage(51);
         EEPROM_SAVE_LANGUAGE();
       }
       break;
@@ -340,46 +384,40 @@ void RTSSHOW::RTS_HandleData_Laser(void)
     case AdjustEnterKey:
       if(recdat.data[0] == 1)
       {
-        RTS_SndData(ExchangePageBase + 74, ExchangepageAddr);
-        change_page_font = 74;
+        RTS_ShowPage(74);
       }
       else if(recdat.data[0] == 2)
       {
         if(card.isPrinting())
         {
-          RTS_SndData(ExchangePageBase + 59, ExchangepageAddr);
-          change_page_font = 59;
+          RTS_ShowPage(59);
         }
         else
         {
-          RTS_SndData(ExchangePageBase + 61, ExchangepageAddr);
-          change_page_font = 61;
+          RTS_ShowPage(61);
         }
         // settings.save();
       }
       else if(recdat.data[0] == 5)
       {
-        RTS_SndData(ExchangePageBase + 15, ExchangepageAddr);
-        change_page_font = 15;
+        RTS_ShowPage(15);
       }
       else if(recdat.data[0] == 7)
       {
-        RTS_SndData(ExchangePageBase + 74, ExchangepageAddr);
-        change_page_font = 74;
+        RTS_ShowPage(74);
         settings.save();
       }
       break;
 
     case PrintSpeedEnterKey:
       feedrate_percentage = recdat.data[0];
-      RTS_SndData(feedrate_percentage, PRINT_SPEED_RATE_VP);
+      RTS_SendZoffsetFeedratePercentage(false);
       break;
 
     case StopPrintKey:
       if(recdat.data[0] == 1)
       {
-        RTS_SndData(ExchangePageBase + 58, ExchangepageAddr);
-        change_page_font = 58;
+        RTS_ShowPage(58);
       }
       else if(recdat.data[0] == 2)
       {
@@ -392,8 +430,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
 
         //runout.reset();
 
-        RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
-        change_page_font = 40;
+        RTS_ShowPage(40);
         RTS_SDcard_Stop_laser();
         cutter.apply_power(0);//关闭激光
       }
@@ -401,13 +438,11 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       {
         if(card.isPrinting())
         {
-          RTS_SndData(ExchangePageBase + 59, ExchangepageAddr);
-          change_page_font = 59;
+          RTS_ShowPage(59);
         }
         else
         {
-          RTS_SndData(ExchangePageBase + 61, ExchangepageAddr);
-          change_page_font = 61;
+          RTS_ShowPage(61);
         }
       }
       break;
@@ -417,13 +452,11 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       {
         if(card.isPrinting())// && (thermalManager.temp_hotend[0].celsius > (thermalManager.temp_hotend[0].target - 5)) && (thermalManager.temp_bed.celsius > (thermalManager.temp_bed.target - 3)))
         {
-          RTS_SndData(ExchangePageBase + 62, ExchangepageAddr);
-          change_page_font = 62;
+          RTS_ShowPage(62);
         }
         else 
         {
-          RTS_SndData(ExchangePageBase + 59, ExchangepageAddr);
-          change_page_font = 59;
+          RTS_ShowPage(59);
         }
       }
       else if(recdat.data[0] == 2)
@@ -434,8 +467,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         print_job_timer.pause();
         pause_action_flag = true;
         Update_Time_Value = 0;
-        RTS_SndData(ExchangePageBase + 61, ExchangepageAddr);
-        change_page_font = 61;
+        RTS_ShowPage(61);
         planner.synchronize();
         sdcard_pause_check = false;
         // queue.inject((char*)"M25");
@@ -444,13 +476,11 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       {
         if(card.isPrinting())
         {
-          RTS_SndData(ExchangePageBase + 59, ExchangepageAddr);
-          change_page_font = 59;
+          RTS_ShowPage(59);
         }
         else
         {
-          RTS_SndData(ExchangePageBase + 61, ExchangepageAddr);
-          change_page_font = 61;
+          RTS_ShowPage(61);
         }
       }
       break;
@@ -458,8 +488,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
     case ResumePrintKey:
       if(recdat.data[0] == 1)
       {
-        RTS_SndData(ExchangePageBase + 59, ExchangepageAddr);
-        change_page_font = 59;
+        RTS_ShowPage(59);
         cutter.apply_power(laser_device.power);
         card.startOrResumeFilePrinting();
         print_job_timer.start();
@@ -478,8 +507,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         // runout.filament_ran_out = false;
         //runout.reset();
 
-        RTS_SndData(ExchangePageBase + 10, ExchangepageAddr);
-        change_page_font = 10;
+        RTS_ShowPage(10);
 
         // card.startFileprint();
         print_job_timer.start();
@@ -515,36 +543,26 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       //SERIAL_ECHOPAIR("PrepareEnterKey=", recdat.data[0]);
       if(recdat.data[0] == 1)
       {
-        RTS_SndData(ExchangePageBase + 28, ExchangepageAddr);
-        change_page_font = 28;
+        RTS_ShowPage(28);
       }
       else if(recdat.data[0] == 2) //语言选择
       {
-        RTS_SndData(ExchangePageBase + 65, ExchangepageAddr);
-        change_page_font = 65;
+        RTS_ShowPage(65);
         EEPROM_SAVE_LANGUAGE();
       }
       else if(recdat.data[0] == 3)
       {
-        rtscheck.RTS_SndData(10 * current_position[X_AXIS], AXIS_X_COORD_VP);
-        rtscheck.RTS_SndData(10 * current_position[Y_AXIS], AXIS_Y_COORD_VP);
-        rtscheck.RTS_SndData(10 * current_position[Z_AXIS], AXIS_Z_COORD_VP);
+        RTS_SendCurrentPosition();
         delay(2);
-        RTS_SndData(ExchangePageBase + 70, ExchangepageAddr);
-        change_page_font = 70;
+        RTS_ShowPage(70);
       }
       else if(recdat.data[0] == 4)
       {
-        RTS_SndData(ExchangePageBase + 58, ExchangepageAddr);
-        change_page_font = 58;
+        RTS_ShowPage(58);
       }
       else if(recdat.data[0] == 5)
       {
-        RTS_SndData(MACHINE_TYPE, MACHINE_TYPE_ABOUT_TEXT_VP);
-        RTS_SndData(FIRMWARE_VERSION, FIRMWARE_VERSION_ABOUT_TEXT_VP);
-        //RTS_SndData(SCREEN_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP); // 20220223 屏幕版本改由屏幕工程设定
-        RTS_SndData(HARDWARE_VERSION, HARDWARE_VERSION_ABOUT_TEXT_VP);
-        RTS_SndData(PRINT_SIZE, PRINTER_PRINTSIZE_TEXT_VP);
+        RTS_SendMachineData();
         delay(5);
         if(1 == lang)
         {
@@ -554,35 +572,30 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         {
           RTS_SndData(CORP_WEBSITE_E, WEBSITE_ABOUT_TEXT_VP);
         }
-        RTS_SndData(ExchangePageBase + 66, ExchangepageAddr);
-        change_page_font = 66;
+        RTS_ShowPage(66);
         EEPROM_SAVE_LANGUAGE();
       }
       else if(recdat.data[0] == 6)
       {
         queue.enqueue_now_P(PSTR("M84"));
-        RTS_SndData(1, MOTOR_FREE_ICON_VP);
+        RTS_ShowMotorFreeIcon(true);
       }
       else if(recdat.data[0] == 7)
       {
-        RTS_SndData(ExchangePageBase + 43, ExchangepageAddr);
-        change_page_font = 43;
+        RTS_ShowPage(43);
       }
       else if(recdat.data[0] == 8)
       {
         settings.save();
-        RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
-        change_page_font = 21;
+        RTS_ShowPage(21);
       }
       else if(recdat.data[0] == 9)
       {
-        RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
-        change_page_font = 1;
+        RTS_ShowPage(1);
       }
       else if(recdat.data[0] == 0xA)
       {
-        RTS_SndData(ExchangePageBase + 42, ExchangepageAddr);
-        change_page_font = 42;
+        RTS_ShowPage(42);
       }
       else if(recdat.data[0] == 0xB)// 恢复出厂设置  确定
       {
@@ -593,44 +606,37 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         (void)settings.reset(); 
         (void)settings.save();
         RTS_Init(); 
-        RTS_SndData(ExchangePageBase + 51, ExchangepageAddr);
-        change_page_font = 51;
+        RTS_ShowPage(51);
       }
       else if(recdat.data[0] == 0xC)
       {
-        RTS_SndData(ExchangePageBase + 44, ExchangepageAddr);
-        change_page_font = 44;
+        RTS_ShowPage(44);
       }
       else if(recdat.data[0] == 0xD)
       {
         settings.reset();
         settings.save();
-        RTS_SndData(ExchangePageBase + 33, ExchangepageAddr);
-        change_page_font = 33;
+        RTS_ShowPage(33);
       }
       else if(recdat.data[0] == 0xE) // 恢复出厂设置  取消
       {
         if(!planner.has_blocks_queued())
         {
-	        RTS_SndData(ExchangePageBase + 64, ExchangepageAddr);
-	        change_page_font = 64;
+	        RTS_ShowPage(64);
 	      }
       }
       else if(recdat.data[0] == 0xF)//高级设置
       {
-        RTS_SndData(ExchangePageBase + 64, ExchangepageAddr);
-        change_page_font = 64;
+        RTS_ShowPage(64);
         settings.save();//delay(100);
       }
       else if(recdat.data[0] == 0x10)
       {
-        RTS_SndData(ExchangePageBase + 25, ExchangepageAddr);
-        change_page_font = 25;
+        RTS_ShowPage(25);
       }
       else if(recdat.data[0] == 0x11)
       {
-        RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
-        change_page_font = 21;
+        RTS_ShowPage(21);
       }
       break;
 
@@ -639,38 +645,35 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       {
         AxisUnitMode = 1;
         axis_unit = 10.0;
-        RTS_SndData(ExchangePageBase + 70, ExchangepageAddr);
-        change_page_font = 70;
-        RTS_SndData(3, MOVEAXIS_UNIT_ICON_VP);
+        RTS_ShowPage(70);
+        RTS_SendMoveaxisUnitIcon(3);
       }
       else if(recdat.data[0] == 2)
       {
         AxisUnitMode = 2;
         axis_unit = 1.0;
-        RTS_SndData(ExchangePageBase + 71, ExchangepageAddr);
-        change_page_font = 71;
-        RTS_SndData(2, MOVEAXIS_UNIT_ICON_VP);
+        RTS_ShowPage(71);
+        RTS_SendMoveaxisUnitIcon(2);
       }
       else if(recdat.data[0] == 3)
       {
         AxisUnitMode = 3;
         axis_unit = 0.1;
-        RTS_SndData(ExchangePageBase + 72, ExchangepageAddr);
-        change_page_font = 72;
-        RTS_SndData(1, MOVEAXIS_UNIT_ICON_VP);
+        RTS_ShowPage(72);
+        RTS_SendMoveaxisUnitIcon(1);
       }
       else if(recdat.data[0] == 4)
       {
         waitway = 4;
         queue.enqueue_now_P(PSTR("G28 X Y"));
         Update_Time_Value = 0;
-        RTS_SndData(0, MOTOR_FREE_ICON_VP);
+        RTS_ShowMotorFreeIcon(false);
       }
       else if(recdat.data[0] == 5)
       {
         waitway = 4;
         queue.enqueue_now_P(PSTR("G28 Z"));
-        RTS_SndData(0, MOTOR_FREE_ICON_VP);
+        RTS_ShowMotorFreeIcon(false);
         Update_Time_Value = 0;
       }
       break;
@@ -692,7 +695,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       RTS_line_to_current(X_AXIS);
       RTS_SndData(10 * current_position[X_AXIS], AXIS_X_COORD_VP);
       delay(1);
-      RTS_SndData(0, MOTOR_FREE_ICON_VP);
+      RTS_ShowMotorFreeIcon(false);
       waitway = 0;
       break;
 
@@ -713,7 +716,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       RTS_line_to_current(Y_AXIS);
       RTS_SndData(10 * current_position[Y_AXIS], AXIS_Y_COORD_VP);
       delay(1);
-      RTS_SndData(0, MOTOR_FREE_ICON_VP);
+      RTS_ShowMotorFreeIcon(false);
       waitway = 0;
       break;
 
@@ -736,7 +739,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       RTS_line_to_current(Z_AXIS);
       RTS_SndData(10 * current_position[Z_AXIS], AXIS_Z_COORD_VP);
       delay(1);
-      RTS_SndData(0, MOTOR_FREE_ICON_VP);
+      RTS_ShowMotorFreeIcon(false);
       waitway = 0;
       break;
 
@@ -765,24 +768,21 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         {
           power_off_type_yes = true;
           Update_Time_Value = 0;
-          RTS_SndData(ExchangePageBase + 10, ExchangepageAddr);
-          change_page_font = 10;
+          RTS_ShowPage(10);
           // recovery.resume();
           queue.enqueue_now_P(PSTR("M1000"));
 
           PoweroffContinue = true;
           sdcard_pause_check = true;
           zprobe_zoffset = probe.offset.z;
-          RTS_SndData(zprobe_zoffset * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
-          RTS_SndData(feedrate_percentage, PRINT_SPEED_RATE_VP);
+          RTS_SendZoffsetFeedratePercentage(true);
         }
       #endif
       }
       else if(recdat.data[0] == 2)
       {
         Update_Time_Value = RTS_UPDATE_VALUE;
-        RTS_SndData(ExchangePageBase + 51, ExchangepageAddr);
-        change_page_font = 51;
+        RTS_ShowPage(51);
         RTS_SndData(0, PRINT_TIME_HOUR_VP);
         RTS_SndData(0, PRINT_TIME_MIN_VP);
         Update_Time_Value = 0;
@@ -793,62 +793,27 @@ void RTSSHOW::RTS_HandleData_Laser(void)
     case StoreMemoryKey:
       if(recdat.data[0] == 1)
       {
-        rtscheck.RTS_SndData(ExchangePageBase + 37, ExchangepageAddr);
-        change_page_font = 37;
+        RTS_ShowPage(37);
       }
       if(recdat.data[0] == 2)
       {
         queue.enqueue_now_P(PSTR("M502"));
-        rtscheck.RTS_SndData(ExchangePageBase + 33, ExchangepageAddr);
-        change_page_font = 33;
+        RTS_ShowPage(33);
         settings.save();
-        RTS_SndData(default_max_feedrate[X_AXIS], MAX_VELOCITY_XAXIS_DATA_VP);
-        RTS_SndData(default_max_feedrate[Y_AXIS], MAX_VELOCITY_YAXIS_DATA_VP);
-        RTS_SndData(default_max_feedrate[Z_AXIS], MAX_VELOCITY_ZAXIS_DATA_VP);
-        RTS_SndData(default_max_feedrate[E_AXIS], MAX_VELOCITY_EAXIS_DATA_VP); 
-        // delay(20);
-
-        RTS_SndData(default_max_acceleration[X_AXIS], MAX_ACCEL_XAXIS_DATA_VP);
-        RTS_SndData(default_max_acceleration[Y_AXIS], MAX_ACCEL_YAXIS_DATA_VP);
-        RTS_SndData(default_max_acceleration[Z_AXIS], MAX_ACCEL_ZAXIS_DATA_VP);
-        RTS_SndData(default_max_acceleration[E_AXIS], MAX_ACCEL_EAXIS_DATA_VP);
-        // delay(20);
-
-        RTS_SndData(default_max_jerk[X_AXIS] * 100, MAX_JERK_XAXIS_DATA_VP);
-        RTS_SndData(default_max_jerk[Y_AXIS] * 100, MAX_JERK_YAXIS_DATA_VP);
-        RTS_SndData(default_max_jerk[Z_AXIS] * 100, MAX_JERK_ZAXIS_DATA_VP);
-        RTS_SndData(default_max_jerk[E_AXIS] * 100, MAX_JERK_EAXIS_DATA_VP);
-        // delay(20);
-
-        RTS_SndData(default_axis_steps_per_unit[X_AXIS] * 10, MAX_STEPSMM_XAXIS_DATA_VP);
-        RTS_SndData(default_axis_steps_per_unit[Y_AXIS] * 10, MAX_STEPSMM_YAXIS_DATA_VP);
-        RTS_SndData(default_axis_steps_per_unit[Z_AXIS] * 10, MAX_STEPSMM_ZAXIS_DATA_VP);
-        RTS_SndData(default_axis_steps_per_unit[E_AXIS] * 10, MAX_STEPSMM_EAXIS_DATA_VP);
-        // delay(20);
-
-        RTS_SndData(default_nozzle_ptemp * 100, NOZZLE_TEMP_P_DATA_VP);
-        RTS_SndData(default_nozzle_itemp * 100, NOZZLE_TEMP_I_DATA_VP);
-        RTS_SndData(default_nozzle_dtemp * 100, NOZZLE_TEMP_D_DATA_VP);
-        delay(20);
-        RTS_SndData(default_hotbed_ptemp * 100, HOTBED_TEMP_P_DATA_VP);
-        RTS_SndData(default_hotbed_itemp * 100, HOTBED_TEMP_I_DATA_VP);
-        RTS_SndData(default_hotbed_dtemp * 10, HOTBED_TEMP_D_DATA_VP);
+        RTS_SendDefaultRates();
         // delay(100);
       }
       else if(recdat.data[0] == 3)
       {
-        rtscheck.RTS_SndData(ExchangePageBase + 33, ExchangepageAddr);
-        change_page_font = 33;
+        RTS_ShowPage(33);
       }
       else if(recdat.data[0] == 4)
       {
-        rtscheck.RTS_SndData(ExchangePageBase + 34, ExchangepageAddr);
-        change_page_font = 34;
+        RTS_ShowPage(34);
       }
       else if(recdat.data[0] == 5)
       {
-        rtscheck.RTS_SndData(ExchangePageBase + 39, ExchangepageAddr);
-        change_page_font = 39;
+        RTS_ShowPage(39);
       }
       // else if(recdat.data[0] == 6)
       // {
@@ -869,42 +834,35 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       // }
       else if(recdat.data[0] == 7) //传动比
       {
-        rtscheck.RTS_SndData(ExchangePageBase + 76, ExchangepageAddr);
-        change_page_font = 76;
+        RTS_ShowPage(76);
       }
       else if(recdat.data[0] == 8) //最大加速度
       {
-        rtscheck.RTS_SndData(ExchangePageBase + 67, ExchangepageAddr);
-        change_page_font = 67;
+        RTS_ShowPage(67);
       }
       else if(recdat.data[0] == 9) //最大拐角速度
       {
-        rtscheck.RTS_SndData(ExchangePageBase + 68, ExchangepageAddr);
-        change_page_font = 68;
+        RTS_ShowPage(68);
       }
       else if(recdat.data[0] == 0x0A) //最大速度
       {
-        rtscheck.RTS_SndData(ExchangePageBase + 69, ExchangepageAddr);
-        change_page_font = 69;
+        RTS_ShowPage(69);
       }
       else if(recdat.data[0] == 0x0B)
       {
-        rtscheck.RTS_SndData(ExchangePageBase + 33, ExchangepageAddr);
-        change_page_font = 33;
+        RTS_ShowPage(33);
         settings.save();
         delay(100);
       }
       else if(recdat.data[0] == 0x0C)
       {
-        rtscheck.RTS_SndData(ExchangePageBase + 34, ExchangepageAddr);
-        change_page_font = 34;
+        RTS_ShowPage(34);
         settings.save();
         delay(100);
       }
       else if(recdat.data[0] == 0x0D)//返回按钮
       {
-        rtscheck.RTS_SndData(ExchangePageBase + 64, ExchangepageAddr);
-        change_page_font = 64;
+        RTS_ShowPage(64);
         // settings.save();
         // delay(100);
       }
@@ -1103,12 +1061,16 @@ void RTSSHOW::RTS_HandleData_Laser(void)
           int16_t fileCnt_laser = card.get_num_items();
           card.getWorkDirName();
           
-          if (fileCnt_laser > 5) {
-          file_total_page_laser = (fileCnt_laser / 5) + 1;
-          if (file_total_page_laser > 5) file_total_page_laser = 5;
+          if (fileCnt_laser > 0) {
+            file_total_page_laser = fileCnt_laser / 5;
+            if (fileCnt_laser % 5 > 0) { // Add an extra page only if there are leftover files
+              file_total_page_laser++;
+            }
+            if (file_total_page_laser > 8) file_total_page_laser = 8; // Limit the maximum number of pages
           }
-          else
+          else {
             file_total_page_laser = 1;
+          }
 
           RTS_SndData(file_total_page_laser, PAGE_STATUS_TEXT_TOTAL_VP);
           file_current_page_laser = 1;
@@ -1118,34 +1080,36 @@ void RTSSHOW::RTS_HandleData_Laser(void)
           if (PoweroffContinue /*|| print_job_timer.isRunning()*/) return;
 
           // clean print file
-          for (int j = 0; j < 20; j++) RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
+          RTS_CleanPrintAndSelectFile();
           lcd_sd_status = IS_SD_INSERTED();
         }
         else {
           CardRecbuf.selectFlag = true;
           CardRecbuf.recordcount = recdat.data[0] - 1;
-          for (int j = 0; j < 20; j++) RTS_SndData(0, SELECT_FILE_TEXT_VP + j);
+          for (int j = 0; j < 60; j++) RTS_SndData(0, SELECT_FILE_TEXT_VP + j);
           delay(2);
           RTS_SndData((unsigned long)0xFFFF, FilenameNature + recdat.data[0] * 16);      
-          RTS_SndData(ExchangePageBase + 51, ExchangepageAddr);
-          change_page_font = 51;
+          RTS_ShowPage(51);
           
           #if ENABLED(GCODE_PREVIEW_ENABLED)
             char ret;
-            gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, false);
+            gcodePicDisplayOnOff(DEFAULT_PRINT_MODEL_VP, false);
             ret = gcodePicDataSendToDwin(CardRecbuf.Cardfilename[CardRecbuf.recordcount],VP_OVERLAY_PIC_PTINT,PIC_FORMAT_JPG, PIC_RESOLITION_250_250);
             if (ret == PIC_OK) {
-              gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, false);
+              gcodePicDisplayOnOff(DEFAULT_PRINT_MODEL_VP, false);
             } else {
-              gcodePicDispalyOnOff(DEFAULT_PRINT_MODEL_VP, true);
+              gcodePicDisplayOnOff(DEFAULT_PRINT_MODEL_VP, true);
             }          
           #endif
           
           rts_start_print = true;
           delay(20);
-          RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], SELECT_FILE_TEXT_VP);
-          RTS_SndData(ExchangePageBase + 51, ExchangepageAddr);
-          change_page_font = 51;
+          if (CardRecbuf.filenamelen[CardRecbuf.recordcount] > 25){
+            RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], SELECT_FILE_TEXT_VP);
+          }else{
+            RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], PRINT_FILE_TEXT_VP);
+          }
+          RTS_ShowPage(51);
         }
       }
       break;
@@ -1163,8 +1127,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
           break;
         }
         
-        RTS_SndData(ExchangePageBase + 75, ExchangepageAddr);
-        change_page_font = 75;
+        RTS_ShowPage(75);
 
         card.openAndPausePrintFile(CardRecbuf.Cardfilename[CardRecbuf.recordcount]);
         
@@ -1180,14 +1143,11 @@ void RTSSHOW::RTS_HandleData_Laser(void)
           }else{
             break;
           }
-          RTS_SndData(ExchangePageBase + 52, ExchangepageAddr);
-          change_page_font = 52;
+          RTS_ShowPage(52);
           if (card.flag.mounted){
             RTS_line_to_filelist_laser();              
           }       
         }
-        //RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
-        //change_page_font = 53;
       }
       else if(recdat.data[0] == 3)
       {
@@ -1197,8 +1157,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
           }else{
             break;
           }
-          RTS_SndData(ExchangePageBase + 52, ExchangepageAddr);
-          change_page_font = 52;
+          RTS_ShowPage(52);
           if (card.flag.mounted){
             RTS_line_to_filelist_laser();
           }
@@ -1209,8 +1168,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
 
         if (!planner.has_blocks_queued()) {
           file_current_page_laser = 1;
-          RTS_SndData(ExchangePageBase + 52, ExchangepageAddr);
-          change_page_font = 52;
+          RTS_ShowPage(52);
           RTS_line_to_filelist_laser();
         }        
       }
@@ -1218,62 +1176,49 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       {
         if (!planner.has_blocks_queued()) {
           file_current_page_laser = file_total_page_laser;
-          RTS_SndData(ExchangePageBase + 52, ExchangepageAddr);
-          change_page_font = 52;
+          RTS_ShowPage(52);
           RTS_line_to_filelist_laser();
         }        
       }
       else if(recdat.data[0] == 6)
       {
-        RTS_SndData(ExchangePageBase + 55, ExchangepageAddr);
-        change_page_font = 55;
+        RTS_ShowPage(52);
       }
       else if(recdat.data[0] == 7)
       {
-        RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
-        change_page_font = 54;
+        RTS_ShowPage(52);
       }
       else if(recdat.data[0] == 8)
       {
-        RTS_SndData(ExchangePageBase + 55, ExchangepageAddr);   //by jankin 20210731
-        change_page_font = 55;
+        RTS_ShowPage(52);
       }
       else if(recdat.data[0] == 9)
       {
+
         if (!planner.has_blocks_queued()) {
-          if (file_current_page_laser > 1){
-            file_current_page_laser--;
-          }else{
-            break;
-          }
-          RTS_SndData(ExchangePageBase + 52, ExchangepageAddr);
-          change_page_font = 52;
+          file_current_page_laser = 1;
+          RTS_ShowPage(52);
           if (card.flag.mounted){
             RTS_line_to_filelist_laser();
           }
-        }      
+        }
       }
       else if(recdat.data[0] == 0x0A)
       {
         if (!planner.has_blocks_queued()) {
-          if ((file_total_page_laser > file_current_page_laser) && (file_current_page_laser < (MaxFileNumber / 5))){
-            file_current_page_laser++;
-          }else{
-            break;
-          }
-          RTS_SndData(ExchangePageBase + 52, ExchangepageAddr);
-          change_page_font = 52;
+          file_current_page_laser = file_total_page_laser;
+          RTS_ShowPage(52);
           if (card.flag.mounted){
             RTS_line_to_filelist_laser();              
           }
-        }
+        }  
       }
       break;
 
     case ChangePageKey:
       for(int i = 0; i < MaxFileNumber; i ++)
       {
-        for (int j = 0; j < 20; j ++)
+        for (int j = 0; j < 60; j ++)
         {
           RTS_SndData(0, FILE1_TEXT_VP + i * 20 + j);
         }
@@ -1281,16 +1226,16 @@ void RTSSHOW::RTS_HandleData_Laser(void)
 
       for (int i = 0; i < CardRecbuf.Filesum; i++)
       {
-        for (int j = 0; j < 20; j++)
+        for (int j = 0; j < 60; j++)
         {
           RTS_SndData(0, CardRecbuf.addr[i] + j);
         }
         RTS_SndData((unsigned long)0xFFFF, FilenameNature + (i + 1) * 16);
       }
 
-      RTS_CleanPrintFile();
+      RTS_CleanPrintAndSelectFile();
       // clean filename Icon
-      for (int j = 0; j < 20; j ++)
+      for (int j = 0; j < 60; j ++)
       {
         RTS_SndData(0, FILE1_SELECT_ICON_VP + j);
       }
@@ -1309,11 +1254,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
           RTS_SndData(0, FILE1_SELECT_ICON_VP + i);
         }
       }
-
-      RTS_SndData(MACVERSION, MACHINE_TYPE_ABOUT_TEXT_VP);
-      RTS_SndData(SOFTVERSION, FIRMWARE_VERSION_ABOUT_TEXT_VP);
-      RTS_SndData(PRINT_SIZE, PRINTER_PRINTSIZE_TEXT_VP);
-
+      RTS_SendMachineData();
       if(1 == lang)
       {
         RTS_SndData(CORP_WEBSITE_C, WEBSITE_ABOUT_TEXT_VP);
@@ -1329,12 +1270,9 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         rtscheck.RTS_SndData((unsigned char)Percentrecord, PRINT_PROCESS_ICON_VP);
       }
       rtscheck.RTS_SndData((unsigned char)card.percentDone(), PRINT_PROCESS_VP);
-
-      RTS_SndData(zprobe_zoffset * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
-
-      RTS_SndData(feedrate_percentage, PRINT_SPEED_RATE_VP);
-      RTS_SndData(thermalManager.temp_hotend[0].target, HEAD_SET_TEMP_VP);
-      RTS_SndData(thermalManager.temp_bed.target, BED_SET_TEMP_VP);
+      RTS_SendZoffsetFeedratePercentage(true);
+      RTS_SendHeadTemp();
+      RTS_SendBedTemp();
       languagedisplayUpdate();
 
       RTS_SndData(change_page_font + ExchangePageBase, ExchangepageAddr);
@@ -1347,7 +1285,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       RTS_line_to_current(Z_AXIS);
       RTS_SndData(10 * current_position[Z_AXIS], AXIS_Z_COORD_VP);
       delay(1);
-      RTS_SndData(0, MOTOR_FREE_ICON_VP);
+      RTS_ShowMotorFreeIcon(false);
       waitway = 0;
     }
     break;
@@ -1356,8 +1294,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       if(recdat.data[0] == 1)//调节激光焦距
       {
         RTS_SndData(10*current_position[Z_AXIS], SW_FOCUS_Z_VP);
-        RTS_SndData(ExchangePageBase + 63, ExchangepageAddr);
-        change_page_font = 63;
+        RTS_ShowPage(63);
       // }else if(recdat.data[0] == 2)// Z+
       // {
 
@@ -1366,23 +1303,20 @@ void RTSSHOW::RTS_HandleData_Laser(void)
 
       }else if(recdat.data[0] == 4)// 返回
       {
-        RTS_SndData(ExchangePageBase + 64, ExchangepageAddr);
-        change_page_font = 64;
+        RTS_ShowPage(64);
       }else if(recdat.data[0] == 5)// √
       {
         queue.inject_P(PSTR("G92.9 Z0"));
         RTS_SndData(0, AXIS_Z_COORD_VP);
         RTS_SndData(0, SW_FOCUS_Z_VP);
         
-        RTS_SndData(ExchangePageBase + 64, ExchangepageAddr);
-        change_page_font = 64;
+        RTS_ShowPage(64);
       }else if(recdat.data[0] == 6)// x
       {
         // queue.inject_P(PSTR("G92.9 Z0"));
         // RTS_SndData(0, AXIS_Z_COORD_VP);
         // RTS_SndData(0, SW_FOCUS_Z_VP);
-        RTS_SndData(ExchangePageBase + 64, ExchangepageAddr);
-        change_page_font = 64;
+        RTS_ShowPage(64);
       }
     break;
     case SwAdjustFocusKey:
@@ -1397,8 +1331,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       {
         AxisUnitMode = 1;
         axis_unit = 10.0;
-        RTS_SndData(ExchangePageBase + 78, ExchangepageAddr);
-        change_page_font = 78;
+        RTS_ShowPage(78);
       }else if(recdat.data[0] == 3) // 直接雕刻
       {
         char cmd[30];
@@ -1406,8 +1339,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         strcat_P(cmd, M24_STR);
         queue.inject((char*)"M24");//cmd);
 
-        RTS_SndData(ExchangePageBase + 59, ExchangepageAddr);
-        change_page_font = 59;
+        RTS_ShowPage(59);
 
       }else if(recdat.data[0] == 4) //跑边框
       {
@@ -1416,21 +1348,14 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       {
         CardRecbuf.recordcount = -1;
         print_job_timer.stop();
-        //RTS_SndData(1, MOTOR_FREE_ICON_VP);
+        //RTS_ShowMotorFreeIcon(true);
         RTS_ResetTime();
         print_job_timer.reset();
-        RTS_CleanPrintFile();
-        
-        // RTS_SndData(ExchangePageBase + 51, ExchangepageAddr);
-        // change_page_font = 51;
-
+        RTS_CleanPrintAndSelectFile();
         CardUpdate = true;
         CardRecbuf.recordcount = -1;
         RTS_SDCardUpdate();
-        RTS_SndData(ExchangePageBase + 52, ExchangepageAddr);
-        change_page_font = 52;
-
-
+        RTS_ShowPage(52);
       }
     break;
 
@@ -1445,8 +1370,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       {
         uint8_t language;
 
-        RTS_SndData(ExchangePageBase + 33, ExchangepageAddr);
-        change_page_font = 33;
+        RTS_ShowPage(33);
         laser_device.set_current_device(DEVICE_FDM);
 
         language = language_change_font; 
@@ -1454,26 +1378,14 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         language_change_font = language;
         settings.save();
         probe.offset.z = zprobe_zoffset = 0;
-        RTS_SndData(zprobe_zoffset * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
+        RTS_SendZoffsetFeedratePercentage(true);
         laser_device.laser_power_close();
       }else if(recdat.data[0] == 4)// 切到FDM 取消
       {
-        RTS_SndData(ExchangePageBase + 64, ExchangepageAddr);
-        change_page_font = 64;
-      // }else if(recdat.data[0] == 5)// 切到激光 确定
-      // {
-      //   RTS_SndData(10*current_position[Z_AXIS], SW_FOCUS_Z_VP);
-      //   RTS_SndData(ExchangePageBase + 77, ExchangepageAddr);
-      //   change_page_font = 77;
-      //   laser_device.set_current_device(DEVICE_LASER);
-      // }else if(recdat.data[0] == 6)// 切到激光 取消
-      // {
-      //   RTS_SndData(ExchangePageBase + 33, ExchangepageAddr);
-      //   change_page_font = 33;
+        RTS_ShowPage(64);
       }else if(recdat.data[0] == 7)// 切到熔积打印
       {
-        RTS_SndData(ExchangePageBase + 57, ExchangepageAddr);
-        change_page_font = 57;
+        RTS_ShowPage(57);
       }else if(recdat.data[0] == 8) //调整焦距 √
       {
         queue.inject_P(PSTR("G92.9 Z0"));
@@ -1481,26 +1393,11 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         RTS_SndData(0, SW_FOCUS_Z_VP);
 
         if(change_page_font == 33){
-          RTS_SndData(ExchangePageBase + 64, ExchangepageAddr);
-          change_page_font = 64;
+          RTS_ShowPage(64);
         }else{
-          RTS_SndData(ExchangePageBase + 51, ExchangepageAddr);
-          change_page_font = 51;
+          RTS_ShowPage(51);
         }
-        // RTS_SndData(ExchangePageBase + 64, ExchangepageAddr);
-        // change_page_font = 64;
-      // }else if(recdat.data[0] == 9) //调整焦距 Z+
-      // {
-
-      // }else if(recdat.data[0] == 0x0A) //调整焦距 Z-
-      // {
-
       }
-      // else if(recdat.data[0] == 0x0B) // 切换激光雕刻
-      // {
-      //   RTS_SndData(ExchangePageBase + 56, ExchangepageAddr);
-      //   change_page_font = 56;
-      // }
     break;
 
     case LaserMoveAxis:
@@ -1508,57 +1405,51 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       {
         AxisUnitMode = 1;
         axis_unit = 10.0;
-        RTS_SndData(ExchangePageBase + 78, ExchangepageAddr);
-        change_page_font = 78;
+        RTS_ShowPage(78);
       }else if(recdat.data[0] == 2)//
       {
         AxisUnitMode = 2;
         axis_unit = 1.0;
-        RTS_SndData(ExchangePageBase + 79, ExchangepageAddr);
-        change_page_font = 79;
+        RTS_ShowPage(79);
       }else if(recdat.data[0] == 3)
       {
         AxisUnitMode = 3;
         axis_unit = 0.1;
-        RTS_SndData(ExchangePageBase + 80, ExchangepageAddr);
-        change_page_font = 80;
+        RTS_ShowPage(80);
       }else if(recdat.data[0] == 4)// 返回
       {
-        RTS_SndData(ExchangePageBase + 75, ExchangepageAddr);
-        change_page_font = 75;
+        RTS_ShowPage(75);
       }else if(recdat.data[0] == 5)// 雕刻警告界面 xy home
       {
         waitway = 8;
-        RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
-        change_page_font = 40;
+        RTS_ShowPage(40);
 
         queue.enqueue_now_P(HOME_LASER);//PSTR("G28 XY\nG0 X0 Y5"));
         Update_Time_Value = 0;
         RTS_SndData(0, AXIS_X_COORD_VP);
         RTS_SndData(10*10, AXIS_Y_COORD_VP);
         delay(1);
-        RTS_SndData(0, MOTOR_FREE_ICON_VP);
+        RTS_ShowMotorFreeIcon(false);
       }else if(recdat.data[0] == 6)// 雕刻警告界面z home
       {
         queue.enqueue_now_P(PSTR("G0 Z0"));
       }else if(recdat.data[0] == 7)// 激光 xy home
       {
         waitway = 9;
-        RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
-        change_page_font = 40;
+        RTS_ShowPage(40);
         queue.enqueue_now_P(HOME_LASER);//"G28 XY\n G1 X0 Y10 F3000");//EVENT_HOME_LASER);//PSTR("G28 XY\nG0 X0 Y5"));
         Update_Time_Value = 0;
         
         RTS_SndData(0, AXIS_X_COORD_VP);
         RTS_SndData(10*10, AXIS_Y_COORD_VP);
         delay(1);
-        RTS_SndData(0, MOTOR_FREE_ICON_VP);
+        RTS_ShowMotorFreeIcon(false);
       }else if(recdat.data[0] == 8)// 激光 z home
       {
         queue.enqueue_now_P(PSTR("G0 Z0"));
         RTS_SndData(0, AXIS_Z_COORD_VP);
         delay(1);
-        RTS_SndData(0, MOTOR_FREE_ICON_VP);
+        RTS_ShowMotorFreeIcon(false);
       }
 
 
@@ -1570,18 +1461,15 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         {
           if(printingIsActive())
           {
-            RTS_SndData(ExchangePageBase + 10, ExchangepageAddr);
-            change_page_font = 10;
+            RTS_ShowPage(10);
           }
           else if(printingIsPaused())
           {
-            RTS_SndData(ExchangePageBase + 12, ExchangepageAddr);
-            change_page_font = 12;
+            RTS_ShowPage(12);
           }
           else
           {
-            RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
-            change_page_font = 1;
+            RTS_ShowPage(1);
           }
 
           if(errorway == 4)
@@ -1626,10 +1514,12 @@ void EachMomentUpdateLaser(void)
         {
           if(!strcmp(CardRecbuf.Cardfilename[i], &recovery.info.sd_filename[1]))
           {
-            rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[i], PRINT_FILE_TEXT_VP);
-            rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[i], SELECT_FILE_TEXT_VP);
-            rtscheck.RTS_SndData(ExchangePageBase + 27, ExchangepageAddr);
-            change_page_font = 27;
+            if (CardRecbuf.filenamelen[i] > 25){
+              rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[i], SELECT_FILE_TEXT_VP);
+            }else{
+              rtscheck.RTS_SndData(CardRecbuf.Cardshowfilename[i], PRINT_FILE_TEXT_VP);
+            }
+            RTS_ShowPage(27);
             break;
           }
         }
@@ -1651,14 +1541,10 @@ void EachMomentUpdateLaser(void)
         Update_Time_Value = RTS_UPDATE_VALUE;
         
         if(laser_device.is_laser_device()){
-          rtscheck.RTS_SndData(ExchangePageBase + 51, ExchangepageAddr);
-          change_page_font = 51;
+          RTS_ShowPage(51);
         }else{
-          rtscheck.RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
-          change_page_font = 1;
+          RTS_ShowPage(1);
         }
-        // rtscheck.RTS_SndData(ExchangePageBase + 51, ExchangepageAddr);
-        // change_page_font = 51;
       }
       return;
     }
@@ -1697,8 +1583,7 @@ void EachMomentUpdateLaser(void)
         //SERIAL_ECHOPAIR("laser_device.power=", laser_device.power);
         cutter.apply_power(0);
 
-        rtscheck.RTS_SndData(ExchangePageBase + 61, ExchangepageAddr);
-        change_page_font = 61;
+        RTS_ShowPage(61);
         waitway = 0;
       }
 

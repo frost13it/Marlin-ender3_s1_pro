@@ -81,8 +81,7 @@ void GcodeSuite::M1000() {
       #elif ENABLED(E3S1PRO_RTS)
         recovery.info.print_job_elapsed = print_job_timer.duration() + recovery.info.print_job_elapsed;    
         //temphot = thermalManager.temp_hotend[0].target;
-        rtscheck.RTS_SndData(ExchangePageBase + 27, ExchangepageAddr);
-        change_page_font = 27;
+        RTS_ShowPage(27);
         sdcard_pause_check = true;    
       #elif ENABLED(DWIN_CREALITY_LCD_JYERSUI) // Temporary fix until it can be better implemented
         jyersDWIN.popupHandler(Popup_Resume);

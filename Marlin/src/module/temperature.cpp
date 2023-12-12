@@ -903,8 +903,7 @@ volatile bool Temperature::raw_temps_ready = false;
               else if (ELAPSED(ms, temp_change_ms)) {                  // Watch timer expired
               
               #if ENABLED(E3S1PRO_RTS)
-                rtscheck.RTS_SndData(ExchangePageBase + 31, ExchangepageAddr);
-                change_page_font = 31;
+                RTS_ShowPage(31);
               #endif
 
               _TEMP_ERROR(heater_id, FPSTR(str_t_heating_failed), MSG_ERR_HEATING_FAILED, current_temp);        
@@ -913,8 +912,7 @@ volatile bool Temperature::raw_temps_ready = false;
             else if (current_temp < target - (MAX_OVERSHOOT_PID_AUTOTUNE)) { // Heated, then temperature fell too far?
 
                 #if ENABLED(E3S1PRO_RTS)
-                  rtscheck.RTS_SndData(ExchangePageBase + 31, ExchangepageAddr);
-                  change_page_font = 31;
+                  RTS_ShowPage(31);
                 #endif 
 
               _TEMP_ERROR(heater_id, FPSTR(str_t_thermal_runaway), MSG_ERR_THERMAL_RUNAWAY, current_temp);
@@ -934,8 +932,7 @@ volatile bool Temperature::raw_temps_ready = false;
         TERN_(HOST_PROMPT_SUPPORT, hostui.notify(GET_TEXT_F(MSG_PID_TIMEOUT)));
         
         #if ENABLED(E3S1PRO_RTS)
-          rtscheck.RTS_SndData(ExchangePageBase + 31, ExchangepageAddr);
-          change_page_font = 31;
+          RTS_ShowPage(31);
         #endif            
 
         SERIAL_ECHOPGM(STR_PID_AUTOTUNE); SERIAL_ECHOLNPGM(STR_PID_TIMEOUT);
@@ -1646,8 +1643,7 @@ void Temperature::maxtemp_error(const heater_id_t heater_id OPTARG(ERR_INCLUDE_T
   #endif
 
   #if ENABLED(E3S1PRO_RTS) && (HAS_HOTEND || HAS_HEATED_BED)
-    rtscheck.RTS_SndData(ExchangePageBase + 31, ExchangepageAddr);
-    change_page_font = 31;
+    RTS_ShowPage(31);
   #endif  
 
   _TEMP_ERROR(heater_id, F(STR_T_MAXTEMP), MSG_ERR_MAXTEMP, deg);
@@ -1659,8 +1655,7 @@ void Temperature::mintemp_error(const heater_id_t heater_id OPTARG(ERR_INCLUDE_T
   #endif
 
   #if ENABLED(E3S1PRO_RTS) && (HAS_HOTEND || HAS_HEATED_BED)
-    rtscheck.RTS_SndData(ExchangePageBase + 31, ExchangepageAddr);
-    change_page_font = 31;
+    RTS_ShowPage(31);
   #endif  
 
   _TEMP_ERROR(heater_id, F(STR_T_MINTEMP), MSG_ERR_MINTEMP, deg);
@@ -1868,8 +1863,7 @@ void Temperature::mintemp_error(const heater_id_t heater_id OPTARG(ERR_INCLUDE_T
         if (deg > temp_range[e].maxtemp) {
 
           #if ENABLED(E3S1PRO_RTS)
-            rtscheck.RTS_SndData(ExchangePageBase + 31, ExchangepageAddr);
-            change_page_font = 31;
+            RTS_ShowPage(31);
           #endif
 
           SERIAL_ECHOLNPGM("HOTEND MAXTEMP E:", e, " T:", degHotend(e), " MAX:", temp_range[e].maxtemp);
@@ -1899,8 +1893,7 @@ void Temperature::mintemp_error(const heater_id_t heater_id OPTARG(ERR_INCLUDE_T
             TERN_(HAS_DWIN_E3V2_BASIC, dwinPopupTemperature(0));
 
             #if ENABLED(E3S1PRO_RTS)
-              rtscheck.RTS_SndData(ExchangePageBase + 31, ExchangepageAddr);
-              change_page_font = 31;
+              RTS_ShowPage(31);
             #endif               
 
             _TEMP_ERROR(e, FPSTR(str_t_heating_failed), MSG_ERR_HEATING_FAILED, temp);
@@ -1923,8 +1916,7 @@ void Temperature::mintemp_error(const heater_id_t heater_id OPTARG(ERR_INCLUDE_T
       if (deg > BED_MAXTEMP) {
 
         #if ENABLED(E3S1PRO_RTS)
-          rtscheck.RTS_SndData(ExchangePageBase + 31, ExchangepageAddr);
-          change_page_font = 31;
+          RTS_ShowPage(31);
         #endif
 
         MAXTEMP_ERROR(H_BED, deg);
@@ -1943,8 +1935,7 @@ void Temperature::mintemp_error(const heater_id_t heater_id OPTARG(ERR_INCLUDE_T
           TERN_(HAS_DWIN_E3V2_BASIC, dwinPopupTemperature(0));
 
          #if ENABLED(E3S1PRO_RTS)
-            rtscheck.RTS_SndData(ExchangePageBase + 31, ExchangepageAddr);
-            change_page_font = 31;
+            RTS_ShowPage(31);
           #endif     
 
           _TEMP_ERROR(H_BED, FPSTR(str_t_heating_failed), MSG_ERR_HEATING_FAILED, deg);
@@ -3407,8 +3398,7 @@ void Temperature::init() {
       case TRRunaway:
 
         #if ENABLED(E3S1PRO_RTS)
-          rtscheck.RTS_SndData(ExchangePageBase + 31, ExchangepageAddr);
-          change_page_font = 31;
+          RTS_ShowPage(31);
         #endif      
 
         TERN_(HAS_DWIN_E3V2_BASIC, dwinPopupTemperature(0));
@@ -3420,8 +3410,7 @@ void Temperature::init() {
           TERN_(HAS_DWIN_E3V2_BASIC, dwinPopupTemperature(0));
 
           #if ENABLED(E3S1PRO_RTS)
-            rtscheck.RTS_SndData(ExchangePageBase + 31, ExchangepageAddr);
-            change_page_font = 31;
+            RTS_ShowPage(31);
           #endif          
 
           _TEMP_ERROR(heater_id, F(STR_T_THERMAL_MALFUNCTION), MSG_ERR_TEMP_MALFUNCTION, current);
@@ -4881,7 +4870,7 @@ void Temperature::isr() {
 
         #if ENABLED(E3S1PRO_RTS)
           Update_Time_Value = RTS_UPDATE_VALUE;
-          rtscheck.RTS_SndData(ExchangePageBase + 10, ExchangepageAddr);       
+          RTS_ShowPage(10);       
         #else
         ui.reset_status();
         #endif

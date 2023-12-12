@@ -20,8 +20,8 @@
 #include "preview.h"
 #define BRIGHTNESS_PRINT_HIGH    250        // 进度条的总高度
 #define BRIGHTNESS_PRINT_WIDTH   250        // 进度条的总宽度
-#define BRIGHTNESS_PRINT_LEFT_HIGH_X   115  // 进度条的左上角-X
-#define BRIGHTNESS_PRINT_LEFT_HIGH_Y   256  // 进度条的左上角-Y
+#define BRIGHTNESS_PRINT_LEFT_HIGH_X   123  // 进度条的左上角-X
+#define BRIGHTNESS_PRINT_LEFT_HIGH_Y   269  // 进度条的左上角-Y
 #define BRIGHTNESS_PRINT    120             // 亮度值（0最暗）
 #define FORMAT_JPG_HEADER "jpg begin"
 #define FORMAT_JPG_HEADER_PRUSA "thumbnail_JPG begin"
@@ -620,7 +620,7 @@ char gcodePicDataSendToDwin(char *fileName, unsigned int jpgAddr, unsigned char 
  * onoff        显示(onoff == true)，隐藏(onoff == false)
  * 显示地址
  */
-void gcodePicDispalyOnOff(unsigned int jpgAddr, bool onoff)
+void gcodePicDisplayOnOff(unsigned int jpgAddr, bool onoff)
 {
     if (onoff) {
         rtscheck.RTS_SndData(1, jpgAddr);  
