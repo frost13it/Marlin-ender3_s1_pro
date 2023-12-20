@@ -81,10 +81,14 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define PRINT_TIME_HOUR_VP                 0x1010
 #define PRINT_TIME_MIN_VP                  0x1012
 #define PRINT_PROCESS_VP                   0x1016
-#define PRINTER_FANOPEN_TITLE_VP           0x101E
-#define PRINTER_LEDOPEN_TITLE_VP           0x101F
-#define PRINTER_AUTO_SHUTDOWN_ICON_VP      0x1020
-#define ADV_SETTING_WIFI_ICON_VP           0x1021
+#define PRINT_LAYERS_VP                    0x1018 // 0x1018, 0x1019, next free is 0x101A
+#define PRINT_LAYERS_DONE_VP               0x101A // 0x101A, 0x101B, next free is 0x101C
+#define PRINT_FILAMENT_G_VP                0x101C // 0x101C, 0x101D, next free is 0x101E
+#define PRINT_FILAMENT_G_TODO_VP           0x101E // 0x101E, 0x101F, next free is 0x1020
+#define PRINT_FILAMENT_M_VP                0x1020 // 0x1020, 0x1021, next free is 0x1022
+#define PRINT_FILAMENT_M_TODO_VP           0x1022 // 0x1022, 0x1023, next free is 0x1024
+#define PRINT_LAYER_HEIGHT_VP              0x169A // 0x169A, 0x169B, 0x169C, 0x169D next free is 0x169E
+#define PRINT_CURRENT_Z_VP                 0x169E // 0x169E, 0x169F, 0x16A0, 0x16A1 next free is 0x16A2
 #define AUTO_BED_LEVEL_ZOFFSET_VP          0x1026
 #define AUTO_BED_LEVEL_ZOFFSET005_VP       0x2213
 
@@ -183,6 +187,7 @@ const uint16_t DGUS_VERSION = 0x000F;
 
 #define PRINT_FINISH_ICON_VP               0x1170
 #define MOTOR_FREE_ICON_VP                 0x1200
+#define MOTOR_FREE_ICON_MAIN_VP            0x1202
 #define FILE1_SELECT_ICON_VP               0x1221
 #define FILE2_SELECT_ICON_VP               0x1222
 #define FILE3_SELECT_ICON_VP               0x1223
@@ -467,7 +472,7 @@ const uint16_t DGUS_VERSION = 0x000F;
 #define FilenameNature                     0x6003
 #define TrammingpointNature                0x6153
 
-#define QR_CODE_1_VP                       0x6C40 // uses space up to 0x6C67
+//#define QR_CODE_1_VP                       0x6C40 // uses space up to 0x6C67
 // 0x6C68 up to 0x6C9C is sp space for SELECT_PRINT_FILE_VP next free 0x6C9D
 #define MESH_RECTANGLE_BASE_VP             0x7000
 
@@ -596,7 +601,7 @@ class RTSSHOW
     void sendOneFilledRectangle(uint16_t baseAddress, uint16_t showcount, uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t color);
     void RTS_ChangeLevelingPage(void);
     void RTS_SetBltouchHSMode(void);
-    void sendQRCodeCommand(uint16_t vpAddress, const char* url);    
+    //void sendQRCodeCommand(uint16_t vpAddress, const char* url);    
     void calculateProbePoints(uint8_t current_point, uint8_t& x_probe_point, uint8_t& y_probe_point);
     //String RTS_ReadTextField(uint16_t address);
     //void sendPacketAndReceiveResponse(uint16_t packetValue);
@@ -849,7 +854,6 @@ extern bool eeprom_save_flag;
 void RTS_PauseMoveAxisPage(void);
 void RTS_AutoBedLevelPage(void);
 void RTS_LoadMeshPointOffsets(void);
-void RTS_ResetTime(void);
 void RTS_ResetMesh(void);
 void RTS_LoadMesh(void);
 void RTS_CleanPrintAndSelectFile(void);
@@ -869,6 +873,7 @@ void RTS_SendDefaultRates();
 void RTS_SendZoffsetFeedratePercentage(bool sendzoffset);
 void RTS_AxisZCoord();
 void RTS_LoadMargins();
+void RTS_ResetPrintData();
 void RTS_MoveAxisHoming(void);
 void RTS_SetMeshPage();
 void RTS_MoveParkNozzle(void);
@@ -880,6 +885,10 @@ extern uint8_t leveling_running;
 extern uint8_t color_sp_offset;
 extern uint8_t min_margin_y_back;
 extern uint8_t min_margin_x;
+extern unsigned int picLayers;    // picture layers
+extern unsigned int picFilament_m;
+extern unsigned int picFilament_g;
+extern float picLayerHeight;
 //#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
 //  void lcd_rts_scrolling();
 //#endif

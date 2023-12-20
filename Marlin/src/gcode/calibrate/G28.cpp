@@ -678,7 +678,7 @@ void GcodeSuite::G28() {
   #endif
   {
   TERN_(E3S1PRO_RTS, RTS_MoveAxisHoming());
-  TERN_(E3S1PRO_RTS, rtscheck.RTS_SndData(0, MOTOR_FREE_ICON_VP));
+  TERN_(E3S1PRO_RTS, RTS_ShowMotorFreeIcon(false));
   }
   
   #if ENABLED(E3S1PRO_RTS)

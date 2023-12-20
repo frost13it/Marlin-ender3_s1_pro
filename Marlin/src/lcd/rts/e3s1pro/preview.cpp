@@ -33,7 +33,13 @@ DwinBrightness_t printBri; // 预览图结构体
 #define JPG_BYTES_PER_FRAME 240   // 每一帧发送的字节数（图片数据）
 #define JPG_WORD_PER_FRAME  (JPG_BYTES_PER_FRAME/2)   // 每一帧发送的字数（图片数据）
 #define SizeofDatabuf2		300
-#define USER_LOGIC_DEUBG 0
+#define USER_LOGIC_DEBUG 0
+
+unsigned long picLen = 0;      // picture data length
+unsigned int picStartLine = 0; // picture start line
+unsigned int picEndLine = 0;   // picture end line
+float picFilamentDiameter = 0.0f;
+float picFilamentDensity = 0.0f;
 
 #ifdef LCD_SERIAL_PORT
   #define LCDSERIAL LCD_SERIAL
@@ -76,9 +82,7 @@ void RTS_SendJpegDate(const char *str, unsigned long addr, unsigned char cmd/*= 
     {
       databuf[6 + i] = str[i];
     }
-
     dwin_uart_write(databuf, len + 6);
-
     memset(databuf,0, sizeof(databuf));
   }
 }
@@ -96,7 +100,6 @@ void DWIN_DisplayJpeg(unsigned long addr, unsigned long vp)
   buf[7] = 0xA5;
   buf[8] = vp >> 8;       //图片存储地址
   buf[9] = vp & 0x00FF;
-
   dwin_uart_write(buf, 10);
 }
   
@@ -110,21 +113,16 @@ void DWIN_DisplayJpeg(unsigned long addr, unsigned long vp)
 void DWIN_SendJpegDate(char *jpeg, unsigned long size, unsigned long jpgAddr)
 {
   uint32_t MS = millis();
-
   int jpgSize = size;
-
   char buf[JPG_BYTES_PER_FRAME];
   int i,j;
-  
   for (i = 0; i < jpgSize / JPG_BYTES_PER_FRAME; i++) {
     // delay(20);
     //memset(buf, 0, JPG_BYTES_PER_FRAME);
     memcpy(buf, &jpeg[i * JPG_BYTES_PER_FRAME], JPG_BYTES_PER_FRAME);
     hal.watchdog_refresh();
-
     // Send image data to the specified address
     RTS_SendJpegDate(buf, (jpgAddr + (JPG_WORD_PER_FRAME * i)), 0x82);
-
     if (ENABLED(DWIN_DEBUG)) {
       for (j = 0; j < JPG_BYTES_PER_FRAME; j++) {
         //SERIAL_ECHOPAIR(" ", j,
@@ -132,21 +130,21 @@ void DWIN_SendJpegDate(char *jpeg, unsigned long size, unsigned long jpgAddr)
         //if ((j+1) % 8 == 0) SERIAL_ECHO("\r\n");
       }
     }
-    
     // Dwin to color, Dwin's 7-inch screen, after sending a frame of preview image, there is no return value
     // So don't judge the exception first
     #define CMD_TAILA 0x03824F4B // Frame tail (currently effective for 4.3 inch dwin screen)
     uint8_t receivedbyte = 0;
     uint8_t cmd_pos = 0;    // Current instruction pointer state
     uint32_t cmd_state = 0; // Queue frame tail detection status
-
     char buffer[20] = {0};
+    if (buffer > 0) {
+      // fake call to buffer to ommit compiler warning
+    }    
     MS = millis();
     while(1)
     {
       if (LCDSERIAL.available())
       {
-
         // Take one data
         receivedbyte = LCDSERIAL.read();
         //SERIAL_ECHO_MSG("receivedbyte = ", receivedbyte);
@@ -154,15 +152,12 @@ void DWIN_SendJpegDate(char *jpeg, unsigned long size, unsigned long jpgAddr)
         {
           continue;
         }
-
         if(cmd_pos < 20){ 
           buffer[cmd_pos++] = receivedbyte; // Prevent Overflow
         }else{
           break;
         }
-
         cmd_state = ((cmd_state << 8) | receivedbyte); // Concatenate the last 4 bytes to form the last 32-bit integer
-
         // Frame tail judgment
         if(cmd_state==CMD_TAILA)
         {
@@ -175,7 +170,6 @@ void DWIN_SendJpegDate(char *jpeg, unsigned long size, unsigned long jpgAddr)
         break;
       } 
     }
-
   }
 
   if (jpgSize % JPG_BYTES_PER_FRAME)
@@ -183,10 +177,8 @@ void DWIN_SendJpegDate(char *jpeg, unsigned long size, unsigned long jpgAddr)
     memset(buf, 0, JPG_BYTES_PER_FRAME);
     memcpy(buf, &jpeg[i * JPG_BYTES_PER_FRAME], (jpgSize - i * JPG_BYTES_PER_FRAME));
     hal.watchdog_refresh();
-
     // Send image data to the specified address
     RTS_SendJpegDate(buf, (jpgAddr + (JPG_WORD_PER_FRAME * i)), 0x82);
-
     if (ENABLED(DWIN_DEBUG)) {
       for (j = 0; j < JPG_BYTES_PER_FRAME; j++) {
         //SERIAL_ECHOPAIR(" ", j,
@@ -218,10 +210,7 @@ bool gcodePicGetDataFormBase64(char * buf, unsigned long picLen, bool resetFlag)
   int getBase64Cnt = 0;                       // Data obtained from the USB flash drive, base64 encoded
   static int deCodeBase64Cnt = 0;             // Data that has been decoded
   unsigned long deCodePicLenCnt = 0;          // Save the obtained picture data
-
-    //static char lCmdBuf[100];
-    bool getPicEndFlag = false;
-
+  bool getPicEndFlag = false;
   //  Clear the last record
     if (resetFlag)
     {
@@ -232,7 +221,6 @@ bool gcodePicGetDataFormBase64(char * buf, unsigned long picLen, bool resetFlag)
       deCodeBase64Cnt = 0;
       return true;
     }
-
     if ((deCodeBase64Cnt > 0) && (deCodePicLenCnt < picLen))
     {
       for (int deCode = deCodeBase64Cnt; deCode > 0; deCode--)
@@ -245,7 +233,6 @@ bool gcodePicGetDataFormBase64(char * buf, unsigned long picLen, bool resetFlag)
           }
       }
     }
-    
     while(deCodePicLenCnt < picLen)
     {
       char j, ret;
@@ -255,21 +242,18 @@ bool gcodePicGetDataFormBase64(char * buf, unsigned long picLen, bool resetFlag)
         if (ret == ';' || ret == ' ' || ret == '\r' || ret == '\n'){
           continue;
         }
-
         base64_in[getBase64Cnt++] = ret;
         if (getBase64Cnt >= 4){
           getBase64Cnt = 0;
           break;
         }
-            
       }
-        
       memset(base64_out, 0, sizeof(base64_out));
       deCodeBase64Cnt = base64_decode(base64_in, 4, base64_out);
-      for(int i = deCodeBase64Cnt; i < 3; i++)
+      for(int i = deCodeBase64Cnt; i < 3; i++){
           base64_out[i] = 0;
+      }
       deCodeBase64Cnt = 3; // Here is forcibly given 3, because it is always 4 --> 3 characters
-
       int test = deCodeBase64Cnt;
       for (int deCode = 0; deCode < test; deCode++)
       {
@@ -281,21 +265,17 @@ bool gcodePicGetDataFormBase64(char * buf, unsigned long picLen, bool resetFlag)
           }else{
             buf[deCodePicLenCnt++] = base64_out[deCode];
           }
-
           if (deCodePicLenCnt > 2 && ((buf[deCodePicLenCnt-1] == 0xD9 && buf[deCodePicLenCnt-2] == 0xFF) || (buf[deCodePicLenCnt-1] == 0xd9 && buf[deCodePicLenCnt-2] == 0xff)))
           {
             getPicEndFlag = true;
           }
-
           deCodeBase64Cnt--;
         } else {
           break;
         }
       }
-
       hal.watchdog_refresh();
     }
-
     return true;
 }
 
@@ -308,64 +288,56 @@ bool gcodePicGetDataFormBase64(char * buf, unsigned long picLen, bool resetFlag)
  *
  * @return True if the function executed successfully.
  */
-
 bool gcodePicDataRead(unsigned long picLenth, char isDisplay, unsigned long jpgAddr)
 {
-// Time consumed in ms: 96*96  200*200
-//   * 2  :             1780   8900
-//   * 4  :             940    4490
-//   * 8  :             518    2010
-//   * 12 :             435    1300
-//   * 16 :             420    1130
-#define PIN_BUG_LEN_DACAI 2048
-#define PIN_BUG_LEN_DWIN (JPG_BYTES_PER_FRAME * 12)
-#define PIN_DATA_LEN_DWIN (PIN_BUG_LEN_DWIN / 2)
-
+  // Time consumed in ms: 96*96  200*200
+  //   * 2  :             1780   8900
+  //   * 4  :             940    4490
+  //   * 8  :             518    2010
+  //   * 12 :             435    1300
+  //   * 16 :             420    1130
+  #define PIN_BUG_LEN_DACAI 2048
+  #define PIN_BUG_LEN_DWIN (JPG_BYTES_PER_FRAME * 12)
+  #define PIN_DATA_LEN_DWIN (PIN_BUG_LEN_DWIN / 2)
   static char picBuf[PIN_BUG_LEN_DWIN + 1]; // Take this MAX(PIN_BUG_LEN_DACAI, PIN_BUG_LEN_DWIN)
-
   unsigned long picLen; // Picture length (length after decoding)
-    unsigned long j;
-
-    picLen = picLenth;//(picLenth / 4) * 3; 
-
-    gcodePicGetDataFormBase64(picBuf, 0, true);
-
-    // DWIN
-    // First write 0 to the starting address, otherwise DWIN will freeze (or crash).
-    DWIN_WriteOneWord(jpgAddr, 0);
-
-    // Start reading
-    for (j = 0; j < (picLen / PIN_BUG_LEN_DWIN); j++)
-    {
-      memset(picBuf, 0, sizeof(picBuf));
-      // card.read(picBuf, PIN_BUG_LEN_DWIN);
-      gcodePicGetDataFormBase64(picBuf, PIN_BUG_LEN_DWIN, false);
-      rtscheck.RTS_SndData((j % 8) + 1, DOWNLOAD_PREVIEW_VP); // Loading image appears
-      // Send image data to the specified address
-      if (isDisplay) {
-        DWIN_SendJpegDate(picBuf, PIN_BUG_LEN_DWIN, (2 + jpgAddr + PIN_DATA_LEN_DWIN * j));
-      }
+  unsigned long j;
+  picLen = picLenth;//(picLenth / 4) * 3; 
+  gcodePicGetDataFormBase64(picBuf, 0, true);
+  // DWIN
+  // First write 0 to the starting address, otherwise DWIN will freeze (or crash).
+  DWIN_WriteOneWord(jpgAddr, 0);
+  // Start reading
+  for (j = 0; j < (picLen / PIN_BUG_LEN_DWIN); j++)
+  {
+    memset(picBuf, 0, sizeof(picBuf));
+    // card.read(picBuf, PIN_BUG_LEN_DWIN);
+    gcodePicGetDataFormBase64(picBuf, PIN_BUG_LEN_DWIN, false);
+    rtscheck.RTS_SndData((j % 8) + 1, DOWNLOAD_PREVIEW_VP); // Loading image appears
+    // Send image data to the specified address
+    if (isDisplay) {
+      DWIN_SendJpegDate(picBuf, PIN_BUG_LEN_DWIN, (2 + jpgAddr + PIN_DATA_LEN_DWIN * j));
     }
-    rtscheck.RTS_SndData(0, DOWNLOAD_PREVIEW_VP);
-    // Process the remaining data that is less than 240 characters, according to DWIN's processing content
-    // watchdog_refresh();
-    if (picLen % PIN_BUG_LEN_DWIN != 0)
-    {
-      memset(picBuf, 0, sizeof(picBuf));
-      // card.read(picBuf, (picLen - PIN_BUG_LEN_DWIN * j));  
-      gcodePicGetDataFormBase64(picBuf, (picLen - PIN_BUG_LEN_DWIN * j), false);
-      // Send image data to the specified address
-      if (isDisplay) {
-        DWIN_SendJpegDate(picBuf, (picLen - PIN_BUG_LEN_DWIN * j), (2 + jpgAddr + PIN_DATA_LEN_DWIN * j));
-      }
+  }
+  rtscheck.RTS_SndData(0, DOWNLOAD_PREVIEW_VP);
+  // Process the remaining data that is less than 240 characters, according to DWIN's processing content
+  // watchdog_refresh();
+  if (picLen % PIN_BUG_LEN_DWIN != 0)
+  {
+    memset(picBuf, 0, sizeof(picBuf));
+    // card.read(picBuf, (picLen - PIN_BUG_LEN_DWIN * j));  
+    gcodePicGetDataFormBase64(picBuf, (picLen - PIN_BUG_LEN_DWIN * j), false);
+    // Send image data to the specified address
+    if (isDisplay) {
+      DWIN_SendJpegDate(picBuf, (picLen - PIN_BUG_LEN_DWIN * j), (2 + jpgAddr + PIN_DATA_LEN_DWIN * j));
     }
-    // delay(25);
-    // Used to display jpg images
-    if (isDisplay){
-      DWIN_DisplayJpeg(jpgAddr, picLen);
-    }
-
-    return true;
+  }
+  // delay(25);
+  // Used to display jpg images
+  if (isDisplay){
+    DWIN_DisplayJpeg(jpgAddr, picLen);
+  }
+  return true;
 }
 
 static uint32_t msTest;
@@ -384,25 +356,16 @@ static uint32_t msTest;
  *
  * @throws Does not throw any exceptions but returns PIC_MISS_ERR in case of any errors.
  */
-char gcodePicExistjudge(char *fileName, unsigned int targitPicAddr, const char targitPicFormat, const char targitPicResolution)
+char gcodePicExistjudge(char *fileName, unsigned int targetPicAddr, const char targetPicFormat, const char targetPicResolution)
 {
   #define STRING_MAX_LEN      80
-					
   // unsigned char picFormat = PIC_FORMAT_MAX;		// picture format
-  unsigned char picResolution = PIC_RESOLITION_MAX; // picture resolution
+  unsigned char picResolution = PIC_RESOLUTION_MAX; // picture resolution
 	unsigned char ret;
   unsigned char strBuf[STRING_MAX_LEN] = {0};
   unsigned char bufIndex = 0;
-  // char lCmdBuf[20];
   char *picMsgP; 
-  char lPicFormar[20];
-  char lPicHeder[20];
-  // char lPicResolution[20];
-  unsigned long picLen = 0;      // picture data length
-  unsigned int picStartLine = 0; // picture start line
-  unsigned int picEndLine = 0;   // picture end line
-  unsigned int picHigh = 0;      // picture model height    
-
+  char lPicHeder[STRING_MAX_LEN];
   // read a string, separated by spaces
   #define GET_STRING_ON_GCODE()
   {
@@ -442,7 +405,7 @@ char gcodePicExistjudge(char *fileName, unsigned int targitPicAddr, const char t
     GET_STRING_ON_GCODE();
 
   // 2. judge the format of the picture (jpg, png), if it does not match, exit directly
-    if (targitPicFormat == PIC_FORMAT_JPG) {
+    if (targetPicFormat == PIC_FORMAT_JPG) {
       if (strstr((const char *)strBuf, FORMAT_JPG_HEADER) == NULL) {
         if (strstr((const char *)strBuf, FORMAT_JPG_HEADER_PRUSA) == NULL) {
           if (strstr((const char *)strBuf, FORMAT_JPG_HEADER_CURA) == NULL) {
@@ -461,21 +424,18 @@ char gcodePicExistjudge(char *fileName, unsigned int targitPicAddr, const char t
   // 3. get the picture format content of the string
     picMsgP = strtok((char *)strBuf, (const char *)" ");
     do {
-      if ( ENABLED(USER_LOGIC_DEUBG) )  SERIAL_ECHO_MSG("3.picMsgP = ", picMsgP);
-
+      if ( ENABLED(USER_LOGIC_DEBUG) )  SERIAL_ECHO_MSG("3.picMsgP = ", picMsgP);
       if ( picMsgP == NULL )
       {
         return PIC_MISS_ERR;
       }
-
       if (picMsgP != NULL && (strstr((const char *)picMsgP, FORMAT_JPG) != NULL || strstr((const char *)picMsgP, FORMAT_JPG_PRUSA) != NULL || strstr((const char *)picMsgP, FORMAT_JPG_CURA) != NULL)) break;
-
       picMsgP = strtok(NULL, (const char *)" ");
     }while(1);
 
   // 4. get the "start" field
     picMsgP = strtok(NULL, (const char *)" ");
-    if ( ENABLED(USER_LOGIC_DEUBG) )  SERIAL_ECHO_MSG("4.picMsgP = ", picMsgP,  " strlen(picMsgP) = ", strlen(picMsgP));
+    if ( ENABLED(USER_LOGIC_DEBUG) )  SERIAL_ECHO_MSG("4.picMsgP = ", picMsgP,  " strlen(picMsgP) = ", strlen(picMsgP));
     if ( picMsgP != NULL )
     {
       memset(lPicHeder, 0, sizeof(lPicHeder));
@@ -484,65 +444,109 @@ char gcodePicExistjudge(char *fileName, unsigned int targitPicAddr, const char t
 
   // 5. get the picture size field 200*200, 300*300, etc.
     picMsgP = strtok(NULL, (const char *)" ");
-    if ( ENABLED(USER_LOGIC_DEUBG) )  SERIAL_ECHO_MSG("5.picMsgP = ", picMsgP, " strlen(picMsgP) = ", strlen(picMsgP));
+    if ( ENABLED(USER_LOGIC_DEBUG) )  SERIAL_ECHO_MSG("5.picMsgP = ", picMsgP, " strlen(picMsgP) = ", strlen(picMsgP));
     if ( picMsgP != NULL )
     {
-      picResolution = PIC_RESOLITION_MAX;
-      if (strcmp(picMsgP, RESOLITION_250_250) == 0 || strcmp(picMsgP, RESOLITION_250_250_PRUSA) == 0) {
-        picResolution = PIC_RESOLITION_250_250;            
+      picResolution = PIC_RESOLUTION_MAX;
+      if (strcmp(picMsgP, RESOLUTION_250_250) == 0 || strcmp(picMsgP, RESOLUTION_250_250_PRUSA) == 0) {
+        picResolution = PIC_RESOLUTION_250_250;            
       }
     }
-    
 
   // 6. get the picture data length
     picMsgP = strtok(NULL, (const char *)" ");
-    if ( ENABLED(USER_LOGIC_DEUBG) )  SERIAL_ECHO_MSG("6.picMsgP = ", picMsgP);
+    if ( ENABLED(USER_LOGIC_DEBUG) )  SERIAL_ECHO_MSG("6.picMsgP = ", picMsgP);
     if ( picMsgP != NULL )
     {
       picLen = atoi(picMsgP);
-
       if (picLen > 24500) {
         return PIC_MISS_ERR;  // Define PICLEN_ERR similar to other error codes
       }
+    }else{
+      picLen = 0;
     }
 
   // 7. get the start line of the picture
     picMsgP = strtok(NULL, (const char *)" ");
-    if ( ENABLED(USER_LOGIC_DEUBG) )  SERIAL_ECHO_MSG("7.picMsgP = ", picMsgP);
+    if ( ENABLED(USER_LOGIC_DEBUG) )  SERIAL_ECHO_MSG("7.picMsgP = ", picMsgP);
     if ( picMsgP != NULL )
     {
       picStartLine = atoi(picMsgP);
+    }else{
+      picStartLine = 0;
     }
 
   // 8. get the end line of the picture
     picMsgP = strtok(NULL, (const char *)" ");
-    if ( ENABLED(USER_LOGIC_DEUBG) )  SERIAL_ECHO_MSG("8.picMsgP = ", picMsgP);
+    if ( ENABLED(USER_LOGIC_DEBUG) )  SERIAL_ECHO_MSG("8.picMsgP = ", picMsgP);
     if ( picMsgP != NULL )
     {
       picEndLine = atoi(picMsgP);
+    }else{
+      picEndLine = 0;      
     }
 
-  // 9. get the height of the model
-    picMsgP = strtok(NULL, (const char *)" ");
-    if ( ENABLED(USER_LOGIC_DEUBG) )  SERIAL_ECHO_MSG("9.picMsgP = ", picMsgP);
+  // 9. get the filament used m of the model
+    picMsgP = strtok(NULL, " ");
+    if ( ENABLED(USER_LOGIC_DEBUG) )  SERIAL_ECHO_MSG("9.picMsgP = ", picMsgP);
     if ( picMsgP != NULL )
     {
-      picHigh = atoi(picMsgP);
+      picFilament_m = atoi(picMsgP);
+    }else{
+      picFilament_m = 0;      
     }
 
-    if (ENABLED(USER_LOGIC_DEUBG)) 
+  // 10. get the filament used g of the model
+    picMsgP = strtok(NULL, " ");
+    if ( ENABLED(USER_LOGIC_DEBUG) )  SERIAL_ECHO_MSG("10.picMsgP = ", picMsgP);
+    if ( picMsgP != NULL )
     {
-      SERIAL_ECHO_MSG("lPicFormar = ", lPicFormar);
-      SERIAL_ECHO_MSG("lPicHeder = ", lPicHeder);
-      SERIAL_ECHO_MSG("picResolution = ", picResolution);
-      SERIAL_ECHO_MSG("picLen = ", picLen);
-      SERIAL_ECHO_MSG("picStartLine = ", picStartLine);
-      SERIAL_ECHO_MSG("picEndLine = ", picEndLine);
-      SERIAL_ECHO_MSG("picHigh = ", picHigh);
-    }
-    
+      picFilament_g = atoi(picMsgP);
+    }else{
+      picFilament_g = 0;      
+    }    
 
-    if (ENABLED(USER_LOGIC_DEUBG)) 
+  // 11. get the layer height of the model
+    picMsgP = strtok(NULL, " ");
+    if ( ENABLED(USER_LOGIC_DEBUG) )  SERIAL_ECHO_MSG("11.picMsgP = ", picMsgP);
+    if ( picMsgP != NULL )
+    {
+      picLayerHeight = atof(picMsgP);
+    }else{
+      picLayerHeight = 0;      
+    }
+
+  // 12. get the filament diameter of the model
+    picMsgP = strtok(NULL, " ");
+    if ( ENABLED(USER_LOGIC_DEBUG) )  SERIAL_ECHO_MSG("12.picMsgP = ", picMsgP);
+    if ( picMsgP != NULL )
+    {
+      picFilamentDiameter = atof(picMsgP);
+    }else{
+      picFilamentDiameter = 0;      
+    }
+
+  // 13. get the layer height of the model
+    picMsgP = strtok(NULL, " ");
+    if ( ENABLED(USER_LOGIC_DEBUG) )  SERIAL_ECHO_MSG("13.picMsgP = ", picMsgP);
+    if ( picMsgP != NULL )
+    {
+      picFilamentDensity = atof(picMsgP);
+    }else{
+      picFilamentDensity = 0;      
+    }        
+
+  // 14. get the layers of the model
+    picMsgP = strtok(NULL, " ");
+    if ( ENABLED(USER_LOGIC_DEBUG) )  SERIAL_ECHO_MSG("14.picMsgP = ", picMsgP);
+    if ( picMsgP != NULL )
+    {
+      picLayers = atoi(picMsgP);
+    }else{
+      picLayers = 0;      
+    }    
+
+    if (ENABLED(USER_LOGIC_DEBUG)) 
     {
       //SERIAL_ECHOPAIR("\r\n gcode pic time test 1 msTest = ", (millis() - msTest));
       msTest = millis();
@@ -550,9 +554,9 @@ char gcodePicExistjudge(char *fileName, unsigned int targitPicAddr, const char t
 
   // read the picture data from the gcode, and judge whether it needs to be sent to the screen based on whether the selected is a predetermined format or predetermined size picture
   // determine whether the required resolution is needed
-    if ( picResolution == targitPicResolution )
+    if ( picResolution == targetPicResolution )
     {
-      gcodePicDataRead(picLen, true, targitPicAddr);
+      gcodePicDataRead(picLen, true, targetPicAddr);
     }
     else
     {
@@ -560,33 +564,30 @@ char gcodePicExistjudge(char *fileName, unsigned int targitPicAddr, const char t
       // The protocol stipulates a complete line of data: ';' + ' ' + 'Data' + '\n' 1+1+76+1 = 79 bytes
       // The last line is '; png end\r' or '; jpg end\r',
       uint32_t index1 = card.getFileCurPosition();//card.getIndex();
-      uint32_t targitPicpicLen = 0;
+      uint32_t targetPicpicLen = 0;
       if ( picLen % 3 == 0 ) {
-        targitPicpicLen = picLen / 3 * 4;
+        targetPicpicLen = picLen / 3 * 4;
       } else {
-        targitPicpicLen = (picLen / 3 + 1) * 4; 
+        targetPicpicLen = (picLen / 3 + 1) * 4; 
       }
-      uint32_t indexAdd = (targitPicpicLen / 76) * 3 + targitPicpicLen + 10;
-      if ( (targitPicpicLen % 76 ) != 0) {
+      uint32_t indexAdd = (targetPicpicLen / 76) * 3 + targetPicpicLen + 10;
+      if ( (targetPicpicLen % 76 ) != 0) {
         indexAdd += 3;
       }
-
       card.setIndex((index1 + indexAdd));
-      if ( ENABLED(USER_LOGIC_DEUBG) ) 
+      if ( ENABLED(USER_LOGIC_DEBUG) ) 
       {
         //SERIAL_ECHOLNPAIR("\r\n ...old_index1 = ", index1,
         //                  "\r\n ...indexAdd = ", indexAdd);
       }
-
-      if ( picResolution != targitPicResolution ){
-        return PIC_RESOLITION_ERR;
+      if ( picResolution != targetPicResolution ){
+        return PIC_RESOLUTION_ERR;
       } else {
         return PIC_FORMAT_ERR;
       }
     }
-
     //card.closefile();
-    if ( ENABLED(USER_LOGIC_DEUBG) ) 
+    if ( ENABLED(USER_LOGIC_DEBUG) ) 
 	  //SERIAL_ECHOPAIR("\r\n gcode pic time test 3 msTest = ", (millis() - msTest));
     msTest = millis();
 	return PIC_OK;
@@ -618,7 +619,7 @@ char gcodePicDataSendToDwin(char *fileName, unsigned int jpgAddr, unsigned char 
       card.closefile();
       return PIC_MISS_ERR;
     }
-    else if ((ret == PIC_FORMAT_ERR) || (ret == PIC_RESOLITION_ERR)) // When there is a format or size error, continue to judge further
+    else if ((ret == PIC_FORMAT_ERR) || (ret == PIC_RESOLUTION_ERR)) // When there is a format or size error, continue to judge further
     {
       if (++returyCnt >= 3)
       {
@@ -665,13 +666,11 @@ void DWIN_BrightnessCtrl(DwinBrightness_t brightness)
   buf[1] = brightness.LeftUp_Y;
   buf[2] = brightness.RightDown_X; // brightness
   buf[3] = brightness.RightDown_Y;
-
   // Display Area Modification
   DWIN_WriteOneWord(brightness.spAddr, buf[0]);
   DWIN_WriteOneWord(brightness.spAddr + 1, buf[1]);
   DWIN_WriteOneWord(brightness.spAddr + 2, buf[2]);
   DWIN_WriteOneWord(brightness.spAddr + 3, buf[3]);
-
   // Brightness Adjustment
   DWIN_WriteOneWord(brightness.addr, brightness.brightness);
 }
@@ -690,6 +689,5 @@ void RefreshBrightnessAtPrint(uint16_t persent)
   printBri.LeftUp_Y = BRIGHTNESS_PRINT_LEFT_HIGH_Y;
   printBri.RightDown_X = BRIGHTNESS_PRINT_LEFT_HIGH_X + BRIGHTNESS_PRINT_WIDTH;
   printBri.RightDown_Y = BRIGHTNESS_PRINT_LEFT_HIGH_Y + (100 - persent) * BRIGHTNESS_PRINT_HIGH / 100;
-
   DWIN_BrightnessCtrl(printBri);
 }

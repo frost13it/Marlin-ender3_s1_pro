@@ -333,7 +333,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         quickstop_stepper();
         print_job_timer.stop();
         RTS_ShowMotorFreeIcon(false); // 激光时锁定
-        RTS_ResetTime();
+        RTS_ResetPrintData();
         print_job_timer.reset();
         RTS_CleanPrintAndSelectFile();
         RTS_ShowPage(51);
@@ -815,23 +815,6 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       {
         RTS_ShowPage(39);
       }
-      // else if(recdat.data[0] == 6)
-      // {
-      //   if(wifi_enable_flag)
-      //   {
-      //     wifi_enable_flag = 0;
-      //     queue.inject_P(PSTR("M115"));
-      //     RTS_SndData(1, ADV_SETTING_WIFI_ICON_VP);
-      //     settings.save();
-      //   }
-      //   else
-      //   {
-      //     wifi_enable_flag = 1;
-      //     queue.inject_P(PSTR("M115"));
-      //     RTS_SndData(0, ADV_SETTING_WIFI_ICON_VP);
-      //     settings.save();
-      //   }
-      // }
       else if(recdat.data[0] == 7) //传动比
       {
         RTS_ShowPage(76);
@@ -1094,7 +1077,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
           #if ENABLED(GCODE_PREVIEW_ENABLED)
             char ret;
             gcodePicDisplayOnOff(DEFAULT_PRINT_MODEL_VP, false);
-            ret = gcodePicDataSendToDwin(CardRecbuf.Cardfilename[CardRecbuf.recordcount],VP_OVERLAY_PIC_PTINT,PIC_FORMAT_JPG, PIC_RESOLITION_250_250);
+            ret = gcodePicDataSendToDwin(CardRecbuf.Cardfilename[CardRecbuf.recordcount],VP_OVERLAY_PIC_PTINT,PIC_FORMAT_JPG, PIC_RESOLUTION_250_250);
             if (ret == PIC_OK) {
               gcodePicDisplayOnOff(DEFAULT_PRINT_MODEL_VP, false);
             } else {
@@ -1349,7 +1332,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         CardRecbuf.recordcount = -1;
         print_job_timer.stop();
         //RTS_ShowMotorFreeIcon(true);
-        RTS_ResetTime();
+        RTS_ResetPrintData();
         print_job_timer.reset();
         RTS_CleanPrintAndSelectFile();
         CardUpdate = true;

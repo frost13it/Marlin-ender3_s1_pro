@@ -37,17 +37,87 @@
 void GcodeSuite::M117() {
 
   #if ENABLED(E3S1PRO_RTS)
-    // clear out our status areas
-    RTS_CleanPrintAndSelectFile();
-    if (parser.string_arg && parser.string_arg[0]) {
-      char msg[55];
+    if (parser.string_arg[0] == 'L' && isdigit(parser.string_arg[1])) {
+      bool hasL = false, hasG = false, hasM = false;
+      uint16_t m117_layer = 0, picFilament_g_todo = 0, picFilament_m_todo = 0;
+      // Check for the presence of 'L', 'G', and 'M' commands
+      for (int i = 0; parser.string_arg[i] != '\0'; ++i) {
+          if ((parser.string_arg[i] == 'L' || parser.string_arg[i] == 'G' || parser.string_arg[i] == 'M' || parser.string_arg[i] == 'Q' || parser.string_arg[i] == 'Z') && isdigit(parser.string_arg[i + 1])) {
+              int start = i + 1;
+              int end = start;
+              bool isFloat = false;
+              while (isdigit(parser.string_arg[end]) || parser.string_arg[end] == '.') {
+                  if (parser.string_arg[end] == '.') {
+                      isFloat = true;
+                  }
+                  ++end;
+              }
+              char number_str[20];  // Adjust the buffer size to accommodate float
+              strncpy(number_str, parser.string_arg + start, end - start);
+              number_str[end - start] = '\0';
+              if (isFloat) {
+                  float number = strtof(number_str, nullptr);  // Parse as float
+                  if (parser.string_arg[i] == 'Z') {
+                    picLayerHeight = number;  // Float for Z variable
+                    SERIAL_ECHO_MSG("picLayerHeight: ", picLayerHeight);                       
+                  }
+              } else {
+                  int number = strtol(number_str, nullptr, 10);  // Parse as int
+                  if (parser.string_arg[i] == 'L') {
+                      hasL = true;
+                      m117_layer = number;  // Integer for L variable
+                  } else if (parser.string_arg[i] == 'G') {
+                      hasG = true;
+                      picFilament_g_todo = number;  // Integer for G variable
+                  } else if (parser.string_arg[i] == 'M') {
+                      hasM = true;
+                      picFilament_m_todo = number;  // Integer for M variable
+                  } else if (parser.string_arg[i] == 'Q') {
+                      picLayers = number;  // Integer for Q variable
+                      SERIAL_ECHO_MSG("picLayers: ", picLayers);                      
+                  }
+              }
+          }
+      }
 
+      if (hasL && hasG && hasM) {
+        rtscheck.RTS_SndData(m117_layer, PRINT_LAYERS_DONE_VP);
+        float current_z_pos = current_position.z;
+        if(m117_layer == 1){
+          rtscheck.RTS_SndData(current_z_pos * 100, PRINT_CURRENT_Z_VP);
+          rtscheck.RTS_SndData(picFilament_g_todo, PRINT_FILAMENT_G_TODO_VP);
+          rtscheck.RTS_SndData(picFilament_m_todo, PRINT_FILAMENT_M_TODO_VP);
+          rtscheck.RTS_SndData(picFilament_g_todo, PRINT_FILAMENT_G_VP);
+          rtscheck.RTS_SndData(picFilament_m_todo, PRINT_FILAMENT_M_VP);
+          rtscheck.RTS_SndData(picLayers, PRINT_LAYERS_VP);
+          rtscheck.RTS_SndData(picLayerHeight * 100, PRINT_LAYER_HEIGHT_VP);
+          rtscheck.RTS_SndData(208, EXTERNAL_M600_ICON_VP);
+        }else{
+          rtscheck.RTS_SndData(current_z_pos * 100, PRINT_CURRENT_Z_VP);
+          rtscheck.RTS_SndData(picFilament_g_todo, PRINT_FILAMENT_G_TODO_VP);
+          rtscheck.RTS_SndData(picFilament_m_todo, PRINT_FILAMENT_M_TODO_VP);
+        }
+        #if ENABLED(LCD_RTS_DEBUG)
+          SERIAL_ECHO_MSG("Current Position Z: ", current_z_pos * 100);
+          SERIAL_ECHO_MSG("L-command: ", m117_layer);
+          SERIAL_ECHO_MSG("G-command: ", picFilament_g_todo);
+          SERIAL_ECHO_MSG("M-command: ", picFilament_m_todo);
+          SERIAL_ECHO_MSG("picLayers: ", picLayers);
+          SERIAL_ECHO_MSG("picLayerHeight: ", picLayerHeight);                    
+        #endif
+      }
+    } else {
+      RTS_CleanPrintAndSelectFile();      
+      char msg[55];
       if (strlen(parser.string_arg) >= TEXTBYTELEN) {
         strncpy(msg, parser.string_arg, TEXTBYTELEN - 1);
         msg[TEXTBYTELEN - 1] = '\0';
       } else {
         strcpy(msg, parser.string_arg);
       }
+      #if ENABLED(LCD_RTS_DEBUG)      
+        SERIAL_ECHO_MSG("msg M117: ", msg);
+      #endif
       if (strlen(msg) > 25) {
         rtscheck.RTS_SndData(0, PRINT_FILE_TEXT_VP);
         rtscheck.RTS_SndData(msg, SELECT_FILE_TEXT_VP);

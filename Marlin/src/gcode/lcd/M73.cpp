@@ -86,6 +86,9 @@ void GcodeSuite::M73() {
             ? parser.value_float() * (PROGRESS_SCALE)
             : parser.value_byte()
           );
+          #if ENABLED(LCD_RTS_DEBUG)
+            SERIAL_ECHO_MSG("last_progress_percent M73: ", PRINT_PROCESS_VP);
+          #endif
           rtscheck.RTS_SndData(last_progress_percent, PRINT_PROCESS_VP);
           rtscheck.RTS_SndData(last_progress_percent, PRINT_PROCESS_ICON_VP);
           duration_t elapsed = print_job_timer.duration();
