@@ -24,7 +24,7 @@
 
 #include "../MarlinCore.h" // for printingIsPaused
 
-#if LED_POWEROFF_TIMEOUT > 0 || ALL(HAS_WIRED_LCD, PRINTER_EVENT_LEDS) || (defined(LCD_BACKLIGHT_TIMEOUT_MINS) && defined(NEOPIXEL_BKGD_INDEX_FIRST))
+#if LED_POWEROFF_TIMEOUT > 0 || ALL(HAS_WIRED_LCD, PRINTER_EVENT_LEDS) || (HAS_BACKLIGHT_TIMEOUT && defined(NEOPIXEL_BKGD_INDEX_FIRST))
   #include "../feature/leds/leds.h"
 #endif
 
@@ -185,10 +185,14 @@ constexpr uint8_t epps = ENCODER_PULSES_PER_STEP;
   volatile int8_t encoderDiff; // Updated in update_buttons, added to encoderPosition every LCD update
 #endif
 
-#if LCD_BACKLIGHT_TIMEOUT_MINS
+#if HAS_BACKLIGHT_TIMEOUT
 
+  #if ENABLED(EDITABLE_DISPLAY_TIMEOUT)
+    uint8_t MarlinUI::backlight_timeout_minutes; // Initialized by settings.load()
+  #else
+    constexpr uint8_t MarlinUI::backlight_timeout_minutes;
+  #endif
   constexpr uint8_t MarlinUI::backlight_timeout_min, MarlinUI::backlight_timeout_max;
-  uint8_t MarlinUI::backlight_timeout_minutes; // Initialized by settings.load()
   millis_t MarlinUI::backlight_off_ms = 0;
 
   void MarlinUI::refresh_backlight_timeout() {
@@ -203,12 +207,16 @@ constexpr uint8_t epps = ENCODER_PULSES_PER_STEP;
 
 #elif HAS_DISPLAY_SLEEP
 
+  #if ENABLED(EDITABLE_DISPLAY_TIMEOUT)
+    uint8_t MarlinUI::sleep_timeout_minutes; // Initialized by settings.load()
+  #else
+    constexpr uint8_t MarlinUI::sleep_timeout_minutes;
+  #endif
   constexpr uint8_t MarlinUI::sleep_timeout_min, MarlinUI::sleep_timeout_max;
 
-  uint8_t MarlinUI::sleep_timeout_minutes; // Initialized by settings.load()
-  millis_t MarlinUI::screen_timeout_millis = 0;
+  millis_t MarlinUI::screen_timeout_ms = 0;
   void MarlinUI::refresh_screen_timeout() {
-    screen_timeout_millis = sleep_timeout_minutes ? millis() + sleep_timeout_minutes * 60UL * 1000UL : 0;
+    screen_timeout_ms = sleep_timeout_minutes ? millis() + sleep_timeout_minutes * 60UL * 1000UL : 0;
     sleep_display(false);
   }
 
@@ -857,7 +865,7 @@ void MarlinUI::init() {
             TERN_(MULTI_E_MANUAL, axis == E_AXIS ? e_index :) active_extruder
           );
 
-          //SERIAL_ECHOLNPGM("Add planner.move with Axis ", AS_CHAR(AXIS_CHAR(axis)), " at FR ", fr_mm_s);
+          //SERIAL_ECHOLNPGM("Add planner.move with Axis ", C(AXIS_CHAR(axis)), " at FR ", fr_mm_s);
 
           axis = NO_AXIS_ENUM;
 
@@ -874,7 +882,7 @@ void MarlinUI::init() {
       TERN_(MULTI_E_MANUAL, if (move_axis == E_AXIS) e_index = eindex);
       start_time = millis() + (menu_scale < 0.99f ? 0UL : 250UL); // delay for bigger moves
       axis = move_axis;
-      //SERIAL_ECHOLNPGM("Post Move with Axis ", AS_CHAR(AXIS_CHAR(axis)), " soon.");
+      //SERIAL_ECHOLNPGM("Post Move with Axis ", C(AXIS_CHAR(axis)), " soon.");
     }
 
     #if ENABLED(AUTO_BED_LEVELING_UBL)
@@ -1027,9 +1035,13 @@ void MarlinUI::init() {
         uint8_t abs_diff = ABS(encoderDiff);
 
         #if ENCODER_PULSES_PER_STEP > 1
-          static int8_t lastEncoderDiff;
-          TERN_(HAS_TOUCH_SLEEP, if (lastEncoderDiff != encoderDiff) wakeup_screen());
-          lastEncoderDiff = encoderDiff;
+          #if HAS_TOUCH_SLEEP
+            static int8_t lastEncoderDiff;
+            if (lastEncoderDiff != encoderDiff) {
+              wakeup_screen();
+              lastEncoderDiff = encoderDiff;
+            }
+          #endif
         #endif
 
         const bool encoderPastThreshold = (abs_diff >= epps);
@@ -1092,7 +1104,7 @@ void MarlinUI::init() {
         if (encoderPastThreshold || lcd_clicked) {
           reset_status_timeout(ms);
 
-          #if LCD_BACKLIGHT_TIMEOUT_MINS
+          #if HAS_BACKLIGHT_TIMEOUT
             refresh_backlight_timeout();
           #elif HAS_DISPLAY_SLEEP
             refresh_screen_timeout();
@@ -1202,8 +1214,7 @@ void MarlinUI::init() {
           return_to_status();
       #endif
 
-      #if LCD_BACKLIGHT_TIMEOUT_MINS
-
+      #if HAS_BACKLIGHT_TIMEOUT
         if (backlight_off_ms && ELAPSED(ms, backlight_off_ms)) {
           #ifdef NEOPIXEL_BKGD_INDEX_FIRST
             neo.set_background_off();
@@ -1214,7 +1225,7 @@ void MarlinUI::init() {
           backlight_off_ms = 0;
         }
       #elif HAS_DISPLAY_SLEEP
-        if (screen_timeout_millis && ELAPSED(ms, screen_timeout_millis))
+        if (screen_timeout_ms && ELAPSED(ms, screen_timeout_ms))
           sleep_display();
       #endif
 

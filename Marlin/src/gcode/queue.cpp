@@ -44,14 +44,6 @@ GCodeQueue queue;
   #endif
 #endif
 
-#if ENABLED(PRINTER_EVENT_LEDS)
-  #include "../feature/leds/printer_event_leds.h"
-#endif
-
-#if HAS_ETHERNET
-  #include "../feature/ethernet.h"
-#endif
-
 #if ENABLED(BINARY_FILE_TRANSFER)
   #include "../feature/binary_stream.h"
 #endif
