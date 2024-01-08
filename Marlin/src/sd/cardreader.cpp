@@ -170,7 +170,7 @@ CardReader::CardReader() {
     #endif
   #endif
 
-  flag.sdprinting = flag.sdprintdone = flag.mounted = flag.saving = flag.logging = false;
+  flag.sdprinting = flag.sdprintdone = flag.mounted = flag.saving = flag.logging = flag.reading = false;
   filesize = sdpos = 0;
 
   TERN_(HAS_MEDIA_SUBCALLS, file_subcall_ctr = 0);
@@ -760,6 +760,10 @@ inline void echo_write_to_file(const char * const fname) {
   SERIAL_ECHOLNPGM(STR_SD_WRITE_TO_FILE, fname);
 }
 
+inline void echo_readonly_from_file(const char * const fname) {
+  SERIAL_ECHOLNPGM("Reading sd file readonly: ", fname);
+}
+
 //
 // Open a file by DOS path for write
 //
@@ -785,6 +789,32 @@ void CardReader::openFileWrite(const char * const path) {
       return;
     }
   #endif
+
+  openFailed(fname);
+}
+
+//
+// Open a file by DOS path for readonly (without printing for example to load a thumbnail)
+//
+void CardReader::openFileReadonly(const char * const path) {
+  if (!isMounted()) return;
+
+  announceOpen(2, path);
+  TERN_(HAS_MEDIA_SUBCALLS, file_subcall_ctr = 0);
+
+  MediaFile *diveDir;
+  const char * const fname = diveToFile(false, diveDir, path);
+  if (!fname) return openFailed(path);
+
+  if (file.open(diveDir, fname, O_READ)) {
+    filesize = file.fileSize();
+    sdpos = 0;
+    flag.reading = true;
+    selectFileByName(fname);
+    TERN_(EMERGENCY_PARSER, emergency_parser.disable());
+    echo_readonly_from_file(fname);
+    return;
+  }
 
   openFailed(fname);
 }
@@ -989,7 +1019,7 @@ void CardReader::write_command(char * const buf) {
 void CardReader::closefile(const bool store_location/*=false*/) {
   file.sync();
   file.close();
-  flag.saving = flag.logging = false;
+  flag.saving = flag.logging = flag.reading = false;
   sdpos = 0;
   TERN_(EMERGENCY_PARSER, emergency_parser.enable());
 

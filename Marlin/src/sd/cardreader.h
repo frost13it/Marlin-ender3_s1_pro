@@ -71,6 +71,7 @@ extern const char M23_STR[], M24_STR[];
 typedef struct {
   bool saving:1,
        logging:1,
+       reading:1,
        sdprinting:1,
        sdprintdone:1,
        mounted:1,
@@ -140,6 +141,7 @@ public:
 
   // Basic file ops
   static void openFileRead(const char * const path, const uint8_t subcall=0);
+  static void openFileReadonly(const char * const path);
   static void openFileWrite(const char * const path);
   static void closefile(const bool store_location=false);
   static bool fileExists(const char * const name);

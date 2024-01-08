@@ -68,9 +68,10 @@ enum
 /*****************  gcode embedded preview image read related definition (end)  ******************/
 void RefreshBrightnessAtPrint(uint16_t persent);
 bool gcodePicGetDataFormBase64(char * buf, unsigned long picLen, bool resetFlag);
-bool gcodePicDataRead(unsigned long picLenth, char isDisplay, unsigned long jpgAddr);
+bool gcodePicDataRead(unsigned long picLength, char isDisplay, unsigned long jpgAddr);
 char gcodePicExistjudge(char *fileName, unsigned int targetPicAddr, const char targetPicFormat, const char targetPicResolution);
 char gcodePicDataSendToDwin(char *fileName, unsigned int jpgAddr, unsigned char jpgFormat, unsigned char jpgResolution);
+char gcodePicDataOctoPrintSendToDwin(char *fileName, unsigned int jpgAddr, unsigned char jpgFormat, unsigned char jpgResolution);
 void gcodePicDisplayOnOff(unsigned int jpgAddr, bool onoff);
 extern unsigned long picLen;      // picture data length
 extern unsigned int picStartLine; // picture start line

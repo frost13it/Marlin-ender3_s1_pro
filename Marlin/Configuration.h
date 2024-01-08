@@ -69,7 +69,7 @@
 //#define ENDER_3S1_PRO
 //#define ENDER_3S1_PLUS
 //#define ENDER_3S1
-#define FORK_VERSION "v023"
+#define FORK_VERSION "v024"
 
 // Choose the name from boards.h that matches your setup
 #define USER_STM32F401  1
@@ -1521,8 +1521,8 @@
  */
 #define CLASSIC_JERK
 #if ENABLED(CLASSIC_JERK)
-  #define DEFAULT_XJERK 20.0
-  #define DEFAULT_YJERK 20.0
+  #define DEFAULT_XJERK 12.0
+  #define DEFAULT_YJERK 12.0
   #define DEFAULT_ZJERK  0.6
   //#define DEFAULT_IJERK  0.3
   //#define DEFAULT_JJERK  0.3
@@ -1539,7 +1539,7 @@
   #endif
 #endif
 
-#define DEFAULT_EJERK    10.0  // May be used by Linear Advance
+#define DEFAULT_EJERK    8.0  // May be used by Linear Advance
 
 /**
  * Junction Deviation Factor

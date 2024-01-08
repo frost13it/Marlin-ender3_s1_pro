@@ -787,11 +787,11 @@ void unified_bed_leveling::shift_mesh_height() {
     
     #if ENABLED(E3S1PRO_RTS)
       int16_t point_num_real;
-      leveling_running = 1;
-      if (IS_SD_PRINTING()){
+      if (printingIsActive() && leveling_running == 0) {
         RTS_ResetMesh();
         rtscheck.RTS_ChangeLevelingPage();
       }      
+      leveling_running = 1;
     #endif
 
     mesh_index_pair best;

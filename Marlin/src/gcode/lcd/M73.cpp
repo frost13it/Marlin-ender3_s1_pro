@@ -56,14 +56,6 @@ void GcodeSuite::M73() {
   uint16_t last_remaining_time = 0;
   uint16_t last_progress_percent = 0;
 
-  #if ENABLED(SET_PROGRESS_PERCENT)
-    if (parser.seenval('P'))
-      ui.set_progress((PROGRESS_SCALE) > 1
-        ? parser.value_float() * (PROGRESS_SCALE)
-        : parser.value_byte()
-      );
-  #endif
-
   #if ENABLED(DWIN_LCD_PROUI)
 
     DWIN_M73();
@@ -75,37 +67,53 @@ void GcodeSuite::M73() {
         #if ENABLED(E3S1PRO_RTS)
           if (parser.value_byte() == 0)
             last_start_time = HAL_GetTick();
-        #endif   
-        if(!lcd_rts_settings.external_m73){             
+        #endif
+        if(!lcd_rts_settings.external_m73){ 
           ui.set_progress((PROGRESS_SCALE) > 1
             ? parser.value_float() * (PROGRESS_SCALE)
             : parser.value_byte()
           );
-        }else{
+        }
+        if(lcd_rts_settings.external_m73){             
           last_progress_percent = (unsigned char)((PROGRESS_SCALE) > 1
             ? parser.value_float() * (PROGRESS_SCALE)
             : parser.value_byte()
           );
           #if ENABLED(LCD_RTS_DEBUG)
-            SERIAL_ECHO_MSG("last_progress_percent M73: ", PRINT_PROCESS_VP);
+            SERIAL_ECHO_MSG("last_progress_percent M73: ", last_progress_percent);
           #endif
           rtscheck.RTS_SndData(last_progress_percent, PRINT_PROCESS_VP);
           rtscheck.RTS_SndData(last_progress_percent, PRINT_PROCESS_ICON_VP);
           duration_t elapsed = print_job_timer.duration();
           rtscheck.RTS_SndData(elapsed.value / 3600, PRINT_TIME_HOUR_VP);
           rtscheck.RTS_SndData((elapsed.value % 3600) / 60, PRINT_TIME_MIN_VP);
+          #if ENABLED(LCD_RTS_DEBUG)
+            SERIAL_ECHO_MSG("M73 1 PRINT_TIME_HOUR_VP: ", elapsed.value / 3600);
+            SERIAL_ECHO_MSG("M73 1 PRINT_TIME_MIN_VP: ", (elapsed.value % 3600));
+          #endif              
         }
       }
     #endif
 
     #if ENABLED(SET_REMAINING_TIME)
-      if(!lcd_rts_settings.external_m73){ 
-        if (parser.seenval('R')) ui.set_remaining_time(60 * parser.value_ulong());
-      }else{
+
+      if (parser.seenval('R')){
+        if(!lcd_rts_settings.external_m73){
+          ui.set_remaining_time(60 * parser.value_int());
+          #if ENABLED(LCD_RTS_DEBUG)
+            SERIAL_ECHO_MSG("M73 ui.set_remaining_time: ", 60 * parser.value_ulong());
+          #endif
+        }
+      }
+      if(lcd_rts_settings.external_m73){ 
         if (parser.seenval('R')) {
-          last_remaining_time = 60 * parser.value_ulong();
+          last_remaining_time = 60 * parser.value_int();
           rtscheck.RTS_SndData(last_remaining_time / 3600, PRINT_REMAIN_TIME_HOUR_VP);
           rtscheck.RTS_SndData((last_remaining_time % 3600) / 60, PRINT_REMAIN_TIME_MIN_VP);
+          #if ENABLED(LCD_RTS_DEBUG)
+            SERIAL_ECHO_MSG("M73 3 PRINT_REMAIN_TIME_HOUR_VP: ", last_remaining_time / 3600);
+            SERIAL_ECHO_MSG("M73 3 PRINT_REMAIN_TIME_MIN_VP: ", (last_remaining_time % 3600));
+          #endif          
         }      
       }
     #endif

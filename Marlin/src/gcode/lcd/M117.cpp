@@ -92,6 +92,7 @@ void GcodeSuite::M117() {
           rtscheck.RTS_SndData(picLayers, PRINT_LAYERS_VP);
           rtscheck.RTS_SndData(picLayerHeight * 100, PRINT_LAYER_HEIGHT_VP);
           rtscheck.RTS_SndData(208, EXTERNAL_M600_ICON_VP);
+          RTS_ShowPage(10);
         }else{
           rtscheck.RTS_SndData(current_z_pos * 100, PRINT_CURRENT_Z_VP);
           rtscheck.RTS_SndData(picFilament_g_todo, PRINT_FILAMENT_G_TODO_VP);

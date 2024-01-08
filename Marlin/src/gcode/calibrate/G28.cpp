@@ -669,25 +669,20 @@ void GcodeSuite::G28() {
 
   TERN_(HAS_DWIN_E3V2_BASIC, dwinHomingDone());
   TERN_(EXTENSIBLE_UI, ExtUI::onHomingDone());
-
- #if ALL(E3S1PRO_RTS, LASER_FEATURE)
-    if(laser_device.is_laser_device()){
-      do_blocking_move_to_xy(0, 10, homing_feedrate(X_AXIS));
-      sync_plan_position();
-    }else
-  #endif
-  {
   TERN_(E3S1PRO_RTS, RTS_MoveAxisHoming());
-  TERN_(E3S1PRO_RTS, RTS_ShowMotorFreeIcon(false));
-  }
-  
-  #if ENABLED(E3S1PRO_RTS)
-    home_flag  = false; 
-  #endif
+  TERN_(E3S1PRO_RTS, RTS_ShowMotorFreeIcon(false));  
+  TERN_(E3S1PRO_RTS, home_flag  = false;);
 
   report_current_position();
 
   TERN_(FULL_REPORT_TO_HOST_FEATURE, set_and_report_grblstate(old_grblstate));
+
+  #if ALL(E3S1PRO_RTS, LASER_FEATURE)
+    if(laser_device.is_laser_device()){
+      do_blocking_move_to_xy(0, 10, homing_feedrate(X_AXIS));
+      sync_plan_position();
+    }
+  #endif
 
   #ifdef EVENT_GCODE_AFTER_HOMING
     gcode.process_subcommands_now(F(EVENT_GCODE_AFTER_HOMING));

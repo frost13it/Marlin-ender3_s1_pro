@@ -333,7 +333,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         quickstop_stepper();
         print_job_timer.stop();
         RTS_ShowMotorFreeIcon(false); // 激光时锁定
-        RTS_ResetPrintData();
+        RTS_ResetPrintData(true);
         print_job_timer.reset();
         RTS_CleanPrintAndSelectFile();
         RTS_ShowPage(51);
@@ -1332,7 +1332,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         CardRecbuf.recordcount = -1;
         print_job_timer.stop();
         //RTS_ShowMotorFreeIcon(true);
-        RTS_ResetPrintData();
+        RTS_ResetPrintData(true);
         print_job_timer.reset();
         RTS_CleanPrintAndSelectFile();
         CardUpdate = true;

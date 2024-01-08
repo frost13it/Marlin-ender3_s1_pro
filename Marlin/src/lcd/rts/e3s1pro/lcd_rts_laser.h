@@ -27,21 +27,29 @@ extern const unsigned long Addrbuf[];
 void ErrorHanding(void);
 extern void RTSUpdate(void);
 extern void RTSInit(void);
+extern float zprobe_zoffset;
+extern char waitway;
+extern int change_page_font;
 extern uint8_t language_change_font;
 extern uint8_t lang;
 extern int Update_Time_Value;
 extern bool PoweroffContinue;
+extern bool heat_flag;
 extern char commandbuf[30];
+extern bool StartPrint_flag;
 extern char errorway;
 extern char errornum;
+extern char error_sd_num;
+extern unsigned char Count_first;
+extern unsigned char Count_probe; 
 extern float z_offset;
 
 /*******************************类定义*********************************/
 extern RTSSHOW rtscheck;
 
 extern CardReader card;
-
-extern char home_errornum; 
+extern char home_errornum;
+extern bool StartPrint_flag;
 //babystep偏移参数，Z轴偏移参数
 #if ENABLED(BABYSTEPPING)
   extern float zprobe_zoffset;
@@ -74,7 +82,6 @@ extern int last_target_temperature[4];
 //上一次热床的温度
 extern int last_target_temperature_bed;
 //当前的页面序列
-extern int change_page_font;
 extern unsigned char Percentrecord;   //SD卡打印百分比
 // represents to update file list
 //SD卡文件列表更新，标志位
@@ -92,6 +99,8 @@ extern unsigned char AxisUnitMode;
 
 //移动轴的每个单位参数
 extern float axis_unit;
+extern int Update_Time_Value;
+//extern int temphot;
 extern bool rts_start_print;  
 void RTS_PauseMoveAxisPage(void);
 void RTS_AutoBedLevelPage(void);

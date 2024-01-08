@@ -517,6 +517,7 @@ void GcodeSuite::process_parsed_command(const bool no_ok/*=false*/) {
       case 17: M17(); break;                                      // M17: Enable all stepper motors
 
       #if HAS_MEDIA
+        case 19: M19(); break;                                    // M19: Open a file readonly without starting a print
         case 20: M20(); break;                                    // M20: List SD card
         case 21: M21(); break;                                    // M21: Init SD card
         case 22: M22(); break;                                    // M22: Release SD card
