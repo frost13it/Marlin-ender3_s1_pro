@@ -41,6 +41,10 @@
 
 bool PrintJobRecovery::enabled; // Initialized by settings.load()
 
+#if HAS_PLR_BED_THRESHOLD
+  celsius_t PrintJobRecovery::bed_temp_threshold; // Initialized by settings.load()
+#endif
+
 MediaFile PrintJobRecovery::file;
 job_recovery_info_t PrintJobRecovery::info;
 const char PrintJobRecovery::filename[5] = "/PLR";
@@ -395,7 +399,6 @@ void PrintJobRecovery::write() {
  * Resume the saved print job
  */
 void PrintJobRecovery::resume() {
-  //const uint32_t resume_sdpos = info.sdpos; // Get here before the stepper ISR overwrites it
 
   // Apply the dry-run flag if enabled
   if (info.flag.dryrun) marlin_debug_flags |= MARLIN_DEBUG_DRYRUN;

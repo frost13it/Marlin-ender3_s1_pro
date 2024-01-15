@@ -49,10 +49,6 @@
   #endif
 #endif
 
-#if ENABLED(SINGLENOZZLE_STANDBY_TEMP)
-  #include "../../module/tool_change.h"
-#endif
-
 #if ALL(E3S1PRO_RTS, HAS_CUTTER)
   #include "../../feature/spindle_laser.h"
 #endif
