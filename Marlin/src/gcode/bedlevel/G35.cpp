@@ -50,18 +50,17 @@ xy_pos_t tramming_points[4]; // Global array for tramming points
 
 // Implementation of updateTrammingPoints
 void updateTrammingPoints() {
-    RTS_LoadMargins();
     tramming_points[0].x = lcd_rts_settings.probe_margin_x;
-    tramming_points[0].y = lcd_rts_settings.probe_min_margin_y;
+    tramming_points[0].y = lcd_rts_settings.probe_margin_y_front;
 
     tramming_points[1].x = X_BED_SIZE - lcd_rts_settings.probe_margin_x;
-    tramming_points[1].y = lcd_rts_settings.probe_min_margin_y;
+    tramming_points[1].y = lcd_rts_settings.probe_margin_y_front;
 
-    tramming_points[2].x = min_margin_x;
-    tramming_points[2].y = Y_BED_SIZE - min_margin_y_back;
+    tramming_points[2].x = lcd_rts_settings.probe_margin_x;
+    tramming_points[2].y = Y_BED_SIZE - lcd_rts_settings.probe_margin_y_back;
 
-    tramming_points[3].x = X_BED_SIZE - min_margin_x;
-    tramming_points[3].y = Y_BED_SIZE - min_margin_y_back;
+    tramming_points[3].x = X_BED_SIZE - lcd_rts_settings.probe_margin_x;
+    tramming_points[3].y = Y_BED_SIZE - lcd_rts_settings.probe_margin_y_back;
     // Add more points if needed
 }
 
@@ -136,7 +135,7 @@ for (uint8_t i = 0; i < G35_PROBE_COUNT; ++i) {
     );
   }
   rtscheck.RTS_SndData(z_probed_height * 1000, ASSISTED_TRAMMING_POINT_1_VP + i);
-  #if ENABLED(LCD_RTS_DEBUG)
+  #if ENABLED(LCD_RTS_DEBUG_LEVELING)
     SERIAL_ECHO_MSG("tramming_point_name[i] ", tramming_point_name[i]);
     SERIAL_ECHO_MSG("z_probed_height ", z_probed_height);
   #endif
@@ -169,7 +168,7 @@ if (!err_break) {
     strcat(str, " turns & ");
     strcat(str, mins);
     strcat(str, " mins");
-    #if ENABLED(LCD_RTS_DEBUG)
+    #if ENABLED(LCD_RTS_DEBUG_LEVELING)
       SERIAL_ECHOPGM("Turn ");
       SERIAL_ECHOPGM_P((char *)pgm_read_ptr(&tramming_point_name[i]));
       SERIAL_ECHOPGM(" ", (screw_thread & 1) == (adjust > 0) ? "DOWN" : "UP", " by ", ABS(full_turns), " turns");
@@ -181,7 +180,7 @@ if (!err_break) {
     #if ENABLED(E3S1PRO_RTS)
       unsigned long addr = ASSISTED_TRAMMING_POINT_TEXT_VP + i * 26;
       for(int j = 0; j < 26; j++) {
-        rtscheck.RTS_SndData(0, addr + j);
+        RTS_ResetSingleVP(addr + j);
       }
       rtscheck.RTS_SndData(str, addr);
     #endif

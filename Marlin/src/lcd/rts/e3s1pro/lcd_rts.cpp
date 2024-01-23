@@ -8,7 +8,14 @@
 // LCD_RTS_SOFTWARE_AUTOSCROLL
 //#define LCD_RTS_SOFTWARE_AUTOSCROLL
 
-//#define LCD_RTS_DEBUG
+//#define LCD_RTS_DEBUG_LCD
+//#define LCD_RTS_DEBUG_EEPROM_SETTINGS
+//#define LCD_RTS_DEBUG_SETTINGS
+//#define LCD_RTS_DEBUG_MARGIN_X
+//#define LCD_RTS_DEBUG_MARGIN_Y
+//#define LCD_RTS_DEBUG_SDCARD
+//#define LCD_RTS_DEBUG_PRINTTIME
+//#define LCD_RTS_DEBUG_LEVELING
 
 #include <Wstring.h>
 #include <stdio.h>
@@ -217,6 +224,9 @@ bool rts_start_print = false;
 const int manual_level_5position[9][2] = MANUALL_BED_LEVEING_5POSITION;
 const int manual_crtouch_5position[9][2] = MANUALL_BED_CRTOUCH_5POSITION;
 
+uint8_t settingsload = 0;
+const char* settings_filename2 = "SETTINGS.GCO";
+
 int custom_ceil(float x) {
     float decimal_part_x = x - static_cast<int>(x);
     
@@ -319,19 +329,19 @@ void resetSettings() {
   lcd_rts_settings.standby_time_seconds  = 60;
   lcd_rts_settings.max_points = 5;
   lcd_rts_settings.probe_margin_x = 45;
-  lcd_rts_settings.probe_margin_y = 45;
-  lcd_rts_settings.probe_min_margin_y = 45;
+  lcd_rts_settings.probe_margin_y_front = 45;
+  lcd_rts_settings.probe_margin_y_back = 45;
   lcd_rts_settings.external_m73 = false;
   lcd_rts_settings.extra_probing = 0;
   lcd_rts_settings.total_probing = 3;
-  #if ENABLED(LCD_RTS_DEBUG)
+  #if ENABLED(LCD_RTS_DEBUG_EEPROM_SETTINGS)
     SERIAL_ECHOLNPGM("------Reset lcd_rts_settings from lcd_rts.cpp!-------");  
   #endif
 }
 
 void loadSettings(const char * const buff) {
   memcpy(&lcd_rts_settings, buff, _MIN(sizeof(lcd_rts_settings), eeprom_data_size));
-  #if ENABLED(LCD_RTS_DEBUG)  
+  #if ENABLED(LCD_RTS_DEBUG_EEPROM_SETTINGS)  
     SERIAL_ECHOLNPGM("Saved settings: ");
     SERIAL_ECHOLNPGM("settings_size: ", lcd_rts_settings.settings_size);
     SERIAL_ECHOLNPGM("settings_version: ", lcd_rts_settings.settings_version);
@@ -344,8 +354,8 @@ void loadSettings(const char * const buff) {
     SERIAL_ECHOLNPGM("------------------");
     SERIAL_ECHOLNPGM("max_points: ", lcd_rts_settings.max_points);
     SERIAL_ECHOLNPGM("probe_margin x: ", lcd_rts_settings.probe_margin_x);
-    SERIAL_ECHOLNPGM("probe_margin y: ", lcd_rts_settings.probe_margin_y);
-    SERIAL_ECHOLNPGM("probe_min_margin y: ", lcd_rts_settings.probe_min_margin_y);
+    SERIAL_ECHOLNPGM("probe_margin y: ", lcd_rts_settings.probe_margin_y_front);
+    SERIAL_ECHOLNPGM("probe_min_margin y: ", lcd_rts_settings.probe_margin_y_back);
     SERIAL_ECHOLNPGM("external m73: ", lcd_rts_settings.external_m73);
     SERIAL_ECHOLNPGM("extra_probing: ", lcd_rts_settings.extra_probing);
     SERIAL_ECHOLNPGM("total_probing: ", lcd_rts_settings.total_probing);
@@ -355,7 +365,7 @@ void loadSettings(const char * const buff) {
 
 void saveSettings(char * const buff) {
   memcpy(buff, &lcd_rts_settings, _MIN(sizeof(lcd_rts_settings), eeprom_data_size));
-  #if ENABLED(LCD_RTS_DEBUG)  
+  #if ENABLED(LCD_RTS_DEBUG_EEPROM_SETTINGS)  
     SERIAL_ECHOLNPGM("Saved settings: ");
     SERIAL_ECHOLNPGM("settings_size: ", lcd_rts_settings.settings_size);
     SERIAL_ECHOLNPGM("settings_version: ", lcd_rts_settings.settings_version);
@@ -368,8 +378,8 @@ void saveSettings(char * const buff) {
     SERIAL_ECHOLNPGM("------------------");
     SERIAL_ECHOLNPGM("max_points: ", lcd_rts_settings.max_points);    
     SERIAL_ECHOLNPGM("probe_margin x: ", lcd_rts_settings.probe_margin_x);
-    SERIAL_ECHOLNPGM("probe_margin y: ", lcd_rts_settings.probe_margin_y);
-    SERIAL_ECHOLNPGM("probe_min_margin y: ", lcd_rts_settings.probe_min_margin_y);
+    SERIAL_ECHOLNPGM("probe_margin y: ", lcd_rts_settings.probe_margin_y_front);
+    SERIAL_ECHOLNPGM("probe_min_margin y: ", lcd_rts_settings.probe_margin_y_back);
     SERIAL_ECHOLNPGM("external m73: ", lcd_rts_settings.external_m73);
     SERIAL_ECHOLNPGM("extra_probing: ", lcd_rts_settings.extra_probing);
     SERIAL_ECHOLNPGM("total_probing: ", lcd_rts_settings.total_probing);
@@ -399,20 +409,20 @@ static void RTS_line_to_filelist() {
   rtscheck.RTS_SndData(statStr2, PAGE_STATUS_TEXT_TOTAL_VP);
 
   for (int i = 0; i < 5; i += 5) {
-      rtscheck.RTS_SndData(0, FILE1_TEXT_VP + i * 60);
+    RTS_ResetSingleVP(FILE1_TEXT_VP + i * 60);
   }
 
   // clean filename Icon
   for (int j = 0; j < 5; j++)
     for (int i = 0; i < TEXTBYTELEN; i++)
-      rtscheck.RTS_SndData(0, CardRecbuf.addr[j] + i);
+      RTS_ResetSingleVP(CardRecbuf.addr[j] + i);
 
   memset(&CardRecbuf, 0, sizeof(CardRecbuf));
 
   int num = 0;
   for (int16_t i = (file_current_page - 1) * 5; i < (file_current_page * 5); i++) {  
       card.selectFileByIndexSorted(i);
-      #if ENABLED(LCD_RTS_DEBUG)    
+      #if ENABLED(LCD_RTS_DEBUG_SDCARD)    
           SERIAL_ECHO_MSG("card.longFilename ", card.longFilename);
       #endif
       char *pointFilename = card.longFilename;
@@ -448,10 +458,10 @@ static void RTS_line_to_filelist() {
       }
       if (extensionCorrupted) {
         rtscheck.RTS_SndData((unsigned long)0xFFFF, FilenameNature + (num + 1) * 16);
-        rtscheck.RTS_SndData(204, FILE6_SELECT_ICON_VP + num);          
+        rtscheck.RTS_SndData(204, FILE6_SELECT_ICON_VP + num);
       }
       // Debugging
-      #if ENABLED(LCD_RTS_DEBUG)
+      #if ENABLED(LCD_RTS_DEBUG_SDCARD)
         SERIAL_ECHO_MSG("Filename after truncation: ", card.longFilename);
         SERIAL_ECHO_MSG("j value: ", j);
       #endif
@@ -459,7 +469,7 @@ static void RTS_line_to_filelist() {
       strncpy(CardRecbuf.Cardshowfilename[num], card.longFilename, min(j, TEXTBYTELEN));
       CardRecbuf.Cardshowfilename[num][TEXTBYTELEN - 1] = '\0';
 
-      #if ENABLED(LCD_RTS_DEBUG)
+      #if ENABLED(LCD_RTS_DEBUG_SDCARD)
           SERIAL_ECHO("inside rts_line_to_filelist");
           SERIAL_ECHOLN("");
       #endif
@@ -483,7 +493,7 @@ static void RTS_line_to_filelist() {
 
       if (filenamelen == 0) 
       {
-          rtscheck.RTS_SndData(0, FILE6_SELECT_ICON_VP + num);
+        RTS_ResetSingleVP(FILE6_SELECT_ICON_VP + num);
       }
       CardRecbuf.Filesum = (++num);
   }
@@ -531,7 +541,7 @@ void RTSSHOW::RTS_SDCardInit(void) {
     // Clean filename Icon
     for (int j = 0; j < MaxFileNumber; j++)
       for (int i = 0; i < TEXTBYTELEN; i++)
-        RTS_SndData(0, CardRecbuf.addr[j] + i);
+        RTS_ResetSingleVP(CardRecbuf.addr[j] + i);
 
     memset(&CardRecbuf, 0, sizeof(CardRecbuf));
   }
@@ -572,19 +582,19 @@ void RTSSHOW::RTS_SDCardUpdate() {
 
       card.release();
       for (int i = 0; i < CardRecbuf.Filesum; i++) {
-        for (int j = 0; j < 20; j++) RTS_SndData(0, CardRecbuf.addr[i] + j);
+        for (int j = 0; j < 20; j++) RTS_ResetSingleVP(CardRecbuf.addr[i] + j);
       //  RTS_SndData((unsigned long)0xFFFF, FilenameNature + (i + 1) * 16);
       }
       RTS_CleanPrintAndSelectFile();
       for (int j = 0; j < 5; j++) {
         // clean screen.
-        RTS_SndData(0, FILE6_SELECT_ICON_VP + j);
+        RTS_ResetSingleVP(FILE6_SELECT_ICON_VP + j);
       }      
       memset(&CardRecbuf, 0, sizeof(CardRecbuf));
       RTS_ShowPreviewImage(true);
-      RTS_SndData(1, PAGE_STATUS_TEXT_TOTAL_VP);
+      RTS_SetOneToVP(PAGE_STATUS_TEXT_TOTAL_VP);
       file_total_page = 1;
-      RTS_SndData(1, PAGE_STATUS_TEXT_CURRENT_VP);
+      RTS_SetOneToVP(PAGE_STATUS_TEXT_CURRENT_VP);
       file_current_page = 1;
     }
     lcd_sd_status = sd_status;
@@ -624,7 +634,7 @@ void RTSSHOW::RTS_SDcard_Stop(void)
   RTS_CleanPrintAndSelectFile();
   RTS_ResetPrintData(true);
   delay(2);
-  RTS_SndData(207, EXTERNAL_M600_ICON_VP);      
+  RTS_SendM600Icon(false);
   //#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)  
   //CardRecbuf.selectFlag = false;
   CardRecbuf.recordcount = -1;
@@ -733,9 +743,9 @@ void RTSSHOW::RTS_Init(void)
 
   for(int i = 0;i < 9;i ++)
   {
-    RTS_SndData(0, LANGUAGE_CHINESE_TITLE_VP + i);
+    RTS_ResetSingleVP(LANGUAGE_CHINESE_TITLE_VP + i);
   }
-  RTS_SndData(1, LANGUAGE_CHINESE_TITLE_VP + (language_change_font - 1));
+  RTS_SetOneToVP(LANGUAGE_CHINESE_TITLE_VP + (language_change_font - 1));
   languagedisplayUpdate();
   delay(500);
 
@@ -747,39 +757,8 @@ void RTSSHOW::RTS_Init(void)
 
   /***************transmit temperature to screen*****************/
   RTS_ResetHeadAndBedSetTemp();
-  RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD_CURRENT_TEMP_VP);
-  RTS_SndData(thermalManager.temp_bed.celsius, BED_CURRENT_TEMP_VP);
-  RTS_SndData(planner.settings.max_feedrate_mm_s[0], MAX_VELOCITY_XAXIS_DATA_VP);
-  RTS_SndData(planner.settings.max_feedrate_mm_s[1], MAX_VELOCITY_YAXIS_DATA_VP);
-  RTS_SndData(planner.settings.max_feedrate_mm_s[2], MAX_VELOCITY_ZAXIS_DATA_VP);
-  RTS_SndData(planner.settings.max_feedrate_mm_s[3], MAX_VELOCITY_EAXIS_DATA_VP);
-
-  RTS_SndData(planner.settings.max_acceleration_mm_per_s2[0], MAX_ACCEL_XAXIS_DATA_VP);
-  RTS_SndData(planner.settings.max_acceleration_mm_per_s2[1], MAX_ACCEL_YAXIS_DATA_VP);
-  RTS_SndData(planner.settings.max_acceleration_mm_per_s2[2], MAX_ACCEL_ZAXIS_DATA_VP);
-  RTS_SndData(planner.settings.max_acceleration_mm_per_s2[3], MAX_ACCEL_EAXIS_DATA_VP);
-
-  RTS_SndData(planner.max_jerk.x * 100, MAX_JERK_XAXIS_DATA_VP);
-  RTS_SndData(planner.max_jerk.y * 100, MAX_JERK_YAXIS_DATA_VP);
-  RTS_SndData(planner.max_jerk.z * 100, MAX_JERK_ZAXIS_DATA_VP);
-  RTS_SndData(planner.max_jerk.e * 100, MAX_JERK_EAXIS_DATA_VP);
-
-  RTS_SndData(planner.settings.axis_steps_per_mm[0] * 10, MAX_STEPSMM_XAXIS_DATA_VP);
-  RTS_SndData(planner.settings.axis_steps_per_mm[1] * 10, MAX_STEPSMM_YAXIS_DATA_VP);
-  RTS_SndData(planner.settings.axis_steps_per_mm[2] * 10, MAX_STEPSMM_ZAXIS_DATA_VP);
-  RTS_SndData(planner.settings.axis_steps_per_mm[3] * 10, MAX_STEPSMM_EAXIS_DATA_VP);
-
-  RTS_SndData(thermalManager.temp_hotend[0].pid.p() * 100, NOZZLE_TEMP_P_DATA_VP);
-  RTS_SndData(thermalManager.temp_hotend[0].pid.i() * 100, NOZZLE_TEMP_I_DATA_VP);
-  RTS_SndData(thermalManager.temp_hotend[0].pid.d() * 100, NOZZLE_TEMP_D_DATA_VP);
-  RTS_SndData(thermalManager.temp_bed.pid.p() * 100, HOTBED_TEMP_P_DATA_VP);
-  RTS_SndData(thermalManager.temp_bed.pid.i() * 100, HOTBED_TEMP_I_DATA_VP);
-  RTS_SndData(thermalManager.temp_bed.pid.d() * 10, HOTBED_TEMP_D_DATA_VP);
-  RTS_SndData(thermalManager.fan_speed[0] , PRINTER_FAN_SPEED_DATA_VP);
-  GRID_USED_POINTS_X = lcd_rts_settings.max_points;
-  GRID_USED_POINTS_Y = lcd_rts_settings.max_points;
+  rtscheck.RTS_SendLoadedData(255);
   queue.enqueue_now_P(PSTR("M402"));
-  //RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);
 
   #if ENABLED(GCODE_PREVIEW_ENABLED)
     RTS_ResetSingleVP(DEFAULT_PRINT_MODEL_VP);
@@ -799,17 +778,16 @@ void RTSSHOW::RTS_Init(void)
   /***************transmit Printer information to screen*****************/
   RTS_ShowPreviewImage(true);
   delay(5);
-  //RTS_SndData(lang == 1 ? CORP_WEBSITE_C : CORP_WEBSITE_E, WEBSITE_ABOUT_TEXT_VP);
 
   RTS_LoadMainsiteIcons();
-  RTS_SndData(207, EXTERNAL_M600_ICON_VP);
+  RTS_SendM600Icon(false);
   setTouchScreenConfiguration();
 
   /**************************some info init*******************************/
   RTS_ResetPrintData(true);
-  RTS_SndData(1, PREHAEAT_NOZZLE_ICON_VP);
-  RTS_SndData(1, PREHAEAT_HOTBED_ICON_VP);
-  //rtscheck.RTS_SndData(1, FILAMENT_CONTROL_ICON_VP);
+  RTS_SetOneToVP(PREHAEAT_NOZZLE_ICON_VP);
+  RTS_SetOneToVP(PREHAEAT_HOTBED_ICON_VP);
+  //rtscheck.RTS_SetOneToVP(FILAMENT_CONTROL_ICON_VP);
 
   // Disable Filename Field on startup
   RTS_CleanPrintAndSelectFile();
@@ -1119,7 +1097,7 @@ void RTSSHOW::RTS_SndData(unsigned long n, unsigned long addr, unsigned char cmd
 }
 
 void RTSSHOW::RTS_SndText(const char string[], unsigned long addr, uint8_t textSize) {
-  for (int8_t i = 0; i < textSize; i++) rtscheck.RTS_SndData(0, addr + i);
+  for (int8_t i = 0; i < textSize; i++) RTS_ResetSingleVP(addr + i);
   rtscheck.RTS_SndData(string, addr);
 }
 
@@ -1256,7 +1234,7 @@ void RTSSHOW::RTS_HandleData(void)
     recdat.head[1] = FHTWO;
     return;
   }
-  #if ENABLED(LCD_RTS_DEBUG)
+  #if ENABLED(LCD_RTS_DEBUG_LCD)
     SERIAL_ECHO_MSG("\nCheckkey=", Checkkey, "recdat.data[0]=", recdat.data[0]);
   #endif
   //#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
@@ -1313,13 +1291,12 @@ void RTSSHOW::RTS_HandleData(void)
 
         if(axes_should_home()) {
           waitway = 4;
-          queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowPage(40);
+          RTS_G28MoveOne();
         }else{
           RTS_ShowPage(16);
           RTS_SendCurrentPosition();
         }
-        //RTS_SndData(1, FILAMENT_CONTROL_ICON_VP);
+        //RTS_SetOneToVP(FILAMENT_CONTROL_ICON_VP);
       }
       else if (recdat.data[0] == 3) {
         RTS_ShowPage(21);
@@ -1328,7 +1305,7 @@ void RTSSHOW::RTS_HandleData(void)
         RTS_ShowPage(25);
         planner.synchronize();
         queue.enqueue_now_P(PSTR("G28\nG1 F200 Z0.0"));
-        //RTS_SndData(1, AUTO_BED_LEVEL_TITLE_VP);
+        //RTS_SetOneToVP(AUTO_BED_LEVEL_TITLE_VP);
         RTS_ShowMotorFreeIcon(false);
       }
       else if (recdat.data[0] == 5) {  
@@ -1347,7 +1324,7 @@ void RTSSHOW::RTS_HandleData(void)
       }
       else if (recdat.data[0] == 6) { // Start bedleveling
         waitway = 3;
-        RTS_SndData(1, AUTO_BED_LEVEL_TITLE_VP);
+        RTS_SetOneToVP(AUTO_BED_LEVEL_TITLE_VP);
         RTS_SndData(AUTO_BED_LEVEL_PREHEAT, AUTO_BED_PREHEAT_HEAD_DATA_VP);
         RTS_ResetSingleVP(AUTO_LEVELING_PERCENT_DATA_VP);
         if(thermalManager.temp_hotend[0].celsius < (AUTO_BED_LEVEL_PREHEAT - 5))
@@ -1456,20 +1433,15 @@ void RTSSHOW::RTS_HandleData(void)
           RTS_ShowPage(16);
           RTS_SendCurrentPosition();
         }
-        //RTS_SndData(1, FILAMENT_CONTROL_ICON_VP);
+        //RTS_SetOneToVP(FILAMENT_CONTROL_ICON_VP);
       }                                      
       break;
 
     case AdjustEnterKey:
-      RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);     
+      rtscheck.RTS_SendLoadedData(6);     
       if(recdat.data[0] == 1)
       {
-        // thermalManager.fan_speed[0] ? RTS_SndData(1, PRINTER_FANOPEN_TITLE_VP) : RTS_SndData(0, PRINTER_FANOPEN_TITLE_VP);
-        RTS_SndData(stepper.get_shaping_frequency(X_AXIS) * 100, SHAPING_X_FREQUENCY_VP);
-        RTS_SndData(stepper.get_shaping_frequency(Y_AXIS) * 100, SHAPING_Y_FREQUENCY_VP);
-        RTS_SndData(stepper.get_shaping_damping_ratio(X_AXIS) * 100, SHAPING_X_ZETA_VP);
-        RTS_SndData(stepper.get_shaping_damping_ratio(Y_AXIS) * 100, SHAPING_Y_ZETA_VP);  
-        RTS_SndData(planner.extruder_advance_K[0] * 1000, ADVANCE_K_SET);              
+        rtscheck.RTS_SendLoadedData(5);              
         RTS_ShowPage(14);
       }
       else if(recdat.data[0] == 2)
@@ -1600,8 +1572,7 @@ void RTSSHOW::RTS_HandleData(void)
             {
               idle();
             }
-            thermalManager.setTargetHotend(0, 0);
-            thermalManager.setTargetBed(0);
+            RTS_ResetHotendBed();
             thermalManager.zero_fan_speeds();
             while(thermalManager.temp_hotend[0].target > 0)
             {
@@ -1635,8 +1606,7 @@ void RTSSHOW::RTS_HandleData(void)
             {
               idle();
             }
-            thermalManager.setTargetHotend(0, 0);
-            thermalManager.setTargetBed(0);
+            RTS_ResetHotendBed();
             thermalManager.zero_fan_speeds();
             while(thermalManager.temp_hotend[0].target > 0)
             {
@@ -1659,8 +1629,7 @@ void RTSSHOW::RTS_HandleData(void)
           RTS_ShowPage(40);
           waitway = 7;
           RTS_ResetPrintData(true);
-          thermalManager.setTargetHotend(0, 0);
-          thermalManager.setTargetBed(0);
+          RTS_ResetHotendBed();
           RTS_ResetHeadAndBedSetTemp();
           temphot = 0;
           thermalManager.zero_fan_speeds();
@@ -1803,7 +1772,7 @@ void RTSSHOW::RTS_HandleData(void)
         print_job_timer.start();
         Update_Time_Value = 0;
         sdcard_pause_check = true;
-        RTS_SndData(208, EXTERNAL_M600_ICON_VP);        
+        RTS_SendM600Icon(true);
       }
       else if (recdat.data[0] == 4) {
         //if (card.flag.mounted)
@@ -1888,7 +1857,6 @@ void RTSSHOW::RTS_HandleData(void)
       }     
       probe.offset.x = xprobe_xoffset;
 
-      temp_probe_margin_x = lcd_rts_settings.probe_margin_x;
       if (probe.offset.x < 0) {
         probe_offset_x_temp = fabs(probe.offset.x);
       }else{
@@ -1896,24 +1864,23 @@ void RTSSHOW::RTS_HandleData(void)
       }
       int max_reachable_pos_x = X_MAX_POS - custom_ceil(probe_offset_x_temp);
       int min_calc_margin_x = X_BED_SIZE - max_reachable_pos_x;
-      if(min_calc_margin_x >= temp_probe_margin_x){
-      temp_probe_margin_x = min_calc_margin_x;
+      min_calc_margin_x = fabs(min_calc_margin_x); // Ensure it's positive      
+      #if ENABLED(LCD_RTS_DEBUG_MARGIN_X)
+        SERIAL_ECHO_MSG("probe_margin_x old: ", lcd_rts_settings.probe_margin_x);
+      #endif
+      if(min_calc_margin_x >= lcd_rts_settings.probe_margin_x){
+      lcd_rts_settings.probe_margin_x= min_calc_margin_x;
       }
       #if ENABLED(ENDER_3S1_PLUS)
-        if(temp_probe_margin_x <= 27){
-          temp_probe_margin_x = 27;
+        if(lcd_rts_settings.probe_margin_x <= 27){
+          lcd_rts_settings.probe_margin_x = 27;
         }
       #endif
-      #if ENABLED(LCD_RTS_DEBUG)
+      #if ENABLED(LCD_RTS_DEBUG_MARGIN_X)
         SERIAL_ECHO_MSG("min_calc_margin_x: ", min_calc_margin_x);
-        SERIAL_ECHO_MSG("temp_probe_margin_x: ", temp_probe_margin_x);
-        SERIAL_ECHO_MSG("lcd_rts_settings.probe_margin_x old: ", lcd_rts_settings.probe_margin_x);
+        SERIAL_ECHO_MSG("probe_margin_x new: ", lcd_rts_settings.probe_margin_x);
       #endif
-      lcd_rts_settings.probe_margin_x = temp_probe_margin_x;
-      #if ENABLED(LCD_RTS_DEBUG)
-        SERIAL_ECHO_MSG("lcd_rts_settings.probe_margin_x new: ", lcd_rts_settings.probe_margin_x);
-      #endif
-      RTS_SndData(temp_probe_margin_x, PROBE_MARGIN_X_VP);       
+      RTS_SndData(lcd_rts_settings.probe_margin_x, PROBE_MARGIN_X_VP);       
       RTS_SndData(xprobe_xoffset * 100, HOTEND_X_ZOFFSET_VP);
       hal.watchdog_refresh();
       break;
@@ -1936,34 +1903,35 @@ void RTSSHOW::RTS_HandleData(void)
         babystep.add_mm(Y_AXIS, babystep_y_offset);
       }
       probe.offset.y = yprobe_yoffset;
-      temp_probe_margin_y = lcd_rts_settings.probe_margin_y;
-      if (probe.offset.y < 0) {
-        probe_offset_y_temp = fabs(probe.offset.y);
-      }else{
-        probe_offset_y_temp = -fabs(probe.offset.y);
-      }
+      probe_offset_y_temp = fabs(probe.offset.y);
+
       int max_reachable_pos_y = Y_MAX_POS - custom_ceil(probe_offset_y_temp);
       int min_calc_margin_y = Y_BED_SIZE - max_reachable_pos_y;
-      if(min_calc_margin_y >= temp_probe_margin_y){
-        temp_probe_margin_y = min_calc_margin_y;
+      min_calc_margin_y = fabs(min_calc_margin_y); // Ensure it's positive
+      #if ENABLED(LCD_RTS_DEBUG_MARGIN_Y)
+        SERIAL_ECHO_MSG("Y probe_margin_y old: ", lcd_rts_settings.probe_margin_y_front);
+        SERIAL_ECHO_MSG("Y probe_min_margin_y old: ", lcd_rts_settings.probe_margin_y_back);
+      #endif
+      if(min_calc_margin_y <= 10){
+        min_calc_margin_y = 10;
       }
-      if(temp_probe_margin_y <= 10){
-        temp_probe_margin_y = 10;
+
+    if(min_calc_margin_y > lcd_rts_settings.probe_margin_y_back){
+        if(lcd_rts_settings.probe_margin_x <= min_calc_margin_y){      
+          lcd_rts_settings.probe_margin_y_front = lcd_rts_settings.probe_margin_x;
+          lcd_rts_settings.probe_margin_y_back = min_calc_margin_y;
+        }else{
+          lcd_rts_settings.probe_margin_y_front = min_calc_margin_y;
+          lcd_rts_settings.probe_margin_y_back = min_calc_margin_y;
+        }
+        RTS_SndData(lcd_rts_settings.probe_margin_y_back, PROBE_MARGIN_Y_VP);
       }
-      #if ENABLED(LCD_RTS_DEBUG)
-        SERIAL_ECHO_MSG("min_calc_margin_y: ", min_calc_margin_y);
-        SERIAL_ECHO_MSG("min_calc_margin_y_bedlevel: ", min_calc_margin_y_bedlevel);        
-        SERIAL_ECHO_MSG("temp_probe_margin_y: ", temp_probe_margin_y);
-        SERIAL_ECHO_MSG("lcd_rts_settings.probe_margin_y old: ", lcd_rts_settings.probe_margin_y);
-        SERIAL_ECHO_MSG("lcd_rts_settings.probe_min_margin_y old: ", lcd_rts_settings.probe_min_margin_y);
-      #endif      
-      lcd_rts_settings.probe_margin_y = temp_probe_margin_y;
-      lcd_rts_settings.probe_min_margin_y = temp_probe_margin_y;
-      #if ENABLED(LCD_RTS_DEBUG)
-        SERIAL_ECHO_MSG("lcd_rts_settings.probe_margin_y new: ", lcd_rts_settings.probe_margin_y);
-        SERIAL_ECHO_MSG("lcd_rts_settings.probe_min_margin_y new: ", lcd_rts_settings.probe_min_margin_y);
-      #endif           
-      RTS_SndData(temp_probe_margin_y, PROBE_MARGIN_Y_VP); 
+
+      #if ENABLED(LCD_RTS_DEBUG_MARGIN_Y)
+          SERIAL_ECHO_MSG("Y probe_min_margin_y new: ", lcd_rts_settings.probe_margin_y_front);
+          SERIAL_ECHO_MSG("Y probe_min_margin_y new: ", lcd_rts_settings.probe_margin_y_back);
+      #endif
+           
       RTS_SndData(yprobe_yoffset * 100, HOTEND_Y_ZOFFSET_VP);
       hal.watchdog_refresh();
       break;
@@ -2058,11 +2026,10 @@ void RTSSHOW::RTS_HandleData(void)
       if (!printingIsActive() && !planner.has_blocks_queued()) { 
         if(recdat.data[0] == 1)
         {
-          thermalManager.setTargetHotend(0, 0);
-          thermalManager.setTargetBed(0);
+          RTS_ResetHotendBed();
           RTS_ResetHeadAndBedSetTemp();
           thermalManager.fan_speed[0] = 255;
-          // RTS_SndData(0, PRINTER_FANOPEN_TITLE_VP);
+          // RTS_ResetSingleVP(PRINTER_FANOPEN_TITLE_VP);
         }
         else if(recdat.data[0] == 2)
         {
@@ -2072,15 +2039,13 @@ void RTSSHOW::RTS_HandleData(void)
         }else if (recdat.data[0] == 4) {
           RTS_ShowPage(48);
           g_uiAutoPIDFlag = true;
-          thermalManager.setTargetBed(0);
-          thermalManager.setTargetHotend(0, 0);
+          RTS_ResetHotendBed();
           last_target_temperature[0] = thermalManager.temp_hotend[0].target;
           last_target_temperature_bed = thermalManager.temp_bed.target;
           RTS_SndData(g_autoPIDHeaterTempTarget, HEAD_SET_TEMP_VP);
           RTS_SndData(g_autoPIDHotBedTempTarget, BED_SET_TEMP_VP);
         }else if (recdat.data[0] == 5) {
-          thermalManager.setTargetHotend(0, 0);
-          thermalManager.setTargetBed(0);
+          RTS_ResetHotendBed();
           RTS_ResetHeadAndBedSetTemp();
           thermalManager.fan_speed[0] = 0;
         }
@@ -2147,14 +2112,6 @@ void RTSSHOW::RTS_HandleData(void)
       {  
         RTS_SendMachineData();
         delay(5);
-        if(1 == lang)
-        {
-          RTS_SndData(CORP_WEBSITE_C, WEBSITE_ABOUT_TEXT_VP);
-        }
-        else
-        {
-          RTS_SndData(CORP_WEBSITE_E, WEBSITE_ABOUT_TEXT_VP);
-        }
         RTS_ShowPage(24);
         //sendQRCodeCommand(QR_CODE_1_VP, "https://www.paypal.me/thomastoka");
         delay(1000);
@@ -2234,8 +2191,6 @@ void RTSSHOW::RTS_HandleData(void)
       break;
 
     case BedLevelKey:
-      RTS_LoadMargins();
-
       if(recdat.data[0] == 1)
       {
         planner.synchronize();
@@ -2311,8 +2266,7 @@ void RTSSHOW::RTS_HandleData(void)
           if (bltouch_tramming == 1){
           waitway = 17;
           }          
-          queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowPage(40);
+          RTS_G28MoveOne();
         }else{
           if(!planner.has_blocks_queued())
           {
@@ -2334,10 +2288,10 @@ void RTSSHOW::RTS_HandleData(void)
               rtscheck.RTS_SndData((unsigned char)10 * (unsigned char)155, AXIS_X_COORD_VP);
               rtscheck.RTS_SndData((unsigned char)10 * (unsigned char)155, AXIS_Y_COORD_VP);
             #else
-              rtscheck.RTS_SndData(10 * manual_level_5position[0][0], AXIS_X_COORD_VP);
-              rtscheck.RTS_SndData(10 * manual_level_5position[0][1], AXIS_Y_COORD_VP);
+              RTS_TrammingPosition(0, 0, 0, 1);
             #endif
-            RTS_AxisZCoord();
+            queue.enqueue_now_P(PSTR("G1 F600 Z0"));
+            RTS_ResetSingleVP(AXIS_Z_COORD_VP);
             }
             if (bltouch_tramming == 1){
               #if ENABLED(ENDER_3S1_PRO) || ENABLED(ENDER_3S1)
@@ -2365,23 +2319,17 @@ void RTSSHOW::RTS_HandleData(void)
           if (bltouch_tramming == 1){
           waitway = 17;
           }
-          queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowPage(40);
+          RTS_G28MoveOne();
         }else{     
           if(!planner.has_blocks_queued())
           {
             waitway = 4;
             if (bltouch_tramming == 0){            
-            queue.enqueue_now_P(PSTR("G1 F600 Z3"));        
-            sprintf_P(cmd, "G1 X%d Y%d F3000", manual_level_5position[1][0],manual_level_5position[1][1]);
-            queue.enqueue_now_P(cmd);
-            rtscheck.RTS_SndData(10 * manual_level_5position[1][0], AXIS_X_COORD_VP);
-            rtscheck.RTS_SndData(10 * manual_level_5position[1][1], AXIS_Y_COORD_VP);
-            RTS_AxisZCoord();
+              RTS_TrammingPosition(1, 0, 1, 1);
             }
             if (bltouch_tramming == 1){
             // Cr-Touch measuring point 6
-            sprintf_P(cmd, "G30 X%d Y%d", lcd_rts_settings.probe_margin_x,lcd_rts_settings.probe_min_margin_y);
+            sprintf_P(cmd, "G30 X%d Y%d", lcd_rts_settings.probe_margin_x,lcd_rts_settings.probe_margin_y_front);
             queue.enqueue_now_P(cmd);
             RTS_ShowPage(89);                  
             }
@@ -2400,23 +2348,17 @@ void RTSSHOW::RTS_HandleData(void)
           if (bltouch_tramming == 1){
           waitway = 17;
           }
-          queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowPage(40);
+          RTS_G28MoveOne();
         }else{     
           if(!planner.has_blocks_queued())
           {
             waitway = 4;
             if (bltouch_tramming == 0){          
-            queue.enqueue_now_P(PSTR("G1 F600 Z3"));
-            sprintf_P(cmd, "G1 X%d Y%d F3000", manual_level_5position[2][0],manual_level_5position[2][1]);
-            queue.enqueue_now_P(cmd);
-            rtscheck.RTS_SndData(10 * manual_level_5position[2][0], AXIS_X_COORD_VP);
-            rtscheck.RTS_SndData(10 * manual_level_5position[2][1], AXIS_Y_COORD_VP);
-            RTS_AxisZCoord();
+              RTS_TrammingPosition(2, 0, 2, 1);
             }
             if (bltouch_tramming == 1){
             // Cr-Touch measuring point 7
-            sprintf_P(cmd, "G30 X%d Y%d", (X_BED_SIZE - lcd_rts_settings.probe_margin_x),lcd_rts_settings.probe_min_margin_y);
+            sprintf_P(cmd, "G30 X%d Y%d", (X_BED_SIZE - lcd_rts_settings.probe_margin_x),lcd_rts_settings.probe_margin_y_front);
             queue.enqueue_now_P(cmd);
             RTS_ShowPage(89);
             }
@@ -2435,23 +2377,17 @@ void RTSSHOW::RTS_HandleData(void)
           if (bltouch_tramming == 1){
           waitway = 17;
           }
-          queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowPage(40);
+          RTS_G28MoveOne();
         }else{       
           if(!planner.has_blocks_queued())
           {
             waitway = 4;
             if (bltouch_tramming == 0){          
-            queue.enqueue_now_P(PSTR("G1 F600 Z3"));
-            sprintf_P(cmd, "G1 X%d Y%d F3000", manual_level_5position[3][0],manual_level_5position[3][1]);
-            queue.enqueue_now_P(cmd);
-            rtscheck.RTS_SndData(10 * manual_level_5position[3][0], AXIS_X_COORD_VP);
-            rtscheck.RTS_SndData(10 * manual_level_5position[3][1], AXIS_Y_COORD_VP);
-            RTS_AxisZCoord();
+            RTS_TrammingPosition(3, 0, 3, 1);
             }
             if (bltouch_tramming == 1){
             // Cr-Touch measuring point 8
-            sprintf_P(cmd, "G30 X%d Y%d", min_margin_x,(Y_BED_SIZE - min_margin_y_back));
+            sprintf_P(cmd, "G30 X%d Y%d", lcd_rts_settings.probe_margin_x,(Y_BED_SIZE - lcd_rts_settings.probe_margin_y_back));
             queue.enqueue_now_P(cmd);
             RTS_ShowPage(89);                      
             }
@@ -2470,23 +2406,17 @@ void RTSSHOW::RTS_HandleData(void)
           if (bltouch_tramming == 1){
           waitway = 17;
           }
-          queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowPage(40);
+          RTS_G28MoveOne();
         }else{
           if(!planner.has_blocks_queued())
           {
             waitway = 4;
             if (bltouch_tramming == 0){         
-            queue.enqueue_now_P(PSTR("G1 F600 Z3"));
-            sprintf_P(cmd, "G1 X%d Y%d F3000", manual_level_5position[4][0],manual_level_5position[4][1]);
-            queue.enqueue_now_P(cmd);
-            rtscheck.RTS_SndData(10 * manual_level_5position[4][0], AXIS_X_COORD_VP);
-            rtscheck.RTS_SndData(10 * manual_level_5position[4][1], AXIS_Y_COORD_VP);
-            RTS_AxisZCoord();
+              RTS_TrammingPosition(4, 0, 4, 1);
             }
             if (bltouch_tramming == 1){
             // Cr-Touch measuring point 9
-            sprintf_P(cmd, "G30 X%d Y%d", (X_BED_SIZE - min_margin_x),(Y_BED_SIZE - min_margin_y_back));
+            sprintf_P(cmd, "G30 X%d Y%d", (X_BED_SIZE - lcd_rts_settings.probe_margin_x),(Y_BED_SIZE - lcd_rts_settings.probe_margin_y_back));
             queue.enqueue_now_P(cmd);
             RTS_ShowPage(89);                    
             }  
@@ -2496,7 +2426,7 @@ void RTSSHOW::RTS_HandleData(void)
       }
       else if (recdat.data[0] == 0x0B)
       {
-        char cmd[20];
+        //char cmd[20];
         // Assitant Level , Back Left 6
         if(axes_should_home()) {
           if (bltouch_tramming == 0){
@@ -2505,19 +2435,13 @@ void RTSSHOW::RTS_HandleData(void)
           if (bltouch_tramming == 1){
           waitway = 17;
           }
-          queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowPage(40);
+          RTS_G28MoveOne();
         }else{     
           if(!planner.has_blocks_queued())
           {
             if (bltouch_tramming == 0){
             waitway = 4;
-            queue.enqueue_now_P(PSTR("G1 F600 Z3"));
-            sprintf_P(cmd, "G1 X%d Y%d F3000", manual_level_5position[5][0],manual_level_5position[5][1]);
-            queue.enqueue_now_P(cmd);
-            rtscheck.RTS_SndData(10 * manual_level_5position[5][0], AXIS_X_COORD_VP);
-            rtscheck.RTS_SndData(10 * manual_level_5position[5][1], AXIS_Y_COORD_VP);
-            RTS_AxisZCoord();
+              RTS_TrammingPosition(5, 0, 5, 1);
             }
             waitway = 0;
           }
@@ -2525,7 +2449,7 @@ void RTSSHOW::RTS_HandleData(void)
       }
       else if (recdat.data[0] == 0x0C)
       {
-        char cmd[20];
+        //char cmd[20];
         // Assitant Level , Back Left 7
         if(axes_should_home()) {
           if (bltouch_tramming == 0){
@@ -2534,19 +2458,13 @@ void RTSSHOW::RTS_HandleData(void)
           if (bltouch_tramming == 1){
           waitway = 17;
           }
-          queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowPage(40);
+          RTS_G28MoveOne();
         }else{      
           if(!planner.has_blocks_queued())
           {
             if (bltouch_tramming == 0){
             waitway = 4;
-            queue.enqueue_now_P(PSTR("G1 F600 Z3"));
-            sprintf_P(cmd, "G1 X%d Y%d F3000", manual_level_5position[6][0],manual_level_5position[6][1]);
-            queue.enqueue_now_P(cmd);
-            rtscheck.RTS_SndData(10 * manual_level_5position[6][0], AXIS_X_COORD_VP);
-            rtscheck.RTS_SndData(10 * manual_level_5position[6][1], AXIS_Y_COORD_VP);
-            RTS_AxisZCoord();
+              RTS_TrammingPosition(6, 0, 6, 1);
             }
             waitway = 0;
           }
@@ -2554,7 +2472,7 @@ void RTSSHOW::RTS_HandleData(void)
       }
       else if (recdat.data[0] == 0x0D)
       {
-        char cmd[20];
+        //char cmd[20];
         // Assitant Level , Back Left 8
         if(axes_should_home()) {
           if (bltouch_tramming == 0){
@@ -2563,19 +2481,13 @@ void RTSSHOW::RTS_HandleData(void)
           if (bltouch_tramming == 1){
           waitway = 17;
           }
-          queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowPage(40);
+          RTS_G28MoveOne();
         }else{     
           if(!planner.has_blocks_queued())
           {
             if (bltouch_tramming == 0){
             waitway = 4;
-            queue.enqueue_now_P(PSTR("G1 F600 Z3"));
-            sprintf_P(cmd, "G1 X%d Y%d F3000", manual_level_5position[7][0],manual_level_5position[7][1]);
-            queue.enqueue_now_P(cmd);
-            rtscheck.RTS_SndData(10 * manual_level_5position[7][0], AXIS_X_COORD_VP);
-            rtscheck.RTS_SndData(10 * manual_level_5position[7][1], AXIS_Y_COORD_VP);
-            RTS_AxisZCoord();
+            RTS_TrammingPosition(7, 0, 7, 1);
             }    
             waitway = 0;          
           }
@@ -2583,7 +2495,7 @@ void RTSSHOW::RTS_HandleData(void)
       }
       else if (recdat.data[0] == 0x0E)
       {
-        char cmd[20];
+        //char cmd[20];
         // Assitant Level , Back Left 9
         if(axes_should_home()) {
           if (bltouch_tramming == 0){
@@ -2592,19 +2504,13 @@ void RTSSHOW::RTS_HandleData(void)
           if (bltouch_tramming == 1){
           waitway = 17;
           }
-          queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowPage(40);
+          RTS_G28MoveOne();
         }else{    
           if(!planner.has_blocks_queued())
           {
             if (bltouch_tramming == 0){
             waitway = 4;
-            queue.enqueue_now_P(PSTR("G1 F600 Z3"));
-            sprintf_P(cmd, "G1 X%d Y%d F3000", manual_level_5position[8][0],manual_level_5position[8][1]);
-            queue.enqueue_now_P(cmd);
-            rtscheck.RTS_SndData(10 * manual_level_5position[8][0], AXIS_X_COORD_VP);
-            rtscheck.RTS_SndData(10 * manual_level_5position[8][1], AXIS_Y_COORD_VP);
-            RTS_AxisZCoord();
+              RTS_TrammingPosition(8, 0, 8, 1);
             }      
             waitway = 0;
           }
@@ -2671,8 +2577,7 @@ void RTSSHOW::RTS_HandleData(void)
             RTS_SndData(lang + 10, AUTO_LEVELING_START_TITLE_VP);
             if(axes_should_home()){
               waitway = 15;
-              queue.enqueue_one_P(PSTR("G28"));
-              RTS_ShowPage(40);
+              RTS_G28MoveOne();
             }else{
               RTS_ChangeLevelingPage();
             }
@@ -2698,8 +2603,7 @@ void RTSSHOW::RTS_HandleData(void)
         RTS_SndData(lang, AUTO_LEVELING_START_TITLE_VP);
         if(axes_should_home()) {
           waitway = 15;
-          queue.enqueue_one_P(PSTR("G28"));
-          RTS_ShowPage(40);
+          RTS_G28MoveOne();
         }
         RTS_SendLevelingSiteData();       
         RTS_ResetSingleVP(AUTO_BED_LEVEL_CUR_POINT_VP);
@@ -2711,7 +2615,7 @@ void RTSSHOW::RTS_HandleData(void)
       { // 00A5 
         bltouch_tramming = 1;
         RTS_SndData(lcd_rts_settings.probe_margin_x, PROBE_MARGIN_X_VP);
-        RTS_SndData(lcd_rts_settings.probe_margin_y, PROBE_MARGIN_Y_VP);
+        RTS_SndData(lcd_rts_settings.probe_margin_y_back, PROBE_MARGIN_Y_VP);
         RTS_SndData(lcd_rts_settings.total_probing, PROBE_COUNT_VP);         
         RTS_ShowPage(89);
       }
@@ -2722,19 +2626,19 @@ void RTSSHOW::RTS_HandleData(void)
             leveling_running = 1;
             // Point 6
             char cmd6[20];
-            sprintf_P(cmd6, "G30 X%d Y%d", lcd_rts_settings.probe_margin_x,lcd_rts_settings.probe_min_margin_y);
+            sprintf_P(cmd6, "G30 X%d Y%d", lcd_rts_settings.probe_margin_x,lcd_rts_settings.probe_margin_y_front);
             queue.enqueue_now_P(cmd6);
             // Point 7
             char cmd7[20];
-            sprintf_P(cmd7, "G30 X%d Y%d", (X_BED_SIZE - lcd_rts_settings.probe_margin_x),lcd_rts_settings.probe_min_margin_y);
+            sprintf_P(cmd7, "G30 X%d Y%d", (X_BED_SIZE - lcd_rts_settings.probe_margin_x),lcd_rts_settings.probe_margin_y_front);
             queue.enqueue_now_P(cmd7);
             // Point 8
             char cmd8[20];
-            sprintf_P(cmd8, "G30 X%d Y%d", lcd_rts_settings.probe_margin_x,(Y_BED_SIZE - min_margin_y_back));
+            sprintf_P(cmd8, "G30 X%d Y%d", lcd_rts_settings.probe_margin_x,(Y_BED_SIZE - lcd_rts_settings.probe_margin_y_back));
             queue.enqueue_now_P(cmd8);
             // Point 9
             char cmd9[20];
-            sprintf_P(cmd9, "G30 X%d Y%d", (X_BED_SIZE - lcd_rts_settings.probe_margin_x),(Y_BED_SIZE - min_margin_y_back));
+            sprintf_P(cmd9, "G30 X%d Y%d", (X_BED_SIZE - lcd_rts_settings.probe_margin_x),(Y_BED_SIZE - lcd_rts_settings.probe_margin_y_back));
             queue.enqueue_now_P(cmd9);
             // Finally center
             #if ENABLED(ENDER_3S1_PRO) || ENABLED(ENDER_3S1)
@@ -2794,9 +2698,9 @@ void RTSSHOW::RTS_HandleData(void)
             for(int i = 0; i < 4; i++) {
               unsigned long addr = ASSISTED_TRAMMING_POINT_TEXT_VP + i * 24;
               for(int j = 0; j < 24; j++) {
-                rtscheck.RTS_SndData(0, addr + j);
+                RTS_ResetSingleVP(addr + j);
               }
-              rtscheck.RTS_SndData(0, ASSISTED_TRAMMING_POINT_1_VP + i);
+              RTS_ResetSingleVP(ASSISTED_TRAMMING_POINT_1_VP + i);
             }
             queue.enqueue_now_P(PSTR("G35"));
             RTS_ShowPage(98);
@@ -2843,19 +2747,13 @@ void RTSSHOW::RTS_HandleData(void)
       else if(recdat.data[0] == 5)
       {
         waitway = 4;
-        RTS_ShowPage(40);
-        queue.enqueue_now_P(PSTR("G28"));
-        RTS_ShowMotorFreeIcon(false);
-        Update_Time_Value = 0;
+        RTS_G28MoveNow();
       }
       else if(recdat.data[0] == 6)
       {
         if (leveling_running == 0 && !planner.has_blocks_queued() && !printingIsActive()) {
           waitway = 2;
-          RTS_ShowPage(40);
-          queue.enqueue_now_P(PSTR("G28"));
-          RTS_ShowMotorFreeIcon(false);
-          Update_Time_Value = 0;
+          RTS_G28MoveNow();
         }
       }
       else if(recdat.data[0] == 161)
@@ -2890,18 +2788,13 @@ void RTSSHOW::RTS_HandleData(void)
       else if(recdat.data[0] == 165)
       { // 00A5
         waitway = 14;
-        RTS_ShowPage(40);
-        queue.enqueue_now_P(PSTR("G28"));
-        RTS_ShowMotorFreeIcon(false);
-        Update_Time_Value = 0;
+        RTS_G28MoveNow();
       }
       else if(recdat.data[0] == 166)
       { // 00A6
         if(leveling_running == 0 && !planner.has_blocks_queued()) {
         waitway = 16;
-        RTS_ShowPage(40);
-        queue.enqueue_now_P(PSTR("G28"));
-        RTS_ShowMotorFreeIcon(false);
+        RTS_G28MoveNow();
         }else{
         RTS_ShowPage(25);         
         }
@@ -2911,9 +2804,7 @@ void RTSSHOW::RTS_HandleData(void)
       { // 00A7
         if (leveling_running == 0 && !planner.has_blocks_queued()) {
         waitway = 17;
-        RTS_ShowPage(40);
-        queue.enqueue_now_P(PSTR("G28"));
-        RTS_ShowMotorFreeIcon(false);
+        RTS_G28MoveNow();
         }else{
         RTS_ShowPage(89);
         }
@@ -2952,7 +2843,17 @@ void RTSSHOW::RTS_HandleData(void)
       else if(recdat.data[0] == 179)
       { // 00B3 // 00A1 before Offsetrouting
         RTS_ShowPage(97);
-      }                                        
+      }
+      else if(recdat.data[0] == 180)
+      { // 00A7
+        if (leveling_running == 0 && !planner.has_blocks_queued()) {
+        waitway = 18;
+        RTS_G28MoveNow();
+        }else{
+        RTS_ShowPage(98);
+        }
+        Update_Time_Value = 0;
+      }          
       break;
 
     case XaxismoveKey:
@@ -3141,6 +3042,7 @@ void RTSSHOW::RTS_HandleData(void)
       break;
 
     case HeaterLoadStartKey:
+      rtscheck.RTS_SendLoadedData(6);    
       if(recdat.data[0] == 1)
       {
         if(!planner.has_blocks_queued())
@@ -3198,9 +3100,9 @@ void RTSSHOW::RTS_HandleData(void)
       language_change_font = lang;
       for(int i = 0;i < 9;i ++)
       {
-        RTS_SndData(0, LANGUAGE_CHINESE_TITLE_VP + i);
+        RTS_ResetSingleVP(LANGUAGE_CHINESE_TITLE_VP + i);
       }
-      RTS_SndData(1, LANGUAGE_CHINESE_TITLE_VP + (language_change_font - 1));
+      RTS_SetOneToVP(LANGUAGE_CHINESE_TITLE_VP + (language_change_font - 1));
       languagedisplayUpdate();
       // settings.save();
       break;
@@ -3288,99 +3190,29 @@ void RTSSHOW::RTS_HandleData(void)
 
     case SetGridMaxPoints: 
       {
-        if (leveling_running == 0 && !printingIsActive()){        
-          temp_grid_max_points = recdat.data[0];
-          if (temp_grid_max_points == 5 || temp_grid_max_points == 7 || temp_grid_max_points == 10){
-            RTS_ResetMesh();
-            lcd_rts_settings.max_points = temp_grid_max_points;
-            RTS_LoadMeshPointOffsets();
-            RTS_SetBltouchHSMode();
-            RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT);
-            RTS_SndData(temp_grid_max_points, SET_GRID_MAX_POINTS_VP);
-            bedlevel.max_points.x = temp_grid_max_points;
-            bedlevel.max_points.y = temp_grid_max_points;
-            queue.enqueue_now_P(PSTR("M84"));
-            queue.enqueue_now_P(PSTR("G92.9Z0"));
-            RTS_ChangeLevelingPage();
-            RTS_ShowMotorFreeIcon(true);
-          }
-        }
+        temp_grid_max_points = recdat.data[0];
+        RTS_SetGridMaxPoints(temp_grid_max_points);
       }    
       break;
 
       case SetProbeMarginX: 
       {
-        if (leveling_running == 0 && !printingIsActive()){
-          temp_probe_margin_x = recdat.data[0];
-          if (probe.offset_xy.x < 0) {
-            probe_offset_x_temp = fabs(probe.offset_xy.x);
-          }else{
-            probe_offset_x_temp = -fabs(probe.offset_xy.x);
-          }
-          int max_reachable_pos_x = X_MAX_POS - custom_ceil(probe_offset_x_temp);
-          int min_calc_margin_x = X_BED_SIZE - max_reachable_pos_x;
-          if(min_calc_margin_x >= temp_probe_margin_x){
-          temp_probe_margin_x = min_calc_margin_x;
-          }
-          #if ENABLED(ENDER_3S1_PLUS)
-            if(temp_probe_margin_x <= 27){
-              temp_probe_margin_x = 27;
-            }
-          #endif
-          lcd_rts_settings.probe_margin_x = temp_probe_margin_x;
-          RTS_SndData(temp_probe_margin_x, PROBE_MARGIN_X_VP);
-          settings.save();
-        }
+        temp_probe_margin_x = recdat.data[0];
+        RTS_SetProbeMarginX(temp_probe_margin_x);
       }    
       break;      
 
       case SetProbeMarginY: 
       {
-        if (leveling_running == 0 && !printingIsActive()){
-          temp_probe_margin_y = recdat.data[0];
-          if (probe.offset_xy.y < 0) {
-            probe_offset_y_temp = fabs(probe.offset_xy.y);
-          }else{
-            probe_offset_y_temp = -fabs(probe.offset_xy.y);
-          }
-          int max_reachable_pos_y = Y_MAX_POS - custom_ceil(probe_offset_y_temp);
-          int min_calc_margin_y = Y_BED_SIZE - max_reachable_pos_y;
-          if(min_calc_margin_y_bedlevel >= temp_probe_margin_y){
-          temp_probe_margin_y = min_calc_margin_y;
-          }
-          if(temp_probe_margin_y <= 10){
-            temp_probe_margin_y = 10;
-          }
-          lcd_rts_settings.probe_margin_y = temp_probe_margin_y;
-          lcd_rts_settings.probe_min_margin_y = temp_probe_margin_y;        
-          RTS_SndData(temp_probe_margin_y, PROBE_MARGIN_Y_VP); 
-          settings.save();
-        }
+        temp_probe_margin_y = recdat.data[0];
+        RTS_SetProbeMarginY(temp_probe_margin_y);
       }    
       break;      
 
     case SetProbeCount: 
       {
-        if (leveling_running == 0  && !printingIsActive()){        
-          temp_grid_probe_count = recdat.data[0];
-          if (temp_grid_probe_count >= 1 && temp_grid_probe_count <= 5){
-            lcd_rts_settings.total_probing = temp_grid_probe_count;
-            RTS_SndData(temp_grid_probe_count, PROBE_COUNT_VP);
-            RTS_SetBltouchHSMode();
-          }
-          if (temp_grid_probe_count < 1){
-            temp_grid_probe_count = 1;
-            lcd_rts_settings.total_probing = temp_grid_probe_count;
-            RTS_SndData(temp_grid_probe_count, PROBE_COUNT_VP);
-            RTS_SetBltouchHSMode();
-          }
-          if (temp_grid_probe_count > 5){
-            temp_grid_probe_count = 5;
-            lcd_rts_settings.total_probing = temp_grid_probe_count;
-            RTS_SndData(temp_grid_probe_count, PROBE_COUNT_VP);
-            RTS_SetBltouchHSMode();
-          }                    
-        }
+        temp_grid_probe_count = recdat.data[0];
+        RTS_SetProbeCount(temp_grid_probe_count);
       }    
       break;
 
@@ -3417,10 +3249,7 @@ void RTSSHOW::RTS_HandleData(void)
       }
       else if(recdat.data[0] == 8)
       {
-        RTS_SndData(stepper.get_shaping_frequency(X_AXIS) * 100, SHAPING_X_FREQUENCY_VP);
-        RTS_SndData(stepper.get_shaping_frequency(Y_AXIS) * 100, SHAPING_Y_FREQUENCY_VP);
-        RTS_SndData(stepper.get_shaping_damping_ratio(X_AXIS) * 100, SHAPING_X_ZETA_VP);
-        RTS_SndData(stepper.get_shaping_damping_ratio(Y_AXIS) * 100, SHAPING_Y_ZETA_VP);        
+        rtscheck.RTS_SendLoadedData(5);        
         RTS_ShowPage(36);
       }
       else if(recdat.data[0] == 9)
@@ -3876,11 +3705,11 @@ void RTSSHOW::RTS_HandleData(void)
       if (recdat.data[0] == 1){
         if (!lcd_rts_settings.external_m73){
             lcd_rts_settings.external_m73 = true;
-            RTS_SndData(206, EXTERNAL_M73_ICON_VP);
+            RTS_SendM73Icon(true);
         }
         else{
           lcd_rts_settings.external_m73 = false;
-          RTS_SndData(205, EXTERNAL_M73_ICON_VP);
+          RTS_SendM73Icon(false);
         }
       }else if (recdat.data[0] == 2){
         if (printingIsActive() && planner.has_blocks_queued()) {        
@@ -3975,11 +3804,11 @@ void RTSSHOW::RTS_HandleData(void)
             char ret;
             gcodePicDisplayOnOff(DEFAULT_PRINT_MODEL_VP, false);
             ret = gcodePicDataSendToDwin(CardRecbuf.Cardfilename[CardRecbuf.recordcount],VP_OVERLAY_PIC_PTINT,PIC_FORMAT_JPG, PIC_RESOLUTION_250_250);
-            #if ENABLED(LCD_RTS_DEBUG)
+            #if ENABLED(LCD_RTS_DEBUG_SDCARD)
               SERIAL_ECHO_MSG("Loaded filename = ", CardRecbuf.Cardfilename[CardRecbuf.recordcount]);
             #endif
             if (ret == PIC_OK) {
-              #if ENABLED(LCD_RTS_DEBUG)
+              #if ENABLED(LCD_RTS_DEBUG_SDCARD)
                 SERIAL_ECHO_MSG("picLen lcd_rts = ", picLen);
                 SERIAL_ECHO_MSG("picStartLine lcd_rts = ", picStartLine);
                 SERIAL_ECHO_MSG("picEndLine lcd_rts = ", picEndLine);
@@ -4014,12 +3843,12 @@ void RTSSHOW::RTS_HandleData(void)
           //#else
           // Old filename sending
           if (CardRecbuf.filenamelen[CardRecbuf.recordcount] > 25){
-            #if ENABLED(LCD_RTS_DEBUG)
+            #if ENABLED(LCD_RTS_DEBUG_SDCARD)
               SERIAL_ECHO_MSG("CardRecbuf.filenamelen[CardRecbuf.recordcount] select", CardRecbuf.filenamelen[CardRecbuf.recordcount]);
             #endif
             RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], SELECT_FILE_TEXT_VP);
           }else{
-            #if ENABLED(LCD_RTS_DEBUG) 
+            #if ENABLED(LCD_RTS_DEBUG_SDCARD) 
               SERIAL_ECHO_MSG("CardRecbuf.filenamelen[CardRecbuf.recordcount] print", CardRecbuf.filenamelen[CardRecbuf.recordcount]);
             #endif
             RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], PRINT_FILE_TEXT_VP);            
@@ -4028,6 +3857,159 @@ void RTSSHOW::RTS_HandleData(void)
           #if ENABLED(GCODE_PREVIEW_ENABLED)          
             RefreshBrightnessAtPrint(0);
           #endif
+        }
+      }
+      break;
+
+    case SaveM503Settings:
+      if (recdat.data[0] == 1 && RTS_SD_Detected()) {
+        card.removeFile(settings_filename2);
+        card.openFileWrite(settings_filename2);
+        if (!card.isFileOpen()) {
+          #if ENABLED(LCD_RTS_DEBUG_SDCARD)
+            SERIAL_ECHO_MSG(F("Failed to open output file"));
+          #endif
+          return;
+        }
+
+        const char* commands[] = {
+            "M92", "M201", "M203", "M204", "M205", "M206", "M301", "M304", "M593 X", "M593 Y", "M851", "M900"
+        };
+        // Define the buffer to hold the command string
+        char buffer[100];
+        // Loop through the array and generate/write the command strings
+        for (size_t i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
+            //SERIAL_ECHO_MSG("commands[i]: ", commands[i]);
+            // Use snprintf to format the command string with variables
+            snprintf(buffer, sizeof(buffer), "%s", commands[i]);
+            card.write(buffer, strlen(buffer));
+            if (i == 0) {
+                //M92
+                char valueStr1[10];
+                dtostrf(planner.settings.axis_steps_per_mm[0], 4, 1, valueStr1);
+                char valueStr2[10];
+                dtostrf(planner.settings.axis_steps_per_mm[1], 4, 1, valueStr2);
+                char valueStr3[10];
+                dtostrf(planner.settings.axis_steps_per_mm[2], 4, 1, valueStr3);
+                char valueStr4[10];
+                dtostrf(planner.settings.axis_steps_per_mm[3], 4, 1, valueStr4);        
+                snprintf(buffer, sizeof(buffer), " X%s Y%s Z%s E%s", valueStr1, valueStr2, valueStr3, valueStr4);
+                card.write(buffer, strlen(buffer));
+            } else if (i == 1) {
+                // M201
+                char valueStr10[11]; // 11 characters to accommodate a 10-digit uint32_t and null terminator
+                snprintf(valueStr10, sizeof(valueStr10), "%lu", planner.settings.max_acceleration_mm_per_s2[0]);
+                char valueStr11[11]; // 11 characters to accommodate a 10-digit uint32_t and null terminator
+                snprintf(valueStr11, sizeof(valueStr11), "%lu", planner.settings.max_acceleration_mm_per_s2[1]);
+                char valueStr12[11]; // 11 characters to accommodate a 10-digit uint32_t and null terminator
+                snprintf(valueStr12, sizeof(valueStr12), "%lu", planner.settings.max_acceleration_mm_per_s2[2]);
+                char valueStr13[11]; // 11 characters to accommodate a 10-digit uint32_t and null terminator
+                snprintf(valueStr13, sizeof(valueStr13), "%lu", planner.settings.max_acceleration_mm_per_s2[3]);
+                snprintf(buffer, sizeof(buffer), " X%s Y%s Z%s E%s", valueStr10, valueStr11, valueStr12, valueStr13);
+                card.write(buffer, strlen(buffer));
+
+            } else if (i == 2) {
+                // M203
+                char valueStr8[10];
+                dtostrf(planner.settings.max_feedrate_mm_s[0], 4, 2, valueStr8);
+                char valueStr9[10];
+                dtostrf(planner.settings.max_feedrate_mm_s[1], 4, 2, valueStr9);
+                char valueStr10[10];
+                dtostrf(planner.settings.max_feedrate_mm_s[2], 4, 2, valueStr10);
+                char valueStr11[10];
+                dtostrf(planner.settings.max_feedrate_mm_s[3], 4, 2, valueStr11); 
+                snprintf(buffer, sizeof(buffer), " X%s Y%s Z%s E%s", valueStr8, valueStr9, valueStr10, valueStr11);
+                card.write(buffer, strlen(buffer));
+            } else if (i == 3) {
+                char valueStr12[10];
+                dtostrf(planner.settings.acceleration, 4, 2, valueStr12);
+                char valueStr13[10];
+                dtostrf(planner.settings.retract_acceleration, 4, 2, valueStr13);
+                char valueStr14[10];
+                dtostrf(planner.settings.travel_acceleration, 4, 2, valueStr14);        
+                snprintf(buffer, sizeof(buffer), " P%s R%s T%s", valueStr12, valueStr13, valueStr14);
+                card.write(buffer, strlen(buffer));
+            } else if (i == 4) {
+                char valueStr1[10];
+                dtostrf(planner.max_jerk.x, 2, 2, valueStr1);
+                char valueStr2[10];
+                dtostrf(planner.max_jerk.y, 2, 2, valueStr2);
+                char valueStr3[10];
+                dtostrf(planner.max_jerk.z, 1, 2, valueStr3);
+                char valueStr4[10];
+                dtostrf(planner.max_jerk.e, 2, 2, valueStr4);        
+                snprintf(buffer, sizeof(buffer), " X%s Y%s Z%s E%s", valueStr1, valueStr2, valueStr3, valueStr4);
+                card.write(buffer, strlen(buffer));
+            } else if (i == 5) {
+                char valueStr1[10];
+                dtostrf(home_offset.x, 3, 2, valueStr1);
+                char valueStr2[10];
+                dtostrf(home_offset.y, 3, 2, valueStr2);
+                snprintf(buffer, sizeof(buffer), " X%s Y%s", valueStr1, valueStr2);
+                card.write(buffer, strlen(buffer));
+            } else if (i == 6) {
+                char valueStr1[10];
+                dtostrf(thermalManager.temp_hotend[0].pid.p(), 4, 2, valueStr1);
+                char valueStr2[10];
+                dtostrf(thermalManager.temp_hotend[0].pid.i(), 4, 2, valueStr2);
+                char valueStr3[10];
+                dtostrf(thermalManager.temp_hotend[0].pid.d(), 4, 2, valueStr3);        
+                snprintf(buffer, sizeof(buffer), " P%s I%s D%s", valueStr1, valueStr2, valueStr3);
+                card.write(buffer, strlen(buffer));
+            } else if (i == 7) {
+                char valueStr1[10];
+                dtostrf(thermalManager.temp_bed.pid.p(), 4, 2, valueStr1);
+                char valueStr2[10];
+                dtostrf(thermalManager.temp_bed.pid.i(), 4, 2, valueStr2);
+                char valueStr3[10];
+                dtostrf(thermalManager.temp_bed.pid.d(), 4, 1, valueStr3);        
+                snprintf(buffer, sizeof(buffer), " P%s I%s D%s", valueStr1, valueStr2, valueStr3);
+                card.write(buffer, strlen(buffer));
+            } else if (i == 8 || i == 9) {
+                char valueStr1[10];
+                dtostrf(stepper.get_shaping_frequency(i == 8 ? X_AXIS : Y_AXIS), 4, 2, valueStr1);
+                char valueStr2[10];
+                dtostrf(stepper.get_shaping_damping_ratio(i == 8 ? X_AXIS : Y_AXIS), 4, 2, valueStr2);
+                snprintf(buffer, sizeof(buffer), " F%s D%s", valueStr1, valueStr2);
+                card.write(buffer, strlen(buffer));
+            } else if (i == 10) {
+                char valueStr1[10];
+                dtostrf(probe.offset.x, 3, 2, valueStr1);
+                char valueStr2[10];
+                dtostrf(probe.offset.y, 3, 2, valueStr2);
+                char valueStr3[10];
+                dtostrf(probe.offset.z, 3, 2, valueStr3);                 
+                snprintf(buffer, sizeof(buffer), " X%s Y%s Z%s", valueStr1, valueStr2, valueStr3);
+                card.write(buffer, strlen(buffer));
+            } else if (i == 11) {
+                char valueStr[10];
+                dtostrf(planner.extruder_advance_K[0], 1, 3, valueStr);
+
+                snprintf(buffer, sizeof(buffer), " K%s", valueStr);
+                card.write(buffer, strlen(buffer));
+            }
+            card.write((char*)"\n", 1);
+        }
+        card.closefile(settings_filename2);
+      }
+      else if(recdat.data[0] == 2 && RTS_SD_Detected())
+      {
+        if (recdat.data[0] == 2 && card.fileExists(settings_filename2)) {
+            //card.openFileReadonly(settings_filename2);
+            settingsload = 1;
+            queue.enqueue_one_P(PSTR("M23 SETTINGS.GCO"));
+            queue.enqueue_now_P(PSTR("M24"));
+            //queue.enqueue_one_P(PSTR("M32 !SETTINGS.GCO#"));
+            card.abortFilePrintNow();
+            card.closefile(settings_filename2);      
+            settings.save();
+            planner.synchronize();
+            planner.refresh_acceleration_rates();
+            planner.refresh_positioning();
+            delay(500);            
+            rtscheck.RTS_SendLoadedData(255);
+            queue.enqueue_now_P(PSTR("M27 S0"));
+            RTS_ShowPage(43);
         }
       }
       break;
@@ -4086,7 +4068,7 @@ void RTSSHOW::RTS_HandleData(void)
         RTS_SendZoffsetFeedratePercentage(true);
         PoweroffContinue = true;
         RTS_ShowPage(10);
-        RTS_SndData(208, EXTERNAL_M600_ICON_VP);         
+        RTS_SendM600Icon(true);
         Update_Time_Value = 0;
       }
       else if(recdat.data[0] == 2)
@@ -4175,20 +4157,19 @@ void RTSSHOW::RTS_HandleData(void)
       break;
 
     case ChangePageKey:
-      RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], PRINT_FILE_TEXT_VP);
+      //RTS_SndData(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount], PRINT_FILE_TEXT_VP);
       // represents to update file list
       if (CardUpdate && lcd_sd_status && IS_SD_INSERTED()) {
         RTS_line_to_filelist();
         for (uint16_t i = 0; i < 5; i++) {
           delay(1);
           RTS_SndData((unsigned long)0xFFFF, FilenameNature + (i + 1) * 16);
-          RTS_SndData(0, FILE1_SELECT_ICON_VP + i);
+          RTS_ResetSingleVP(FILE1_SELECT_ICON_VP + i);
         }
       }
 
       RTS_SendMachineData();
-      RTS_SndData(lang == 1 ? CORP_WEBSITE_C : CORP_WEBSITE_E, WEBSITE_ABOUT_TEXT_VP);
-      RTS_SndData(card.percentDone(), PRINT_PROCESS_VP);
+      RTS_SendProgress(card.percentDone());
       RTS_SendZoffsetFeedratePercentage(true);
       RTS_SndData(thermalManager.degTargetHotend(0), HEAD_SET_TEMP_VP);
       #if ENABLED(BED_TEMP_COMP)
@@ -4402,7 +4383,7 @@ void EachMomentUpdate(void)
           rtscheck.RTS_SndData((ui.get_remaining_time() % 3600) / 60, PRINT_REMAIN_TIME_MIN_VP);
           rtscheck.RTS_SndData((unsigned char) ui.get_progress_percent(), PRINT_PROCESS_ICON_VP);
           rtscheck.RTS_SndData((unsigned char) ui.get_progress_percent(), PRINT_PROCESS_VP);          
-          #if ENABLED(LCD_RTS_DEBUG)
+          #if ENABLED(LCD_RTS_DEBUG_PRINTTIME)
             SERIAL_ECHO_MSG("lcd_rts 1 PRINT_TIME_HOUR_VP: ", elapsed.value / 3600);
             SERIAL_ECHO_MSG("lcd_rts 1 PRINT_TIME_MIN_VP: ", (elapsed.value % 3600));
             SERIAL_ECHO_MSG("lcd_rts 1 PRINT_REMAIN_TIME_HOUR_VP: ", ui.get_remaining_time() / 3600);
@@ -4419,20 +4400,20 @@ void EachMomentUpdate(void)
             Percentrecord = card.percentDone();
             if(Percentrecord <= 100)
             {
-              #if ENABLED(LCD_RTS_DEBUG)
+              #if ENABLED(LCD_RTS_DEBUG_PRINTTIME)
                 SERIAL_ECHO_MSG("(unsigned char)Percentrecord(): ", (unsigned char)Percentrecord);
               #endif
-              rtscheck.RTS_SndData((unsigned char)Percentrecord, PRINT_PROCESS_ICON_VP);
+              RTS_SendProgress((unsigned char)Percentrecord);
             }
           }
           else
           {
             RTS_ResetSingleVP(PRINT_PROCESS_ICON_VP);
           }
-          #if ENABLED(LCD_RTS_DEBUG)
+          #if ENABLED(LCD_RTS_DEBUG_PRINTTIME)
             SERIAL_ECHO_MSG("(unsigned char)card.percentDone(): ", (unsigned char)card.percentDone());
           #endif
-          rtscheck.RTS_SndData((unsigned char)card.percentDone(), PRINT_PROCESS_VP);
+          RTS_SendProgress((unsigned char)card.percentDone());
           last_cardpercentValue = card.percentDone();
           rtscheck.RTS_SndData(10 * current_position[Z_AXIS], AXIS_Z_COORD_VP);
         } // here then also 
@@ -4443,7 +4424,7 @@ void EachMomentUpdate(void)
           Percentrecord = card.percentDone();
           rtscheck.RTS_SndData(elapsed.value / 3600, PRINT_TIME_HOUR_VP);
           rtscheck.RTS_SndData((elapsed.value % 3600) / 60, PRINT_TIME_MIN_VP);
-          #if ENABLED(LCD_RTS_DEBUG)
+          #if ENABLED(LCD_RTS_DEBUG_PRINTTIME)
             SERIAL_ECHO_MSG("lcd_rts 2 PRINT_TIME_HOUR_VP: ", elapsed.value / 3600);
             SERIAL_ECHO_MSG("lcd_rts 2 PRINT_TIME_MIN_VP: ", (elapsed.value % 3600));
           #endif          
@@ -4459,7 +4440,7 @@ void EachMomentUpdate(void)
               rtscheck.RTS_SndData(_remain_time / 3600, PRINT_REMAIN_TIME_HOUR_VP);
               rtscheck.RTS_SndData((_remain_time % 3600) / 60, PRINT_REMAIN_TIME_MIN_VP);
 
-              #if ENABLED(LCD_RTS_DEBUG)
+              #if ENABLED(LCD_RTS_DEBUG_PRINTTIME)
                 SERIAL_ECHO_MSG("lcd_rts 3 PRINT_REMAIN_TIME_HOUR_VP: ", _remain_time / 3600);
                 SERIAL_ECHO_MSG("lcd_rts 3 PRINT_REMAIN_TIME_MIN_VP: ", (_remain_time % 3600));
               #endif
@@ -4467,7 +4448,7 @@ void EachMomentUpdate(void)
         } else if ((ui.get_progress_percent() != last_progress_percent || ui.get_remaining_time() != last_remaining_time) && card.isPrinting() && !lcd_rts_settings.external_m73) {
           rtscheck.RTS_SndData(ui.get_remaining_time() / 3600, PRINT_REMAIN_TIME_HOUR_VP);
           rtscheck.RTS_SndData((ui.get_remaining_time() % 3600) / 60, PRINT_REMAIN_TIME_MIN_VP);
-          #if ENABLED(LCD_RTS_DEBUG)
+          #if ENABLED(LCD_RTS_DEBUG_PRINTTIME)
             SERIAL_ECHO_MSG("lcd_rts 4 PRINT_REMAIN_TIME_HOUR_VP: ", ui.get_remaining_time() / 3600);
             SERIAL_ECHO_MSG("lcd_rts 4 PRINT_REMAIN_TIME_MIN_VP: ", (ui.get_remaining_time() % 3600));
           #endif          
@@ -4480,7 +4461,7 @@ void EachMomentUpdate(void)
             uint32_t elapsed_seconds = (HAL_GetTick() - last_start_time) / 1000;
             rtscheck.RTS_SndData(elapsed_seconds / 3600, PRINT_TIME_HOUR_VP);
             rtscheck.RTS_SndData((elapsed_seconds % 3600) / 60, PRINT_TIME_MIN_VP);
-            #if ENABLED(LCD_RTS_DEBUG)
+            #if ENABLED(LCD_RTS_DEBUG_PRINTTIME)
               SERIAL_ECHO_MSG("lcd_rts 5 PRINT_TIME_HOUR_VP: ", elapsed_seconds / 3600);
               SERIAL_ECHO_MSG("lcd_rts 5 PRINT_TIME_MIN_VP: ", (elapsed_seconds % 3600));
             #endif            
@@ -4514,7 +4495,7 @@ void EachMomentUpdate(void)
         {
           if (card.flag.mounted)
           {
-            rtscheck.RTS_SndData(1, CHANGE_SDCARD_ICON_VP);
+            RTS_SetOneToVP(CHANGE_SDCARD_ICON_VP);
           }
           else
           {
@@ -4545,7 +4526,7 @@ void EachMomentUpdate(void)
         }
         else
         {
-          rtscheck.RTS_SndData(1, FILAMENT_LOAD_ICON_VP);
+          RTS_SetOneToVP(FILAMENT_LOAD_ICON_VP);
         }
       #endif
       rtscheck.RTS_SndData(thermalManager.fan_speed[0] , PRINTER_FAN_SPEED_DATA_VP);
@@ -4912,7 +4893,7 @@ void RTSSHOW::RTS_ChangeLevelingPage(void)
     }
 }
 
-void RTSSHOW::RTS_SetBltouchHSMode(void)
+void RTS_SetBltouchHSMode(void)
 {
   if (lcd_rts_settings.max_points == 5){
     queue.enqueue_now_P(PSTR("M401 S1"));
@@ -4984,7 +4965,7 @@ void RTS_ResetMesh(void)
     for (int x = inStart; x != inStop; x += inInc)
     {
       // Set the value to 0 directly
-      rtscheck.RTS_SndData(0, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
+      RTS_ResetSingleVP(AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
       rtscheck.sendOneFilledRectangle(MESH_RECTANGLE_BASE_VP + (color_sp_offset * 16), showcount, 0, 0, 1, 1, static_cast<uint16_t>(0xFFFF));
       rtscheck.RTS_SndData((unsigned long)0xFFFF, TrammingpointNature + (color_sp_offset + showcount + 1) * 16);
       showcount++;
@@ -5081,17 +5062,17 @@ void RTS_LoadMesh(void)
 void RTS_CleanPrintAndSelectFile(void)
 {
   for (int j = 0; j < 55; j++) {
-    rtscheck.RTS_SndData(0, SELECT_FILE_TEXT_VP + j);
+    RTS_ResetSingleVP(SELECT_FILE_TEXT_VP + j);
   }
   for (int j = 0; j < 25; j++) {  
-    rtscheck.RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
+    RTS_ResetSingleVP(PRINT_FILE_TEXT_VP + j);
   }
 }
 
 void RTS_CleanPrintFile(void)
 {
   for (int j = 0; j < 25; j++) {
-    rtscheck.RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
+    RTS_ResetSingleVP(PRINT_FILE_TEXT_VP + j);
   }    
 }
 
@@ -5108,7 +5089,7 @@ void RTS_SendLevelingSiteData(void)
   rtscheck.RTS_SndData(lcd_rts_settings.total_probing , PROBE_COUNT_VP);
   rtscheck.RTS_SndData(lcd_rts_settings.max_points, SET_GRID_MAX_POINTS_VP);
   rtscheck.RTS_SndData(lcd_rts_settings.probe_margin_x, PROBE_MARGIN_X_VP);
-  rtscheck.RTS_SndData(lcd_rts_settings.probe_margin_y, PROBE_MARGIN_Y_VP);
+  rtscheck.RTS_SndData(lcd_rts_settings.probe_margin_y_back, PROBE_MARGIN_Y_VP);
   rtscheck.RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT);
 }
 
@@ -5149,7 +5130,8 @@ void RTS_SendMachineData(void)
   rtscheck.RTS_SndData(MACHINE_TYPE, MACHINE_TYPE_ABOUT_TEXT_VP);
   rtscheck.RTS_SndData(FIRMWARE_VERSION, FIRMWARE_VERSION_ABOUT_TEXT_VP);
   rtscheck.RTS_SndData(HARDWARE_VERSION, HARDWARE_VERSION_ABOUT_TEXT_VP);
-  rtscheck.RTS_SndData(PRINT_SIZE, PRINTER_PRINTSIZE_TEXT_VP);  
+  rtscheck.RTS_SndData(PRINT_SIZE, PRINTER_PRINTSIZE_TEXT_VP);
+  rtscheck.RTS_SndData(lang == 1 ? CORP_WEBSITE_C : CORP_WEBSITE_E, WEBSITE_ABOUT_TEXT_VP);
 }
 
 void RTS_SendBedTemp()
@@ -5206,6 +5188,102 @@ void RTS_SendDefaultRates()
   rtscheck.RTS_SndData(default_hotbed_dtemp * 10, HOTBED_TEMP_D_DATA_VP);
 }
 
+void RTSSHOW::RTS_SendLoadedData(uint8_t loadpart)
+{
+  if(loadpart == 255 || loadpart == 1){
+    rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD_CURRENT_TEMP_VP);
+    rtscheck.RTS_SndData(thermalManager.temp_bed.celsius, BED_CURRENT_TEMP_VP);
+    rtscheck.RTS_SndData(thermalManager.fan_speed[0] , PRINTER_FAN_SPEED_DATA_VP);
+    GRID_USED_POINTS_X = lcd_rts_settings.max_points;
+    GRID_USED_POINTS_Y = lcd_rts_settings.max_points;
+  }
+  if(loadpart == 255 || loadpart == 2){
+    // M203
+    rtscheck.RTS_SndData(planner.settings.max_feedrate_mm_s[X_AXIS], MAX_VELOCITY_XAXIS_DATA_VP);
+    rtscheck.RTS_SndData(planner.settings.max_feedrate_mm_s[Y_AXIS], MAX_VELOCITY_YAXIS_DATA_VP);
+    rtscheck.RTS_SndData(planner.settings.max_feedrate_mm_s[Z_AXIS], MAX_VELOCITY_ZAXIS_DATA_VP);
+    rtscheck.RTS_SndData(planner.settings.max_feedrate_mm_s[E_AXIS], MAX_VELOCITY_EAXIS_DATA_VP);
+    // M201
+    rtscheck.RTS_SndData(planner.settings.max_acceleration_mm_per_s2[0], MAX_ACCEL_XAXIS_DATA_VP);
+    rtscheck.RTS_SndData(planner.settings.max_acceleration_mm_per_s2[1], MAX_ACCEL_YAXIS_DATA_VP);
+    rtscheck.RTS_SndData(planner.settings.max_acceleration_mm_per_s2[2], MAX_ACCEL_ZAXIS_DATA_VP);
+    rtscheck.RTS_SndData(planner.settings.max_acceleration_mm_per_s2[3], MAX_ACCEL_EAXIS_DATA_VP);
+    // M92
+    rtscheck.RTS_SndData(planner.settings.axis_steps_per_mm[0] * 10, MAX_STEPSMM_XAXIS_DATA_VP);
+    rtscheck.RTS_SndData(planner.settings.axis_steps_per_mm[1] * 10, MAX_STEPSMM_YAXIS_DATA_VP);
+    rtscheck.RTS_SndData(planner.settings.axis_steps_per_mm[2] * 10, MAX_STEPSMM_ZAXIS_DATA_VP);
+    rtscheck.RTS_SndData(planner.settings.axis_steps_per_mm[3] * 10, MAX_STEPSMM_EAXIS_DATA_VP);
+  }
+  if(loadpart == 255 || loadpart == 3){
+    //M205
+    rtscheck.RTS_SndData(planner.max_jerk.x * 100, MAX_JERK_XAXIS_DATA_VP);
+    rtscheck.RTS_SndData(planner.max_jerk.y * 100, MAX_JERK_YAXIS_DATA_VP);
+    rtscheck.RTS_SndData(planner.max_jerk.z * 100, MAX_JERK_ZAXIS_DATA_VP);
+    rtscheck.RTS_SndData(planner.max_jerk.e * 100, MAX_JERK_EAXIS_DATA_VP);
+  }
+  if(loadpart == 255 || loadpart == 4){
+    rtscheck.RTS_SndData(thermalManager.temp_hotend[0].pid.p() * 100, NOZZLE_TEMP_P_DATA_VP);
+    rtscheck.RTS_SndData(thermalManager.temp_hotend[0].pid.i() * 100, NOZZLE_TEMP_I_DATA_VP);
+    rtscheck.RTS_SndData(thermalManager.temp_hotend[0].pid.d() * 100, NOZZLE_TEMP_D_DATA_VP);
+    rtscheck.RTS_SndData(thermalManager.temp_bed.pid.p() * 100, HOTBED_TEMP_P_DATA_VP);
+    rtscheck.RTS_SndData(thermalManager.temp_bed.pid.i() * 100, HOTBED_TEMP_I_DATA_VP);
+    rtscheck.RTS_SndData(thermalManager.temp_bed.pid.d() * 10, HOTBED_TEMP_D_DATA_VP);
+  }
+  if(loadpart == 255 || loadpart == 5){
+    rtscheck.RTS_SndData(stepper.get_shaping_frequency(X_AXIS) * 100, SHAPING_X_FREQUENCY_VP);
+    rtscheck.RTS_SndData(stepper.get_shaping_frequency(Y_AXIS) * 100, SHAPING_Y_FREQUENCY_VP);
+    rtscheck.RTS_SndData(stepper.get_shaping_damping_ratio(X_AXIS) * 100, SHAPING_X_ZETA_VP);
+    rtscheck.RTS_SndData(stepper.get_shaping_damping_ratio(Y_AXIS) * 100, SHAPING_Y_ZETA_VP);
+    rtscheck.RTS_SndData(planner.extruder_advance_K[0] * 1000, ADVANCE_K_SET);  
+  }
+  if(loadpart == 255 || loadpart == 6){   
+    rtscheck.RTS_SndData(planner.flow_percentage[0], E0_SET_FLOW_VP);  
+  }
+}
+
+void RTS_GetRemainTime(void)
+{
+  rtscheck.RTS_SndData(ui.get_remaining_time() / 3600, PRINT_REMAIN_TIME_HOUR_VP);
+  rtscheck.RTS_SndData((ui.get_remaining_time() % 3600) / 60, PRINT_REMAIN_TIME_MIN_VP);
+  RTS_SendProgress((unsigned char) ui.get_progress_percent());
+}
+
+void RTS_ResetHotendBed(void)
+{
+  thermalManager.setTargetHotend(0, 0);
+  thermalManager.setTargetBed(0);
+}
+
+void RTS_G28MoveNow(void)
+{
+  RTS_ShowPage(40);
+  queue.enqueue_now_P(PSTR("G28"));
+  RTS_ShowMotorFreeIcon(false);
+  Update_Time_Value = 0;  
+}
+
+void RTS_G28MoveOne(void)
+{
+  queue.enqueue_one_P(PSTR("G28"));
+  RTS_ShowPage(40);
+}
+
+void RTS_TrammingPosition(uint8_t xx, uint8_t xy, uint8_t yx, uint8_t yy)
+{
+  queue.enqueue_now_P(PSTR("G1 F600 Z3"));
+  sprintf_P(cmdbuf, "G1 X%d Y%d F3000", manual_level_5position[xx][xy],manual_level_5position[yx][yy]);
+  queue.enqueue_now_P(cmdbuf);  
+  rtscheck.RTS_SndData(10 * manual_level_5position[xx][xy], AXIS_X_COORD_VP);
+  rtscheck.RTS_SndData(10 * manual_level_5position[yx][yy], AXIS_Y_COORD_VP); 
+  queue.enqueue_now_P(PSTR("G1 F600 Z0"));
+  RTS_ResetSingleVP(AXIS_Z_COORD_VP);
+}
+
+void RTS_SetOneToVP(int vpaddress)
+{
+  rtscheck.RTS_SndData(1, vpaddress);
+}
+
 void RTS_SendZoffsetFeedratePercentage(bool sendzoffset)
 {
   if(sendzoffset){
@@ -5220,64 +5298,10 @@ void RTS_AxisZCoord()
   rtscheck.RTS_SndData(10 * 0, AXIS_Z_COORD_VP);
 }
 
-void RTS_LoadMargins()
+void RTS_SendProgress(uint8_t progresspercent)
 {
-      //uint8_t min_margin_x;          
-      float probe_offset_x_temp;  
-
-      if (probe.offset_xy.x < 0) {
-        probe_offset_x_temp = fabs(probe.offset_xy.x);
-      }else{
-        probe_offset_x_temp = -fabs(probe.offset_xy.x);
-      }
-
-      max_reachable_pos_x = X_MAX_POS - custom_ceil(probe_offset_x_temp);       
-      min_calc_margin_x_bedlevel = X_BED_SIZE - max_reachable_pos_x;      
-
-      if(min_calc_margin_x_bedlevel >= lcd_rts_settings.probe_margin_x){
-        min_margin_x = static_cast<int>(std::ceil(min_calc_margin_x_bedlevel));
-      }else{
-        min_margin_x = static_cast<int>(std::ceil(lcd_rts_settings.probe_margin_x));
-      }        
-      //uint8_t min_margin_y_back;
-      float probe_offset_y_temp;  
-      if (probe.offset_xy.y < 0) {
-        probe_offset_y_temp = fabs(probe.offset_xy.y);
-      }else{
-        probe_offset_y_temp = -fabs(probe.offset_xy.y);
-      }
-      if (probe.offset_xy.y == 0) {
-        probe_offset_y_temp = probe.offset_xy.y;
-      }
-      max_reachable_pos_y = Y_MAX_POS - custom_ceil(probe_offset_y_temp);       
-      if (max_reachable_pos_y >= Y_BED_SIZE){
-        min_calc_margin_y_bedlevel = probe_offset_y_temp;
-      }else{
-        min_calc_margin_y_bedlevel = Y_BED_SIZE - max_reachable_pos_y;  
-      }
-      if (min_calc_margin_y_bedlevel <= 10){
-          min_calc_margin_y_bedlevel = 10;
-      }
-
-      if (min_calc_margin_y_bedlevel <= lcd_rts_settings.probe_margin_y){
-        if (min_calc_margin_x_bedlevel <= lcd_rts_settings.probe_margin_y){
-          if (lcd_rts_settings.probe_margin_y <= lcd_rts_settings.probe_margin_x){
-            lcd_rts_settings.probe_min_margin_y = lcd_rts_settings.probe_margin_y;
-          }else{
-            lcd_rts_settings.probe_min_margin_y = lcd_rts_settings.probe_margin_x;
-          }
-        }else{
-          lcd_rts_settings.probe_min_margin_y = lcd_rts_settings.probe_margin_y;
-        }
-      }else{
-        lcd_rts_settings.probe_min_margin_y = min_calc_margin_y_bedlevel;
-      }
-
-      if(min_calc_margin_y_bedlevel >= lcd_rts_settings.probe_margin_y){
-        min_margin_y_back = static_cast<int>(std::ceil(min_calc_margin_y_bedlevel));
-      }else{
-        min_margin_y_back = static_cast<int>(std::ceil(lcd_rts_settings.probe_margin_y));
-      }
+  rtscheck.RTS_SndData(progresspercent, PRINT_PROCESS_VP);
+  rtscheck.RTS_SndData(progresspercent, PRINT_PROCESS_ICON_VP);  
 }
 
 void RTS_ResetPrintData(bool defaultpic)
@@ -5330,8 +5354,107 @@ void RTS_SendPrintData(void)
 
 void RTS_ResetSingleVP(int vpaddress)
 {
-rtscheck.RTS_SndData(0, vpaddress);  
+  rtscheck.RTS_SndData(0, vpaddress);  
 }
+
+void RTS_SetProbeCount(uint8_t probescount)
+{
+  if (leveling_running == 0 && !printingIsActive()){ 
+    if (probescount < 1){
+      probescount = 1;
+    }
+    if (probescount > 5){
+      probescount = 5;
+    }
+    lcd_rts_settings.total_probing = probescount;
+    rtscheck.RTS_SndData(probescount, PROBE_COUNT_VP);
+    RTS_SetBltouchHSMode();
+  }
+}
+
+void RTS_SetProbeMarginX(uint8_t marginx)
+{
+  if (leveling_running == 0 && !printingIsActive()){ 
+    probe_offset_x_temp = fabs(probe.offset_xy.x);
+    int max_reachable_pos_x = X_MAX_POS - custom_ceil(probe_offset_x_temp);
+    int min_calc_margin_x = X_BED_SIZE - max_reachable_pos_x;
+    min_calc_margin_x = fabs(min_calc_margin_x); // Ensure it's positive
+    if(min_calc_margin_x > marginx){
+    marginx = min_calc_margin_x;
+    }
+    #if ENABLED(ENDER_3S1_PLUS)
+      if(marginx <= 27){
+        marginx= 27;
+      }
+    #endif
+    lcd_rts_settings.probe_margin_x = marginx;
+    #if ENABLED(LCD_RTS_DEBUG_MARGIN_X)
+      SERIAL_ECHO_MSG("SetX min_calc_margin_x: ", min_calc_margin_x);
+      SERIAL_ECHO_MSG("SetX lcd_rts_settings.probe_margin_x: ", lcd_rts_settings.probe_margin_x);
+    #endif           
+    rtscheck.RTS_SndData(marginx, PROBE_MARGIN_X_VP);
+    settings.save();
+  }
+}
+
+void RTS_SetProbeMarginY(uint8_t marginy)
+{
+  if (leveling_running == 0 && !printingIsActive()){ 
+    probe_offset_y_temp = fabs(probe.offset_xy.y);
+    int max_reachable_pos_y = Y_MAX_POS - custom_ceil(probe_offset_y_temp);
+    int min_calc_margin_y = Y_BED_SIZE - max_reachable_pos_y;
+    if(min_calc_margin_y <= 10){
+      min_calc_margin_y=10;
+    }
+    if(min_calc_margin_y > marginy){
+      if(lcd_rts_settings.probe_margin_x <= min_calc_margin_y){      
+        lcd_rts_settings.probe_margin_y_front = lcd_rts_settings.probe_margin_x;
+        lcd_rts_settings.probe_margin_y_back = min_calc_margin_y;
+      }else{
+        lcd_rts_settings.probe_margin_y_front = min_calc_margin_y;
+        lcd_rts_settings.probe_margin_y_back = min_calc_margin_y;
+      }
+    }else if(min_calc_margin_y < marginy){
+      if(lcd_rts_settings.probe_margin_x <= marginy){
+        lcd_rts_settings.probe_margin_y_front = lcd_rts_settings.probe_margin_x;
+        lcd_rts_settings.probe_margin_y_back = marginy;
+      }else{    
+        lcd_rts_settings.probe_margin_y_front = marginy;
+        lcd_rts_settings.probe_margin_y_back = marginy;
+      }
+    }else if(min_calc_margin_y == marginy){
+      lcd_rts_settings.probe_margin_y_front = marginy;
+      lcd_rts_settings.probe_margin_y_back = marginy;
+    }
+    #if ENABLED(LCD_RTS_DEBUG_MARGIN_Y)
+      SERIAL_ECHO_MSG("SetX min_calc_margin_y: ", min_calc_margin_y);
+      SERIAL_ECHO_MSG("SetX lcd_rts_settings.probe_margin_y_front: ", lcd_rts_settings.probe_margin_y_front);
+      SERIAL_ECHO_MSG("SetX lcd_rts_settings.probe_margin_y_back: ", lcd_rts_settings.probe_margin_y_back);
+    #endif    
+    rtscheck.RTS_SndData(lcd_rts_settings.probe_margin_y_back, PROBE_MARGIN_Y_VP); 
+    settings.save();
+  }
+}
+
+void RTS_SetGridMaxPoints(uint8_t gridmaxpoints)
+{
+  if (leveling_running == 0 && !printingIsActive()){        
+    if (gridmaxpoints == 5 || gridmaxpoints == 7 || gridmaxpoints == 10){
+      RTS_ResetMesh();
+      lcd_rts_settings.max_points = gridmaxpoints;
+      RTS_LoadMeshPointOffsets();
+      RTS_SetBltouchHSMode();
+      rtscheck.RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT);
+      rtscheck.RTS_SndData(gridmaxpoints, SET_GRID_MAX_POINTS_VP);
+      bedlevel.max_points.x = gridmaxpoints;
+      bedlevel.max_points.y = gridmaxpoints;
+      queue.enqueue_now_P(PSTR("M84"));
+      queue.enqueue_now_P(PSTR("G92.9Z0"));
+      rtscheck.RTS_ChangeLevelingPage();
+      RTS_ShowMotorFreeIcon(true);
+    }
+  }
+} 
 
 void RTS_MoveAxisHoming(void)
 {
@@ -5389,7 +5512,12 @@ void RTS_MoveAxisHoming(void)
     {
       RTS_ShowPage(89);
       waitway = 0;
-    }       
+    }
+  else if(waitway == 18)
+    {
+      RTS_ShowPage(98);
+      waitway = 0;
+    }           
 
   #if HAS_CUTTER
     if(laser_device.is_laser_device())
@@ -5418,6 +5546,16 @@ void RTS_CommandPause(void)
   }
 }
 
+void RTS_SendM600Icon(bool icon)
+{
+  rtscheck.RTS_SndData(icon ? 208 : 207, EXTERNAL_M600_ICON_VP);
+}
+
+void RTS_SendM73Icon(bool icon)
+{
+  rtscheck.RTS_SndData(icon ? 206 : 205, EXTERNAL_M73_ICON_VP);
+}
+
 void ErrorHanding(void)
 {
   // No more operations
@@ -5433,9 +5571,7 @@ void ErrorHanding(void)
     {
       errorway = 0;
       waitway  = 4;
-      queue.enqueue_now_P(PSTR("G28"));
-      RTS_ShowMotorFreeIcon(false);
-      Update_Time_Value = 0;
+      RTS_G28MoveNow();
     }
     else
     {

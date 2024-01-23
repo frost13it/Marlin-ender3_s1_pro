@@ -321,7 +321,7 @@ bool gcodePicDataRead(unsigned long picLength, char isDisplay, unsigned long jpg
       DWIN_SendJpegData(picBuf, PIN_BUG_LEN_DWIN, (2 + jpgAddr + PIN_DATA_LEN_DWIN * j));
     }
   }
-  rtscheck.RTS_SndData(0, DOWNLOAD_PREVIEW_VP);
+  RTS_ResetSingleVP(DOWNLOAD_PREVIEW_VP);
   // Process the remaining data that is less than 240 characters, according to DWIN's processing content
   // watchdog_refresh();
   if (picLen % PIN_BUG_LEN_DWIN != 0)
@@ -369,7 +369,9 @@ char gcodePicExistjudge(char *fileName, unsigned int targetPicAddr, const char t
   unsigned char strBuf[STRING_MAX_LEN] = {0};
   unsigned char bufIndex = 0;
   char *picMsgP;
-  uint32_t totalLength = 0;
+  #if ENABLED(USER_LOGIC_DEBUG)
+    uint32_t totalLength = 0;
+  #endif
   char lPicHeder[STRING_MAX_LEN];
   // read a string, separated by spaces
   #define GET_STRING_ON_GCODE()
@@ -437,8 +439,8 @@ char gcodePicExistjudge(char *fileName, unsigned int targetPicAddr, const char t
       {
         return PIC_MISS_ERR;
       }
-      totalLength += strlen(picMsgP);
       #if ENABLED(USER_LOGIC_DEBUG)
+        totalLength += strlen(picMsgP);
         SERIAL_ECHO_MSG("totalLength = ", (int)totalLength);
       #endif
       if (picMsgP != NULL && (strstr((const char *)picMsgP, FORMAT_JPG) != NULL || strstr((const char *)picMsgP, FORMAT_JPG_PRUSA) != NULL || strstr((const char *)picMsgP, FORMAT_JPG_CURA) != NULL)){
@@ -456,8 +458,8 @@ char gcodePicExistjudge(char *fileName, unsigned int targetPicAddr, const char t
     {
       memset(lPicHeder, 0, sizeof(lPicHeder));
       memcpy(lPicHeder, picMsgP, strlen(picMsgP));
-      totalLength += strlen(picMsgP);
       #if ENABLED(USER_LOGIC_DEBUG)
+        totalLength += strlen(picMsgP);
         SERIAL_ECHO_MSG("totalLength = ", (int)totalLength);
       #endif
     }
@@ -470,8 +472,8 @@ char gcodePicExistjudge(char *fileName, unsigned int targetPicAddr, const char t
     if ( picMsgP != NULL )
     {
       picResolution = PIC_RESOLUTION_MAX;
-      totalLength += strlen(picMsgP);
       #if ENABLED(USER_LOGIC_DEBUG)
+        totalLength += strlen(picMsgP);
         SERIAL_ECHO_MSG("totalLength = ", (int)totalLength);
       #endif
       if (strcmp(picMsgP, RESOLUTION_250_250) == 0 || strcmp(picMsgP, RESOLUTION_250_250_PRUSA) == 0) {
@@ -490,8 +492,8 @@ char gcodePicExistjudge(char *fileName, unsigned int targetPicAddr, const char t
       if (picLen > 24500) {
         return PIC_MISS_ERR;  // Define PICLEN_ERR similar to other error codes
       }
-      totalLength += strlen(picMsgP);
       #if ENABLED(USER_LOGIC_DEBUG)
+        totalLength += strlen(picMsgP);
         SERIAL_ECHO_MSG("totalLength = ", (int)totalLength);
       #endif
     }else{
@@ -506,8 +508,8 @@ char gcodePicExistjudge(char *fileName, unsigned int targetPicAddr, const char t
     if ( picMsgP != NULL )
     {
       picStartLine = atoi(picMsgP);
-      totalLength += strlen(picMsgP);
       #if ENABLED(USER_LOGIC_DEBUG)
+        totalLength += strlen(picMsgP);
         SERIAL_ECHO_MSG("totalLength = ", (int)totalLength);
       #endif
     }else{
@@ -522,8 +524,8 @@ char gcodePicExistjudge(char *fileName, unsigned int targetPicAddr, const char t
     if ( picMsgP != NULL )
     {
       picEndLine = atoi(picMsgP);
-      totalLength += strlen(picMsgP);
       #if ENABLED(USER_LOGIC_DEBUG)
+        totalLength += strlen(picMsgP);
         SERIAL_ECHO_MSG("totalLength = ", (int)totalLength);
       #endif
     }else{
@@ -538,8 +540,8 @@ char gcodePicExistjudge(char *fileName, unsigned int targetPicAddr, const char t
     if ( picMsgP != NULL )
     {
       picFilament_m = atoi(picMsgP);
-      totalLength += strlen(picMsgP);
       #if ENABLED(USER_LOGIC_DEBUG)
+        totalLength += strlen(picMsgP);
         SERIAL_ECHO_MSG("totalLength = ", (int)totalLength);
       #endif
     }else{
@@ -554,8 +556,8 @@ char gcodePicExistjudge(char *fileName, unsigned int targetPicAddr, const char t
     if ( picMsgP != NULL )
     {
       picFilament_g = atoi(picMsgP);
-      totalLength += strlen(picMsgP);
       #if ENABLED(USER_LOGIC_DEBUG)
+        totalLength += strlen(picMsgP);
         SERIAL_ECHO_MSG("totalLength = ", (int)totalLength);
       #endif
     }else{
@@ -570,8 +572,8 @@ char gcodePicExistjudge(char *fileName, unsigned int targetPicAddr, const char t
     if ( picMsgP != NULL )
     {
       picLayerHeight = atof(picMsgP);
-      totalLength += strlen(picMsgP);
       #if ENABLED(USER_LOGIC_DEBUG)
+        totalLength += strlen(picMsgP);
         SERIAL_ECHO_MSG("totalLength = ", (int)totalLength);
       #endif
     }else{
@@ -586,8 +588,8 @@ char gcodePicExistjudge(char *fileName, unsigned int targetPicAddr, const char t
     if ( picMsgP != NULL )
     {
       picFilamentDiameter = atof(picMsgP);
-      totalLength += strlen(picMsgP);
       #if ENABLED(USER_LOGIC_DEBUG) 
+        totalLength += strlen(picMsgP);
         SERIAL_ECHO_MSG("totalLength = ", (int)totalLength);
       #endif
     }else{
@@ -602,8 +604,8 @@ char gcodePicExistjudge(char *fileName, unsigned int targetPicAddr, const char t
     if ( picMsgP != NULL )
     {
       picFilamentDensity = atof(picMsgP);
-      totalLength += strlen(picMsgP);
       #if ENABLED(USER_LOGIC_DEBUG)
+        totalLength += strlen(picMsgP);
         SERIAL_ECHO_MSG("totalLength = ", (int)totalLength);
       #endif
     }else{
@@ -618,8 +620,8 @@ char gcodePicExistjudge(char *fileName, unsigned int targetPicAddr, const char t
     if ( picMsgP != NULL )
     {
       picLayers = atoi(picMsgP);
-      totalLength += strlen(picMsgP);
       #if ENABLED(USER_LOGIC_DEBUG)
+        totalLength += strlen(picMsgP);
         SERIAL_ECHO_MSG("totalLength = ", (int)totalLength);
       #endif
     }else{
@@ -769,9 +771,9 @@ char gcodePicDataOctoPrintSendToDwin(char *fileName, unsigned int jpgAddr, unsig
 void gcodePicDisplayOnOff(unsigned int jpgAddr, bool onoff)
 {
   if (onoff) {
-    rtscheck.RTS_SndData(1, jpgAddr);  
+    RTS_SetOneToVP(jpgAddr);  
   } else {
-    rtscheck.RTS_SndData(0, jpgAddr);
+    RTS_ResetSingleVP(jpgAddr);
   }
 }
 

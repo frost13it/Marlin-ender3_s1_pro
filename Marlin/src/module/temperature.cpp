@@ -693,10 +693,10 @@ volatile bool Temperature::raw_temps_ready = false;
       //char textRep_cur_cycle[25];
       //char textRep_cycles[25];
       //int repT = 1; // added for updating the running icon
-      rtscheck.RTS_SndData(0, PID_TUNING_RUNNING_VP);
+      RTS_ResetSingleVP(PID_TUNING_RUNNING_VP);
       if (heater_id == 0)
       {
-        rtscheck.RTS_SndData(1, PID_ICON_MODE_VP);
+        RTS_SetOneToVP(PID_ICON_MODE_VP);
       }
       const bool isHeater_autopid = (heater_id == H_E0);
       const bool isBed_autopid = (heater_id == H_BED);    
@@ -754,11 +754,11 @@ volatile bool Temperature::raw_temps_ready = false;
 
     #if ENABLED(E3S1PRO_RTS)
       if (isBed_autopid){
-        rtscheck.RTS_SndData(0, PID_TEXT_OUT_CUR_CYCLE_HOTBED_VP);
+        RTS_ResetSingleVP(PID_TEXT_OUT_CUR_CYCLE_HOTBED_VP);
         rtscheck.RTS_SndData(ncycles, AUTO_PID_SET_HOTBED_CYCLES);  
       }
       if (isHeater_autopid){
-        rtscheck.RTS_SndData(0, PID_TEXT_OUT_CUR_CYCLE_NOZZLE_VP);
+        RTS_ResetSingleVP(PID_TEXT_OUT_CUR_CYCLE_NOZZLE_VP);
         rtscheck.RTS_SndData(ncycles, AUTO_PID_SET_NOZZLE_CYCLES); 
       }                  
     #endif

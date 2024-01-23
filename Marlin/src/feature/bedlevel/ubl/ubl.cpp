@@ -72,7 +72,14 @@ float unified_bed_leveling::get_mesh_x(const uint8_t i) {
 }
 
 float unified_bed_leveling::get_mesh_y(const uint8_t i) {
-  return lcd_rts_settings.probe_margin_x + i * get_mesh_y_dist();
+  if (i == 0) {
+      return lcd_rts_settings.probe_margin_y_front;
+  } else if (i == (bedlevel.max_points.y - 1)) {
+      return Y_BED_SIZE - lcd_rts_settings.probe_margin_y_back;
+  } else {
+      return lcd_rts_settings.probe_margin_y_back + i * get_mesh_y_dist();
+  }
+  //return lcd_rts_settings.probe_margin_y_front + i * get_mesh_y_dist();
 }
 
 float unified_bed_leveling::get_mesh_x_dist() {
@@ -80,7 +87,7 @@ float unified_bed_leveling::get_mesh_x_dist() {
 }
 // TODO: to reach the y max position here - margin_x is needed
 float unified_bed_leveling::get_mesh_y_dist() {
-    return float((Y_BED_SIZE - lcd_rts_settings.probe_margin_y) - (lcd_rts_settings.probe_margin_x)) / (bedlevel.max_points.y - 1);
+    return float((Y_BED_SIZE - lcd_rts_settings.probe_margin_y_front) - (lcd_rts_settings.probe_margin_y_back)) / (bedlevel.max_points.y - 1);
 }
 
 volatile int16_t unified_bed_leveling::encoder_diff;
@@ -175,8 +182,8 @@ void unified_bed_leveling::display_map(const uint8_t map_type) {
   SERIAL_ECHOPGM("\nBed Topography Report");
   if (human) {
     SERIAL_ECHOLNPGM(":\n");
-    serial_echo_xy(4, (lcd_rts_settings.probe_margin_x), (Y_BED_SIZE - lcd_rts_settings.probe_margin_y));
-    serial_echo_xy(twixt, (X_BED_SIZE - lcd_rts_settings.probe_margin_x), (Y_BED_SIZE - lcd_rts_settings.probe_margin_y));
+    serial_echo_xy(4, (lcd_rts_settings.probe_margin_x), (Y_BED_SIZE - lcd_rts_settings.probe_margin_y_front));
+    serial_echo_xy(twixt, (X_BED_SIZE - lcd_rts_settings.probe_margin_x), (Y_BED_SIZE - lcd_rts_settings.probe_margin_y_front));
     SERIAL_EOL();
     serial_echo_column_labels(eachsp - 2);
   }

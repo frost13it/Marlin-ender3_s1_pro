@@ -69,7 +69,7 @@
 //#define ENDER_3S1_PRO
 //#define ENDER_3S1_PLUS
 //#define ENDER_3S1
-#define FORK_VERSION "v024"
+#define FORK_VERSION "v025"
 
 // Choose the name from boards.h that matches your setup
 #define USER_STM32F401  1
@@ -109,33 +109,9 @@
   #define SOFTVERSION       SHORT_BUILD_VERSION
   #define MACHINE_TYPE      "Ender-3 S1 Pro"
   #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-    #if GRID_MAX_POINTS_X == 5
-      #define FIRMWARE_VERSION  "abl5x5-" FORK_VERSION "-byTT"
-    #elif GRID_MAX_POINTS_X == 7
-      #define FIRMWARE_VERSION  "abl7x7-" FORK_VERSION "-byTT"
-    #elif GRID_MAX_POINTS_X == 8
-      #define FIRMWARE_VERSION  "abl8x8-" FORK_VERSION "-byTT"      
-    #elif GRID_MAX_POINTS_X == 9
-      #define FIRMWARE_VERSION  "abl9x9-" FORK_VERSION "-byTT"      
-    #elif GRID_MAX_POINTS_X == 10 && DISABLED(IS_UNIFIED)
-      #define FIRMWARE_VERSION  "abl10x10-" FORK_VERSION "-byTT"
-    #elif GRID_MAX_POINTS_X == 10 && ENABLED(IS_UNIFIED)
-      #define FIRMWARE_VERSION  "abl-" FORK_VERSION "-byTT"
-    #endif
+    #define FIRMWARE_VERSION  "abl-" FORK_VERSION "-byTT"
   #else
-    #if GRID_MAX_POINTS_X == 5
-      #define FIRMWARE_VERSION  "ubl5x5-" FORK_VERSION "-byTT"
-    #elif GRID_MAX_POINTS_X == 7
-      #define FIRMWARE_VERSION  "ubl7x7-" FORK_VERSION "-byTT"
-    #elif GRID_MAX_POINTS_X == 8
-      #define FIRMWARE_VERSION  "ubl8x8-" FORK_VERSION "-byTT"
-    #elif GRID_MAX_POINTS_X == 9
-      #define FIRMWARE_VERSION  "ubl9x9-" FORK_VERSION "-byTT"
-    #elif GRID_MAX_POINTS_X == 10 && DISABLED(IS_UNIFIED)
-      #define FIRMWARE_VERSION  "ubl10x10-" FORK_VERSION "-byTT"
-    #elif GRID_MAX_POINTS_X == 10 && ENABLED(IS_UNIFIED)
-      #define FIRMWARE_VERSION  "ubl-" FORK_VERSION "-byTT"
-    #endif
+    #define FIRMWARE_VERSION  "ubl-" FORK_VERSION "-byTT"
   #endif
   #define SCREEN_VERSION    "UI20"
   #define SCREEN_HW_VERSION "DWIN2021"
@@ -158,33 +134,9 @@
   #define SOFTVERSION       SHORT_BUILD_VERSION
   #define MACHINE_TYPE      "Ender-3 S1 Plus"
   #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-    #if GRID_MAX_POINTS_X == 5
-      #define FIRMWARE_VERSION  "abl5x5-" FORK_VERSION "-byTT"
-    #elif GRID_MAX_POINTS_X == 7
-      #define FIRMWARE_VERSION  "abl7x7-" FORK_VERSION "-byTT"
-    #elif GRID_MAX_POINTS_X == 8
-      #define FIRMWARE_VERSION  "abl8x8-" FORK_VERSION "-byTT"
-    #elif GRID_MAX_POINTS_X == 9
-      #define FIRMWARE_VERSION  "abl9x9-" FORK_VERSION "-byTT"
-    #elif GRID_MAX_POINTS_X == 10 && DISABLED(IS_UNIFIED)
-      #define FIRMWARE_VERSION  "abl10x10-" FORK_VERSION "-byTT"
-    #elif GRID_MAX_POINTS_X == 10 && ENABLED(IS_UNIFIED)
-      #define FIRMWARE_VERSION  "abl-" FORK_VERSION "-byTT"
-    #endif    
+    #define FIRMWARE_VERSION  "abl-" FORK_VERSION "-byTT"
   #else
-    #if GRID_MAX_POINTS_X == 5
-      #define FIRMWARE_VERSION  "ubl5x5-" FORK_VERSION "-byTT"
-    #elif GRID_MAX_POINTS_X == 7
-      #define FIRMWARE_VERSION  "ubl7x7-" FORK_VERSION "-byTT"
-    #elif GRID_MAX_POINTS_X == 8
-      #define FIRMWARE_VERSION  "ubl8x8-" FORK_VERSION "-byTT"
-    #elif GRID_MAX_POINTS_X == 9
-      #define FIRMWARE_VERSION  "ubl9x9-" FORK_VERSION "-byTT"
-    #elif GRID_MAX_POINTS_X == 10 && DISABLED(IS_UNIFIED)
-      #define FIRMWARE_VERSION  "ubl10x10-" FORK_VERSION "-byTT"
-    #elif GRID_MAX_POINTS_X == 10 && ENABLED(IS_UNIFIED)
-      #define FIRMWARE_VERSION  "ubl-" FORK_VERSION "-byTT"
-    #endif
+    #define FIRMWARE_VERSION  "ubl-" FORK_VERSION "-byTT"
   #endif
   #define SCREEN_VERSION    "v1.0.1-byTT"
   #define SCREEN_HW_VERSION "DWIN2021"

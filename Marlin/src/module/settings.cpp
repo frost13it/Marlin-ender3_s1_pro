@@ -195,7 +195,7 @@ typedef struct { uint32_t MAIN_AXIS_NAMES_ X2, Y2, Z2, Z3, Z4 REPEAT(E_STEPPERS,
 typedef struct {  int16_t MAIN_AXIS_NAMES_ X2, Y2, Z2, Z3, Z4;                              } mot_stepper_int16_t;
 typedef struct {     bool NUM_AXIS_LIST_(X:1, Y:1, Z:1, I:1, J:1, K:1, U:1, V:1, W:1) X2:1, Y2:1, Z2:1, Z3:1, Z4:1 REPEAT(E_STEPPERS, _EN1_ITEM); } per_stepper_bool_t;
 
-#if ENABLED(E3S1PRO_RTS) && ENABLED(LCD_RTS_DEBUG)
+#if ENABLED(E3S1PRO_RTS) && ENABLED(LCD_RTS_DEBUG_LEVELING)
   void printZValues(float z_values[][GRID_MAX_POINTS_X], size_t rows, size_t cols) {
       for (size_t i = 0; i < rows; i++) {
           for (size_t j = 0; j < cols; j++) {
@@ -1072,7 +1072,7 @@ void MarlinSettings::postprocess() {
       #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
         EEPROM_WRITE(bedlevel.max_points);
         EEPROM_WRITE(bedlevel.z_values);              // 9-256 floats
-        #if ENABLED(E3S1PRO_RTS) && ENABLED(LCD_RTS_DEBUG)
+        #if ENABLED(E3S1PRO_RTS) && ENABLED(LCD_RTS_DEBUG_LEVELING)
           const size_t rows = sizeof(bedlevel.z_values) / sizeof(bedlevel.z_values[0]);
           const size_t cols = sizeof(bedlevel.z_values[0]) / sizeof(bedlevel.z_values[0][0]);
           printZValues(bedlevel.z_values, rows, cols);
@@ -1698,7 +1698,7 @@ void MarlinSettings::postprocess() {
       char lcd_rts_settings[eeprom_data_size] = { 0 };
       saveSettings(lcd_rts_settings);
       EEPROM_WRITE(lcd_rts_settings);
-      #if ENABLED(LCD_RTS_DEBUG)
+      #if ENABLED(LCD_RTS_DEBUG_EEPROM_SETTINGS)
         SERIAL_ECHOLNPGM("lcd_rts_settings write size: ", sizeof(lcd_rts_settings));
       #endif
     }
@@ -2813,7 +2813,7 @@ void MarlinSettings::postprocess() {
         const char lcd_rts_settings[eeprom_data_size] = { 0 };
         _FIELD_TEST(lcd_rts_settings);
         EEPROM_READ(lcd_rts_settings);
-        #if ENABLED(LCD_RTS_DEBUG)
+        #if ENABLED(LCD_RTS_DEBUG_EEPROM_SETTINGS)
           SERIAL_ECHOLNPGM("lcd_rts_settings read size: ", sizeof(lcd_rts_settings));
         #endif
         if (!validating) loadSettings(lcd_rts_settings);
@@ -4118,12 +4118,12 @@ void MarlinSettings::reset() {
     TERN_(HAS_MULTI_LANGUAGE, gcode.M414_report(forReplay));
 
     #if ENABLED(E3S1PRO_RTS)
-      #if ENABLED(LCD_RTS_DEBUG)
+      #if ENABLED(LCD_RTS_DEBUG_EEPROM_SETTINGS)
         SERIAL_ECHO_MSG("lcd_rts_settings size: ", sizeof(lcd_rts_settings));
         SERIAL_ECHO_MSG("Grid_max_points: ", lcd_rts_settings.max_points);
         SERIAL_ECHO_MSG("Probing Margin x set to: ", lcd_rts_settings.probe_margin_x);
-        SERIAL_ECHO_MSG("Probing Margin y set to: ", lcd_rts_settings.probe_margin_y);
-        SERIAL_ECHO_MSG("Probing Margin min y: ", lcd_rts_settings.probe_min_margin_y);
+        SERIAL_ECHO_MSG("Probing Margin y set to: ", lcd_rts_settings.probe_margin_y_front);
+        SERIAL_ECHO_MSG("Probing Margin min y: ", lcd_rts_settings.probe_margin_y_back);
         SERIAL_ECHO_MSG("Screen brightness: ", lcd_rts_settings.screen_brightness);
         SERIAL_ECHO_MSG("Screen standby brightness: ", lcd_rts_settings.standby_brightness);      
         SERIAL_ECHO_MSG("Screen standby time: ", lcd_rts_settings.standby_time_seconds);            

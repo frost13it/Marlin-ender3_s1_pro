@@ -415,7 +415,7 @@
       // for mesh inset area.
       xy_int8_t icell = {
         int8_t((raw.x - (lcd_rts_settings.probe_margin_x)) * RECIPROCAL(get_mesh_x_dist())),
-        int8_t((raw.y - (lcd_rts_settings.probe_margin_y)) * RECIPROCAL(get_mesh_y_dist()))
+        int8_t((raw.y - (lcd_rts_settings.probe_margin_y_front)) * RECIPROCAL(get_mesh_y_dist()))
       };    
       LIMIT(icell.x, 0, GRID_USED_POINTS_X - 1);
       LIMIT(icell.y, 0, GRID_USED_POINTS_Y - 1);

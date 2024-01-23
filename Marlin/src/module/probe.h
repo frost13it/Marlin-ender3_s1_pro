@@ -261,13 +261,13 @@ public:
     TERN(E3S1PRO_RTS, static, static constexpr) float _min_y(const xy_pos_t &probe_offset_xy=offset_xy) {
       return TERN(IS_KINEMATIC,
         (Y_CENTER) - probe_radius(probe_offset_xy),
-        _MAX((Y_MIN_BED) + (ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.probe_min_margin_y : PROBING_MARGIN_FRONT), (Y_MIN_POS) + probe_offset_xy.y)
+        _MAX((Y_MIN_BED) + (ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.probe_margin_y_front : PROBING_MARGIN_FRONT), (Y_MIN_POS) + probe_offset_xy.y)
       );
     }
     TERN(E3S1PRO_RTS, static, static constexpr) float _max_y(const xy_pos_t &probe_offset_xy=offset_xy) {
       return TERN(IS_KINEMATIC,
         (Y_CENTER) + probe_radius(probe_offset_xy),
-        _MIN((Y_MAX_BED) - (ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.probe_min_margin_y : PROBING_MARGIN_BACK), (Y_MAX_POS) + probe_offset_xy.y)
+        _MIN((Y_MAX_BED) - (ENABLED(E3S1PRO_RTS) ? lcd_rts_settings.probe_margin_y_back : PROBING_MARGIN_BACK), (Y_MAX_POS) + probe_offset_xy.y)
       );
     }
 
@@ -321,7 +321,7 @@ public:
           #elif ENABLED(AUTO_BED_LEVELING_UBL)
             points[0] = xy_float_t({ _MAX(float(lcd_rts_settings.probe_margin_x), min_x()), _MAX(float(lcd_rts_settings.probe_margin_x), min_y()) });
             points[1] = xy_float_t({ _MIN(float(X_BED_SIZE - lcd_rts_settings.probe_margin_x), max_x()), _MAX(float(lcd_rts_settings.probe_margin_x), min_y()) });
-            points[2] = xy_float_t({ (_MAX(float(lcd_rts_settings.probe_margin_x), min_x()) + _MIN(float(X_BED_SIZE - lcd_rts_settings.probe_margin_x), max_x())) / 2, _MIN(float(Y_BED_SIZE - lcd_rts_settings.probe_margin_y), max_y()) });
+            points[2] = xy_float_t({ (_MAX(float(lcd_rts_settings.probe_margin_x), min_x()) + _MIN(float(X_BED_SIZE - lcd_rts_settings.probe_margin_x), max_x())) / 2, _MIN(float(Y_BED_SIZE - lcd_rts_settings.probe_margin_y_front), max_y()) });
           #else
             points[0] = xy_float_t({ min_x(), min_y() });
             points[1] = xy_float_t({ max_x(), min_y() });

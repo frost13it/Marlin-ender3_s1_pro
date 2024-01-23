@@ -59,7 +59,9 @@ void GcodeSuite::M117() {
                   float number = strtof(number_str, nullptr);  // Parse as float
                   if (parser.string_arg[i] == 'Z') {
                     picLayerHeight = number;  // Float for Z variable
-                    SERIAL_ECHO_MSG("picLayerHeight: ", picLayerHeight);                       
+                    #if ENABLED(LCD_RTS_DEBUG_LCD)   
+                      SERIAL_ECHO_MSG("picLayerHeight: ", picLayerHeight);
+                    #endif
                   }
               } else {
                   int number = strtol(number_str, nullptr, 10);  // Parse as int
@@ -74,7 +76,9 @@ void GcodeSuite::M117() {
                       picFilament_m_todo = number;  // Integer for M variable
                   } else if (parser.string_arg[i] == 'Q') {
                       picLayers = number;  // Integer for Q variable
-                      SERIAL_ECHO_MSG("picLayers: ", picLayers);                      
+                      #if ENABLED(LCD_RTS_DEBUG_LCD)                      
+                        SERIAL_ECHO_MSG("picLayers: ", picLayers);
+                      #endif
                   }
               }
           }
@@ -83,22 +87,18 @@ void GcodeSuite::M117() {
       if (hasL && hasG && hasM) {
         rtscheck.RTS_SndData(m117_layer, PRINT_LAYERS_DONE_VP);
         float current_z_pos = current_position.z;
-        if(m117_layer == 1){
           rtscheck.RTS_SndData(current_z_pos * 100, PRINT_CURRENT_Z_VP);
           rtscheck.RTS_SndData(picFilament_g_todo, PRINT_FILAMENT_G_TODO_VP);
           rtscheck.RTS_SndData(picFilament_m_todo, PRINT_FILAMENT_M_TODO_VP);
+        if(m117_layer == 1){
           rtscheck.RTS_SndData(picFilament_g_todo, PRINT_FILAMENT_G_VP);
           rtscheck.RTS_SndData(picFilament_m_todo, PRINT_FILAMENT_M_VP);
           rtscheck.RTS_SndData(picLayers, PRINT_LAYERS_VP);
           rtscheck.RTS_SndData(picLayerHeight * 100, PRINT_LAYER_HEIGHT_VP);
-          rtscheck.RTS_SndData(208, EXTERNAL_M600_ICON_VP);
+          RTS_SendM600Icon(true);
           RTS_ShowPage(10);
-        }else{
-          rtscheck.RTS_SndData(current_z_pos * 100, PRINT_CURRENT_Z_VP);
-          rtscheck.RTS_SndData(picFilament_g_todo, PRINT_FILAMENT_G_TODO_VP);
-          rtscheck.RTS_SndData(picFilament_m_todo, PRINT_FILAMENT_M_TODO_VP);
         }
-        #if ENABLED(LCD_RTS_DEBUG)
+        #if ENABLED(LCD_RTS_DEBUG_LCD)
           SERIAL_ECHO_MSG("Current Position Z: ", current_z_pos * 100);
           SERIAL_ECHO_MSG("L-command: ", m117_layer);
           SERIAL_ECHO_MSG("G-command: ", picFilament_g_todo);
@@ -116,14 +116,14 @@ void GcodeSuite::M117() {
       } else {
         strcpy(msg, parser.string_arg);
       }
-      #if ENABLED(LCD_RTS_DEBUG)      
+      #if ENABLED(LCD_RTS_DEBUG_LCD)      
         SERIAL_ECHO_MSG("msg M117: ", msg);
       #endif
       if (strlen(msg) > 25) {
-        rtscheck.RTS_SndData(0, PRINT_FILE_TEXT_VP);
+        RTS_ResetSingleVP(PRINT_FILE_TEXT_VP);
         rtscheck.RTS_SndData(msg, SELECT_FILE_TEXT_VP);
       }else{
-        rtscheck.RTS_SndData(0, SELECT_FILE_TEXT_VP);        
+        RTS_ResetSingleVP(SELECT_FILE_TEXT_VP);        
         rtscheck.RTS_SndData(msg, PRINT_FILE_TEXT_VP);
       }
     }

@@ -53,21 +53,21 @@ switch(action){
         char *ptr = nullptr;  // Declare ptr here
         char *end = nullptr;  // Declare end here
         if (!card.fileExists(filename_input)) {
-            #if ENABLED(LCD_RTS_DEBUG)
+            #if ENABLED(LCD_RTS_DEBUG_SDCARD)
                 SERIAL_ECHO_MSG("Input file does not exist: ", filename_input);
             #endif
             return;        
         }
         card.openFileReadonly(filename_input);
         if (!card.isFileOpen()) {
-            #if ENABLED(LCD_RTS_DEBUG)
+            #if ENABLED(LCD_RTS_DEBUG_SDCARD)
                 SERIAL_ECHO_MSG("Failed to open input file:", filename_input);
             #endif
             return;
         }
         size_t fileLength = card.getFileSize();
         if (fileLength > 24500) {
-            #if ENABLED(LCD_RTS_DEBUG)
+            #if ENABLED(LCD_RTS_DEBUG_SDCARD)
                 SERIAL_ECHO_MSG("filesize too big. max 24500 bytes allowed");
             #endif
             return;    
@@ -116,7 +116,7 @@ switch(action){
         
         card.openFileWrite(outputCopy);
         if (!card.isFileOpen()) {
-            #if ENABLED(LCD_RTS_DEBUG)
+            #if ENABLED(LCD_RTS_DEBUG_SDCARD)
                 SERIAL_ECHO_MSG("Failed to open output file");
             #endif
             return;
@@ -124,7 +124,7 @@ switch(action){
         card.write((uint8_t*)fileContents, strlen(fileContents));
         card.closefile();
         int32_t ret = gcodePicDataOctoPrintSendToDwin(outputCopy, VP_OVERLAY_PIC_PTINT, PIC_FORMAT_JPG, PIC_RESOLUTION_250_250);
-        #if ENABLED(LCD_RTS_DEBUG)
+        #if ENABLED(LCD_RTS_DEBUG_SDCARD)
             SERIAL_ECHO_MSG("Thumbnail load via M19 ret status: ", ret);
         #endif
         if (ret == PIC_OK) {
@@ -143,11 +143,11 @@ switch(action){
         RTS_CleanPrintAndSelectFile();
         RTS_ResetPrintData(true);
         RTS_ResetProgress();
-        rtscheck.RTS_SndData(207, EXTERNAL_M600_ICON_VP);
-        rtscheck.RTS_SndData(205, EXTERNAL_M73_ICON_VP);
+        RTS_SendM600Icon(false);
+        RTS_SendM73Icon(false);
         lcd_rts_settings.external_m73 = false;
         RTS_ShowPage(1);
-        #if ENABLED(LCD_RTS_DEBUG)
+        #if ENABLED(LCD_RTS_DEBUG_LCD)
             SERIAL_ECHO_MSG("M19 CANCELLED arrived S", action);
         #endif
         return;                
@@ -158,37 +158,37 @@ switch(action){
         RTS_LoadMainsiteIcons();
         RTS_SendLevelingSiteData();
         RTS_ShowPage(10);
-        #if ENABLED(LCD_RTS_DEBUG)
+        #if ENABLED(LCD_RTS_DEBUG_LCD)
             SERIAL_ECHO_MSG("M19 OCTORUN arrived S", action);
         #endif
         return;
     break;
     case 4:
         RTS_ShowPage(12);
-        #if ENABLED(LCD_RTS_DEBUG)
+        #if ENABLED(LCD_RTS_DEBUG_LCD)
             SERIAL_ECHO_MSG("M19 PAUSED arrived S", action);
         #endif
         return;
     break;
     case 5:
         RTS_ShowPage(10);
-        #if ENABLED(LCD_RTS_DEBUG)
+        #if ENABLED(LCD_RTS_DEBUG_LCD)
             SERIAL_ECHO_MSG("M19 RESUMED arrived S", action);
         #endif
         return;
     break;
     case 6:
-        rtscheck.RTS_SndData(207, EXTERNAL_M600_ICON_VP);                
-        rtscheck.RTS_SndData(205, EXTERNAL_M73_ICON_VP);
+        RTS_SendM600Icon(false);                
+        RTS_SendM73Icon(false);
         lcd_rts_settings.external_m73 = false;        
         RTS_ShowPage(9);
-        #if ENABLED(LCD_RTS_DEBUG)
+        #if ENABLED(LCD_RTS_DEBUG_LCD)
             SERIAL_ECHO_MSG("M19 PRINTDONE arrived S", action);
         #endif
         return;
     break;
     default:
-        #if ENABLED(LCD_RTS_DEBUG)
+        #if ENABLED(LCD_RTS_DEBUG_LCD)
             SERIAL_ECHO_MSG("Input argument is not known S", action);
         #endif
         return;

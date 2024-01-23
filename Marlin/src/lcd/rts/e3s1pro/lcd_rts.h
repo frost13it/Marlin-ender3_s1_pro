@@ -558,8 +558,8 @@ uint8_t standby_brightness;
 int16_t standby_time_seconds;  
 uint8_t max_points;
 uint8_t probe_margin_x;
-uint8_t probe_margin_y;
-uint8_t probe_min_margin_y;
+uint8_t probe_margin_y_front;
+uint8_t probe_margin_y_back;
 bool external_m73;
 uint8_t extra_probing;
 uint8_t total_probing;
@@ -600,7 +600,7 @@ class RTSSHOW
     void sendRectangleCommand(uint16_t vpAddress, uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t color);
     void sendOneFilledRectangle(uint16_t baseAddress, uint16_t showcount, uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t color);
     void RTS_ChangeLevelingPage(void);
-    void RTS_SetBltouchHSMode(void);
+    void RTS_SendLoadedData(uint8_t loadpart);
     //void sendQRCodeCommand(uint16_t vpAddress, const char* url);    
     void calculateProbePoints(uint8_t current_point, uint8_t& x_probe_point, uint8_t& y_probe_point);
     //String RTS_ReadTextField(uint16_t address);
@@ -713,7 +713,8 @@ typedef enum PROC_COM : int8_t {
    SetProbeMarginY          = 91,
    EditMeshpoint            = 92,
    CurrentMeshpoint         = 93,
-   SetProbeCount            = 94
+   SetProbeCount            = 94,
+   SaveM503Settings         = 95
 } proc_command_t; 
 
 const unsigned long Addrbuf[] = 
@@ -815,6 +816,7 @@ const unsigned long Addrbuf[] =
    0x2218, // EditMeshpoint
    0x2220, // CurrentMeshpoint
    0x1162, // SetProbeCount
+   0x166A, // SaveM503Settings
   0
 };
 
@@ -873,13 +875,29 @@ void RTS_SendHeadTemp(void);
 void RTS_SendHeadCurrentTemp();
 void RTS_SendMoveaxisUnitIcon(uint8_t icon);
 void RTS_SendDefaultRates();
+float* getM503_settings();
+void RTS_SetProbeCount(uint8_t probescount);
+void RTS_SetProbeMarginX(uint8_t marginx);
+void RTS_SetProbeMarginY(uint8_t marginy);
+void RTS_SetGridMaxPoints(uint8_t gridmaxpoints);
+
+void RTS_GetRemainTime(void);
+void RTS_SendProgress(uint8_t progresspercent);
+
+void RTS_G28MoveNow(void);
+void RTS_G28MoveOne(void);
+void RTS_ResetHotendBed(void);
+void RTS_SetBltouchHSMode(void);
 void RTS_SendZoffsetFeedratePercentage(bool sendzoffset);
 void RTS_AxisZCoord();
-void RTS_LoadMargins();
 void RTS_ResetPrintData(bool defaultpic);
+void RTS_SetOneToVP(int vpaddress);
 void RTS_ResetProgress();
+void RTS_TrammingPosition(uint8_t xx, uint8_t xy, uint8_t yx, uint8_t yy);
 void RTS_MoveAxisHoming(void);
 void RTS_SetMeshPage();
+void RTS_SendM600Icon(bool icon);
+void RTS_SendM73Icon(bool icon);
 void RTS_MoveParkNozzle(void);
 void RTS_CommandPause(void);
 
@@ -887,12 +905,14 @@ extern int8_t g_uiAutoPIDRuningDiff;
 extern int16_t g_uiCurveDataCnt;
 extern uint8_t leveling_running;
 extern uint8_t color_sp_offset;
+extern uint8_t min_margin_y_front;
 extern uint8_t min_margin_y_back;
 extern uint8_t min_margin_x;
 extern unsigned int picLayers;    // picture layers
 extern unsigned int picFilament_m;
 extern unsigned int picFilament_g;
 extern float picLayerHeight;
+extern uint8_t settingsload;
 //#if ENABLED(LCD_RTS_SOFTWARE_AUTOSCROLL)
 //  void lcd_rts_scrolling();
 //#endif

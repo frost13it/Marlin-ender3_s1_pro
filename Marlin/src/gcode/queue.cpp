@@ -107,12 +107,11 @@ char GCodeQueue::injected_commands[64]; // = { 0 }
  * also setting its origin info.
  */
 void GCodeQueue::RingBuffer::commit_command(const bool skip_ok
-  OPTARG(POWER_LOSS_RECOVERY, const bool is_sd_cmd/*=false*/)
   OPTARG(HAS_MULTI_SERIAL, serial_index_t serial_ind/*=-1*/)
 ) {
   commands[index_w].skip_ok = skip_ok;
   TERN_(HAS_MULTI_SERIAL, commands[index_w].port = serial_ind);
-  TERN_(POWER_LOSS_RECOVERY, recovery.commit_sdpos(index_w, is_sd_cmd));
+  TERN_(POWER_LOSS_RECOVERY, recovery.commit_sdpos(index_w));
   advance_pos(index_w, 1);
 }
 
@@ -126,7 +125,7 @@ bool GCodeQueue::RingBuffer::enqueue(const char *cmd, const bool skip_ok/*=true*
 ) {
   if (*cmd == ';' || length >= BUFSIZE) return false;
   strcpy(commands[index_w].buffer, cmd);
-  commit_command(skip_ok OPTARG(POWER_LOSS_RECOVERY, false) OPTARG(HAS_MULTI_SERIAL, serial_ind));
+  commit_command(skip_ok OPTARG(HAS_MULTI_SERIAL, serial_ind));
   return true;
 }
 
@@ -670,7 +669,7 @@ void GCodeQueue::get_serial_commands() {
           #endif
 
           // Put the new command into the buffer (no "ok" sent)
-          ring_buffer.commit_command(true OPTARG(POWER_LOSS_RECOVERY, true));
+          ring_buffer.commit_command(true);
 
           // Prime Power-Loss Recovery for the NEXT commit_command
           TERN_(POWER_LOSS_RECOVERY, recovery.cmd_sdpos = card.getIndex());
@@ -686,9 +685,6 @@ void GCodeQueue::get_serial_commands() {
         // the printing results
         if (card_eof)
         {
-          rtscheck.RTS_SndData(100, PRINT_PROCESS_VP);
-          delay(1);
-          rtscheck.RTS_SndData(100, PRINT_PROCESS_ICON_VP);
           delay(1);
 
           #if HAS_CUTTER
@@ -698,14 +694,15 @@ void GCodeQueue::get_serial_commands() {
             }else
           #endif
           {
-            RTS_ShowPage(9);
+            if(settingsload == 1){
+              rtscheck.RTS_SendLoadedData(255);
+              RTS_ResetProgress();
+              settingsload = 0;
+            }else{
+              RTS_SendProgress(100);
+              RTS_ShowPage(9);
+            }
           }
-
-          // if(flag_over_shutdown)
-          // {
-          //   // Start the automatic shutdown timer after printing
-          //   flag_counter_printover_to_shutdown = true;
-          // }
         }
       #endif
     }

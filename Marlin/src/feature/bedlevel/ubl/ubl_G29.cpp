@@ -432,7 +432,7 @@ void unified_bed_leveling::G29() {
       restore_ubl_active_state_and_leave();
 
       #if ENABLED(UBL_G29_J_RECENTER)
-        do_blocking_move_to_xy(0.5f * ((lcd_rts_settings.probe_margin_x) + (X_BED_SIZE - lcd_rts_settings.probe_margin_x)), 0.5f * ((lcd_rts_settings.probe_margin_y) + (Y_BED_SIZE - lcd_rts_settings.probe_margin_y)));
+        do_blocking_move_to_xy(0.5f * ((lcd_rts_settings.probe_margin_x) + (X_BED_SIZE - lcd_rts_settings.probe_margin_x)), 0.5f * ((lcd_rts_settings.probe_margin_y_front) + (Y_BED_SIZE - lcd_rts_settings.probe_margin_y_front)));
       #endif
 
       report_current_position();
@@ -891,7 +891,7 @@ void unified_bed_leveling::shift_mesh_height() {
     
     do_blocking_move_to_xy(
       constrain(nearby.x - probe.offset_xy.x, lcd_rts_settings.probe_margin_x, (X_BED_SIZE - lcd_rts_settings.probe_margin_x)),
-      constrain(nearby.y - probe.offset_xy.y, lcd_rts_settings.probe_margin_y, (Y_BED_SIZE - lcd_rts_settings.probe_margin_y))
+      constrain(nearby.y - probe.offset_xy.y, lcd_rts_settings.probe_margin_y_front, (Y_BED_SIZE - lcd_rts_settings.probe_margin_y_front))
     );
     #if ENABLED(E3S1PRO_RTS)
     leveling_running = 0;
@@ -968,7 +968,7 @@ void set_message_with_feedback(FSTR_P const fstr) {
     do_blocking_move_to(
       xyz_pos_t({
         0.5f * ((X_BED_SIZE - lcd_rts_settings.probe_margin_x) - (lcd_rts_settings.probe_margin_x)),
-        0.5f * ((Y_BED_SIZE - lcd_rts_settings.probe_margin_y) - (lcd_rts_settings.probe_margin_y)),
+        0.5f * ((Y_BED_SIZE - lcd_rts_settings.probe_margin_y_front) - (lcd_rts_settings.probe_margin_y_front)),
         MANUAL_PROBE_START_Z
         #ifdef SAFE_BED_LEVELING_START_I
           , SAFE_BED_LEVELING_START_I
@@ -1616,8 +1616,8 @@ void unified_bed_leveling::smart_fill_mesh() {
 
       const float x_min = _MAX((X_MIN_POS) + (G29J_MESH_TILT_MARGIN), lcd_rts_settings.probe_margin_x, probe.min_x()),
                   x_max = _MIN((X_MAX_POS) - (G29J_MESH_TILT_MARGIN), (X_BED_SIZE - lcd_rts_settings.probe_margin_x), probe.max_x()),
-                  y_min = _MAX((Y_MIN_POS) + (G29J_MESH_TILT_MARGIN), lcd_rts_settings.probe_margin_y, probe.min_y()),
-                  y_max = _MIN((Y_MAX_POS) - (G29J_MESH_TILT_MARGIN), (Y_BED_SIZE - lcd_rts_settings.probe_margin_y), probe.max_y()),
+                  y_min = _MAX((Y_MIN_POS) + (G29J_MESH_TILT_MARGIN), lcd_rts_settings.probe_margin_y_front, probe.min_y()),
+                  y_max = _MIN((Y_MAX_POS) - (G29J_MESH_TILT_MARGIN), (Y_BED_SIZE - lcd_rts_settings.probe_margin_y_front), probe.max_y()),
                   dx = (x_max - x_min) / (param.J_grid_size - 1),
                   dy = (y_max - y_min) / (param.J_grid_size - 1);
 
@@ -1840,7 +1840,7 @@ void unified_bed_leveling::smart_fill_mesh() {
     #endif
 
     //SERIAL_ECHOLNPGM("lcd_rts_settings.probe_margin_x  " STRINGIFY(lcd_rts_settings.probe_margin_x) "=", (lcd_rts_settings.probe_margin_x)); serial_delay(50);
-    //SERIAL_ECHOLNPGM("lcd_rts_settings.probe_margin_y  " STRINGIFY(lcd_rts_settings.probe_margin_y) "=", (lcd_rts_settings.probe_margin_y)); serial_delay(50);
+    //SERIAL_ECHOLNPGM("lcd_rts_settings.probe_margin_y_front  " STRINGIFY(lcd_rts_settings.probe_margin_y_front) "=", (lcd_rts_settings.probe_margin_y_front)); serial_delay(50);
     //SERIAL_ECHOLNPGM("MESH_MAX_X  " STRINGIFY(MESH_MAX_X) "=", (MESH_MAX_X)); serial_delay(50);
     //SERIAL_ECHOLNPGM("MESH_MAX_Y  " STRINGIFY(MESH_MAX_Y) "=", (MESH_MAX_Y)); serial_delay(50);
     SERIAL_ECHOLNPGM("GRID_MAX_POINTS_X ", GRID_MAX_POINTS_X);             serial_delay(50);
