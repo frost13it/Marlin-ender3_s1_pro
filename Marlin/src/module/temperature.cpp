@@ -1517,6 +1517,8 @@ int16_t Temperature::getHeaterPower(const heater_id_t heater_id) {
       #if ALL(HAS_FANCHECK, HAS_PWMFANCHECK)
         #define _AUTOFAN_SPEED() fan_check.is_measuring() ? 255 : EXTRUDER_AUTO_FAN_SPEED
       #else
+        // prepare for hotend_fan
+        //#define _AUTOFAN_SPEED() lcd_rts_settings.hotend_fan
         #define _AUTOFAN_SPEED() EXTRUDER_AUTO_FAN_SPEED
       #endif
       #define _AUTOFAN_CASE(N) case N: _UPDATE_AUTO_FAN(E##N, fan_on, _AUTOFAN_SPEED()); break;

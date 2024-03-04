@@ -429,7 +429,7 @@ void unified_bed_leveling::G29() {
     if (parser.seen_test('J')) {
       save_ubl_active_state_and_disable();
       tilt_mesh_based_on_probed_grid(param.J_grid_size == 0); // Zero size does 3-Point
-      restore_ubl_active_state_and_leave();
+      restore_ubl_active_state(false); // ...without telling ExtUI "done"
 
       #if ENABLED(UBL_G29_J_RECENTER)
         do_blocking_move_to_xy(0.5f * ((lcd_rts_settings.probe_margin_x) + (X_BED_SIZE - lcd_rts_settings.probe_margin_x)), 0.5f * ((lcd_rts_settings.probe_margin_y_front) + (Y_BED_SIZE - lcd_rts_settings.probe_margin_y_front)));
@@ -827,12 +827,6 @@ void unified_bed_leveling::shift_mesh_height() {
           ExtUI::onMeshUpdate(best.pos, measured_z);
         #endif
         #if ENABLED(E3S1PRO_RTS)
-          if(old_leveling == 1){
-            const uint16_t percent = 100 / GRID_MAX_POINTS * (GRID_MAX_POINTS - (count - 1));
-            rtscheck.RTS_SndData((uint16_t) (percent / 2) , AUTO_BED_LEVEL_TITLE_VP);
-            rtscheck.RTS_SndData(percent, AUTO_LEVELING_PERCENT_DATA_VP);
-            RTS_ShowPage(26);
-          }else{
             if (GRID_USED_POINTS_Y % 2 == 1) {
                 // When GRID_USED_POINTS_Y is odd
                 if (best.pos.y % 2 == 0) {
@@ -857,7 +851,6 @@ void unified_bed_leveling::shift_mesh_height() {
             rtscheck.RTS_SndData(measured_z * 1000, AUTO_BED_LEVEL_1POINT_NEW_VP + (point_num_real - 1) * 2);
             rtscheck.RTS_SndData((unsigned long)0x073F, TrammingpointNature + (color_sp_offset + point_num_real) * 16);
             rtscheck.RTS_ChangeLevelingPage();
-          }       
           #endif
       }
       SERIAL_FLUSH(); // Prevent host M105 buffer overrun.

@@ -803,17 +803,11 @@ G29_TYPE GcodeSuite::G29() {
           #if ENABLED(E3S1PRO_RTS)
               //if(!IS_SD_PRINTING())
               //{
-                  if(old_leveling == 1){
-                  rtscheck.RTS_SndData((uint16_t)((100.0 / (lcd_rts_settings.max_points * lcd_rts_settings.max_points) * pt_index) / 2) , AUTO_BED_LEVEL_TITLE_VP);
-                  rtscheck.RTS_SndData((uint16_t)(100.0 / (lcd_rts_settings.max_points * lcd_rts_settings.max_points) * pt_index), AUTO_LEVELING_PERCENT_DATA_VP);
-                  RTS_ShowPage(26);
-                  }else{
                   rtscheck.RTS_SndData(showcount + 1, AUTO_BED_LEVEL_CUR_POINT_VP);
                   rtscheck.RTS_SndData(z*1000, AUTO_BED_LEVEL_1POINT_NEW_VP + showcount * 2);
                   rtscheck.RTS_SndData((unsigned long)0x073F, TrammingpointNature + (color_sp_offset + showcount + 1) * 16);
                   showcount ++;                  
                   rtscheck.RTS_ChangeLevelingPage();
-                  }
               //}
             #endif
 

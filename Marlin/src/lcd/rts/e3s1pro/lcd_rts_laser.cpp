@@ -307,8 +307,8 @@ void RTSSHOW::RTS_HandleData_Laser(void)
 
         }else{
           RTS_ShowPage(70);
-          RTS_SndData(10 * current_position[Y_AXIS], AXIS_Y_COORD_VP);
-          RTS_SndData(10 * current_position[Z_AXIS], AXIS_Z_COORD_VP);
+          RTS_SendCurrentPosition(2);
+          RTS_SendCurrentPosition(3);
         }
         EEPROM_SAVE_LANGUAGE();
         //RTS_SetOneToVP(FILAMENT_CONTROL_ICON_VP);
@@ -552,7 +552,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       }
       else if(recdat.data[0] == 3)
       {
-        RTS_SendCurrentPosition();
+        RTS_SendCurrentPosition(4);
         delay(2);
         RTS_ShowPage(70);
       }
@@ -684,7 +684,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         current_position[X_AXIS] = x_max;
       }
       RTS_line_to_current(X_AXIS);
-      RTS_SndData(10 * current_position[X_AXIS], AXIS_X_COORD_VP);
+      RTS_SendCurrentPosition(1);
       delay(1);
       RTS_ShowMotorFreeIcon(false);
       waitway = 0;
@@ -705,7 +705,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
         current_position[Y_AXIS] = y_max;
       }
       RTS_line_to_current(Y_AXIS);
-      RTS_SndData(10 * current_position[Y_AXIS], AXIS_Y_COORD_VP);
+      RTS_SendCurrentPosition(2);
       delay(1);
       RTS_ShowMotorFreeIcon(false);
       waitway = 0;
@@ -728,7 +728,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       }
 
       RTS_line_to_current(Z_AXIS);
-      RTS_SndData(10 * current_position[Z_AXIS], AXIS_Z_COORD_VP);
+      RTS_SendCurrentPosition(3);
       delay(1);
       RTS_ShowMotorFreeIcon(false);
       waitway = 0;
@@ -1067,12 +1067,12 @@ void RTSSHOW::RTS_HandleData_Laser(void)
           
           #if ENABLED(GCODE_PREVIEW_ENABLED)
             char ret;
-            gcodePicDisplayOnOff(DEFAULT_PRINT_MODEL_VP, false);
+            RTS_ShowPreviewImage(false);
             ret = gcodePicDataSendToDwin(CardRecbuf.Cardfilename[CardRecbuf.recordcount],VP_OVERLAY_PIC_PTINT,PIC_FORMAT_JPG, PIC_RESOLUTION_250_250);
             if (ret == PIC_OK) {
-              gcodePicDisplayOnOff(DEFAULT_PRINT_MODEL_VP, false);
+              RTS_ShowPreviewImage(false);
             } else {
-              gcodePicDisplayOnOff(DEFAULT_PRINT_MODEL_VP, true);
+              RTS_ShowPreviewImage(true);
             }          
           #endif
           
@@ -1248,7 +1248,7 @@ void RTSSHOW::RTS_HandleData_Laser(void)
       waitway = 4;
       current_position[Z_AXIS] = ((signed short)recdat.data[0])/10.0;
       RTS_line_to_current(Z_AXIS);
-      RTS_SndData(10 * current_position[Z_AXIS], AXIS_Z_COORD_VP);
+      RTS_SendCurrentPosition(3);
       delay(1);
       RTS_ShowMotorFreeIcon(false);
       waitway = 0;
@@ -1535,7 +1535,7 @@ void EachMomentUpdateLaser(void)
         }
         RTS_SendProgress((unsigned char)card.percentDone());
         last_cardpercentValue = card.percentDone();
-        rtscheck.RTS_SndData(10 * current_position[Z_AXIS], AXIS_Z_COORD_VP);
+        RTS_SendCurrentPosition(3);
       }
 
       if(pause_action_flag && (false == sdcard_pause_check) && printingIsPaused() && !planner.has_blocks_queued())

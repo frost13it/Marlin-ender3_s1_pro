@@ -69,7 +69,7 @@
 //#define ENDER_3S1_PRO
 //#define ENDER_3S1_PLUS
 //#define ENDER_3S1
-#define FORK_VERSION "v025"
+#define FORK_VERSION "v026"
 
 // Choose the name from boards.h that matches your setup
 #define USER_STM32F401  1
@@ -1425,7 +1425,7 @@
 #if ENABLED(ENDER_3)
 #define DEFAULT_AXIS_STEPS_PER_UNIT   { 80, 80, 400, 93}
 #else
-#define DEFAULT_AXIS_STEPS_PER_UNIT   { 79.5, 79.5, 400, 424.9}
+#define DEFAULT_AXIS_STEPS_PER_UNIT   { 80.0, 80.0, 400, 424.9}
 #endif
 
 /**

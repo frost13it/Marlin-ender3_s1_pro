@@ -156,7 +156,7 @@ switch(action){
         RTS_SendPrintData();
         RTS_LoadMeshPointOffsets();
         RTS_LoadMainsiteIcons();
-        RTS_SendLevelingSiteData();
+        RTS_SendLevelingSiteData(0);
         RTS_ShowPage(10);
         #if ENABLED(LCD_RTS_DEBUG_LCD)
             SERIAL_ECHO_MSG("M19 OCTORUN arrived S", action);

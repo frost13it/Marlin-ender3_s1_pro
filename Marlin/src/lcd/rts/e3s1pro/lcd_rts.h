@@ -416,8 +416,8 @@ const uint16_t DGUS_VERSION = 0x000F;
 
 //#define X_MIN_POS_EEPROM_VP                0x165A
 //#define Y_MIN_POS_EEPROM_VP                0x166A
-
-//#define X_MIN_POS_VP                       0x167A
+// prepare for hotend_fan
+//#define HOTEND_FAN_SPEED_DATA_VP         0x167A
 //#define Y_MIN_POS_VP                       0x168A
 
 //#define X_BEDSIZE_VP                       0x169A
@@ -563,6 +563,7 @@ uint8_t probe_margin_y_back;
 bool external_m73;
 uint8_t extra_probing;
 uint8_t total_probing;
+//uint8_t hotend_fan;
 };
 
 static constexpr size_t eeprom_data_size = sizeof(lcd_rts_settings_t);
@@ -714,7 +715,8 @@ typedef enum PROC_COM : int8_t {
    EditMeshpoint            = 92,
    CurrentMeshpoint         = 93,
    SetProbeCount            = 94,
-   SaveM503Settings         = 95
+   SaveM503Settings         = 95,
+   HotendFanSpeedkey      = 96
 } proc_command_t; 
 
 const unsigned long Addrbuf[] = 
@@ -817,6 +819,7 @@ const unsigned long Addrbuf[] =
    0x2220, // CurrentMeshpoint
    0x1162, // SetProbeCount
    0x166A, // SaveM503Settings
+   0x167A, // HotendFanSpeedKey
   0
 };
 
@@ -834,7 +837,6 @@ extern int touchscreen_requested_mesh;
 extern float zprobe_zoffset;
 extern int16_t temphot;
 extern char waitway;
-extern uint8_t old_leveling;
 extern int change_page_font;
 extern uint8_t language_change_font;
 extern uint8_t lang;
@@ -866,9 +868,9 @@ void RTS_ShowMotorFreeIcon(bool status);
 void RTS_ResetHeadAndBedSetTemp(void);
 void RTS_ResetSingleVP(int vpaddress);
 void RTS_SendMachineData(void);
-void RTS_SendCurrentPosition();
+void RTS_SendCurrentPosition(uint8_t axis);
 void RTS_LoadMainsiteIcons(void);
-void RTS_SendLevelingSiteData(void);
+void RTS_SendLevelingSiteData(uint8_t axis);
 void RTS_SendPrintData(void);
 void RTS_SendBedTemp(void);
 void RTS_SendHeadTemp(void);
