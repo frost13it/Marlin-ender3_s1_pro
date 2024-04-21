@@ -224,7 +224,7 @@ void DGUSScreenHandler::configurationStoreRead(bool success) {
   }
 }
 
-void DGUSScreenHandler::playTone(const uint16_t frequency, const uint16_t duration) {
+void DGUSScreenHandler::playTone(const uint16_t frequency, const uint16_t duration/*=0*/) {
   if (WITHIN(frequency, 1, 255)) {
     if (WITHIN(duration, 1, 255))
       dgus.playSound((uint8_t)frequency, (uint8_t)duration);
@@ -305,9 +305,11 @@ void DGUSScreenHandler::filamentRunout(const ExtUI::extruder_t extruder) {
 
 #if HAS_PID_HEATING
 
-  void DGUSScreenHandler::pidTuning(const ExtUI::result_t rst) {
+  void DGUSScreenHandler::pidTuning(const ExtUI::pidresult_t rst) {
     switch (rst) {
       case ExtUI::PID_STARTED:
+      case ExtUI::PID_BED_STARTED:
+      case ExtUI::PID_CHAMBER_STARTED:
         setStatusMessage(GET_TEXT_F(MSG_PID_AUTOTUNE));
         break;
       case ExtUI::PID_BAD_HEATER_ID:

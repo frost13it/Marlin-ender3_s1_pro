@@ -507,6 +507,10 @@
   #define ROTATIONAL_AXES 0
 #endif
 
+#if ROTATIONAL_AXES
+  #define HAS_ROTATIONAL_AXES 1
+#endif
+
 /**
  * Number of Secondary Linear Axes (e.g., UVW)
  * All secondary axes for which AXIS*_ROTATES is not defined.
@@ -575,7 +579,7 @@
   #define MKS_MINI_12864
 #endif
 
-// MKS_MINI_12864_V3 , BTT_MINI_12864 and BEEZ_MINI_12864 have identical pinouts to FYSETC_MINI_12864_2_1
+// MKS_MINI_12864_V3 , BTT_MINI_12864 and BEEZ_MINI_12864 are nearly identical to FYSETC_MINI_12864_2_1
 #if ANY(MKS_MINI_12864_V3, BTT_MINI_12864, BEEZ_MINI_12864)
   #define FYSETC_MINI_12864_2_1
 #endif
@@ -972,6 +976,7 @@
   #define DETECT_I2C_LCD_DEVICE 1
 #endif
 
+// Encoder behavior
 #ifndef STD_ENCODER_PULSES_PER_STEP
   #if ENABLED(TOUCH_SCREEN)
     #define STD_ENCODER_PULSES_PER_STEP 2
@@ -1030,16 +1035,13 @@
 #endif
 
 // Extensible UI serial touch screens. (See src/lcd/extui)
-#if ANY(HAS_DGUS_LCD, MALYAN_LCD, ANYCUBIC_LCD_I3MEGA, ANYCUBIC_LCD_CHIRON, NEXTION_TFT, TOUCH_UI_FTDI_EVE)
+#if ANY(HAS_DGUS_LCD, MALYAN_LCD, ANYCUBIC_LCD_I3MEGA, ANYCUBIC_LCD_CHIRON, NEXTION_TFT, TOUCH_UI_FTDI_EVE, DWIN_LCD_PROUI)
   #define IS_EXTUI 1 // Just for sanity check.
   #define EXTENSIBLE_UI
 #endif
 
 // Aliases for LCD features
-#if ANY(DWIN_CREALITY_LCD, DWIN_LCD_PROUI)
-  #define HAS_DWIN_E3V2_BASIC 1
-#endif
-#if ANY(HAS_DWIN_E3V2_BASIC, DWIN_CREALITY_LCD_JYERSUI)
+#if ANY(DWIN_CREALITY_LCD, DWIN_LCD_PROUI, DWIN_CREALITY_LCD_JYERSUI)
   #define HAS_DWIN_E3V2 1
 #endif
 
@@ -1053,6 +1055,7 @@
 #if ENABLED(DWIN_LCD_PROUI)
   #define DO_LIST_BIN_FILES 1
   #define LCD_BRIGHTNESS_DEFAULT 127
+  #define STATUS_DO_CLEAR_EMPTY
 #endif
 
 // Serial Controllers require LCD_SERIAL_PORT
@@ -1087,6 +1090,7 @@
    *  - draw_kill_screen
    *  - kill_screen
    *  - draw_status_message
+   *    (calling advance_status_scroll, status_and_len for a scrolling status message)
    */
   #define HAS_DISPLAY 1
 #endif
@@ -1168,7 +1172,7 @@
 /**
  * Set flags for any form of bed probe
  */
-#if ANY(TOUCH_MI_PROBE, Z_PROBE_ALLEN_KEY, HAS_Z_SERVO_PROBE, SOLENOID_PROBE, Z_PROBE_SLED, RACK_AND_PINION_PROBE, SENSORLESS_PROBING, MAGLEV4, MAG_MOUNTED_PROBE)
+#if ANY(TOUCH_MI_PROBE, Z_PROBE_ALLEN_KEY, HAS_Z_SERVO_PROBE, SOLENOID_PROBE, Z_PROBE_SLED, RACK_AND_PINION_PROBE, SENSORLESS_PROBING, MAGLEV4, MAG_MOUNTED_PROBE, BIQU_MICROPROBE_V1, BIQU_MICROPROBE_V2)
   #define HAS_STOWABLE_PROBE 1
 #endif
 #if ANY(HAS_STOWABLE_PROBE, FIX_MOUNTED_PROBE, BD_SENSOR, NOZZLE_AS_PROBE)
@@ -1849,15 +1853,8 @@
 
 // This emulated DOGM has 'touch/xpt2046', not 'tft/xpt2046'
 #if ENABLED(TOUCH_SCREEN)
-  #if TOUCH_IDLE_SLEEP_MINS
-    #define HAS_TOUCH_SLEEP 1
-  #endif
   #if NONE(TFT_TOUCH_DEVICE_GT911, TFT_TOUCH_DEVICE_XPT2046)
     #define TFT_TOUCH_DEVICE_XPT2046          // ADS7843/XPT2046 ADC Touchscreen such as ILI9341 2.8
-  #endif
-  #if ENABLED(TFT_TOUCH_DEVICE_GT911)         // GT911 Capacitive touch screen such as BIQU_BX_TFT70
-    #undef TOUCH_SCREEN_CALIBRATION
-    #undef TOUCH_CALIBRATION_AUTO_SAVE
   #endif
   #if !HAS_GRAPHICAL_TFT
     #undef TOUCH_SCREEN

@@ -313,7 +313,7 @@ void unified_bed_leveling::G29() {
     #if ALL(DWIN_LCD_PROUI, ZHOME_BEFORE_LEVELING)
       save_ubl_active_state_and_disable();
       gcode.process_subcommands_now(F("G28Z"));
-      restore_ubl_active_state_and_leave();
+      restore_ubl_active_state(false); // ...without telling ExtUI "done"
     #else
       // Send 'N' to force homing before G29 (internal only)
       if (axes_should_home() || parser.seen_test('N')) gcode.home_all_axes();
@@ -636,7 +636,6 @@ void unified_bed_leveling::G29() {
 
   #endif // UBL_DEVEL_DEBUGGING
 
-
   //
   // Load a Mesh from the EEPROM
   //
@@ -776,7 +775,6 @@ void unified_bed_leveling::shift_mesh_height() {
 
     TERN_(HAS_MARLINUI_MENU, ui.capture());
     TERN_(EXTENSIBLE_UI, ExtUI::onLevelingStart());
-    TERN_(DWIN_LCD_PROUI, dwinLevelingStart());
 
     save_ubl_active_state_and_disable();  // No bed level correction so only raw data is obtained
     grid_count_t count = GRID_USED_POINTS;
@@ -798,8 +796,7 @@ void unified_bed_leveling::shift_mesh_height() {
       const grid_count_t point_num = (GRID_USED_POINTS - count) + 1;
       SERIAL_ECHOLNPGM("Probing mesh point ", point_num, "/", GRID_USED_POINTS, ".");
       TERN_(HAS_STATUS_MESSAGE, ui.status_printf(0, F(S_FMT " %i/%i"), GET_TEXT(MSG_PROBING_POINT), point_num, int(GRID_USED_POINTS)));
-      TERN_(LCD_BACKLIGHT_TIMEOUT_MINS, ui.refresh_backlight_timeout());
-      TERN_(DWIN_LCD_PROUI, dwinRedrawScreen());
+      TERN_(HAS_BACKLIGHT_TIMEOUT, ui.refresh_backlight_timeout());
 
       #if HAS_MARLINUI_MENU
         if (ui.button_pressed()) {
@@ -809,8 +806,7 @@ void unified_bed_leveling::shift_mesh_height() {
           ui.quick_feedback();
           ui.release();
           probe.stow(); // Release UI before stow to allow for PAUSE_BEFORE_DEPLOY_STOW
-          TERN_(EXTENSIBLE_UI, ExtUI::onLevelingDone());
-          return restore_ubl_active_state_and_leave();
+          return restore_ubl_active_state();
         }
       #endif
 
@@ -887,25 +883,23 @@ void unified_bed_leveling::shift_mesh_height() {
 
     probe.move_z_after_probing();
 
-    restore_ubl_active_state_and_leave();
-    
     do_blocking_move_to_xy(
       constrain(nearby.x - probe.offset_xy.x, lcd_rts_settings.probe_margin_x, (X_BED_SIZE - lcd_rts_settings.probe_margin_x)),
       constrain(nearby.y - probe.offset_xy.y, lcd_rts_settings.probe_margin_y_front, (Y_BED_SIZE - lcd_rts_settings.probe_margin_y_front))
     );
+
     #if ENABLED(E3S1PRO_RTS)
-    leveling_running = 0;
-    if (IS_SD_PRINTING()){
-      RTS_LoadMesh();
-      delay(500);
-      RTS_ShowPage(10);
-    }else{
-      RTS_AutoBedLevelPage();
-    }
+      leveling_running = 0;
+      if (IS_SD_PRINTING()){
+        RTS_LoadMesh();
+        delay(500);
+        RTS_ShowPage(10);
+      }else{
+        RTS_AutoBedLevelPage();
+      }
     #endif
 
-    TERN_(EXTENSIBLE_UI, ExtUI::onLevelingDone());
-    TERN_(DWIN_LCD_PROUI, dwinLevelingDone());
+    restore_ubl_active_state();
   }
 
 #endif // HAS_BED_PROBE
@@ -1014,7 +1008,7 @@ void set_message_with_feedback(FSTR_P const fstr) {
     if (param.V_verbosity > 1)
       SERIAL_ECHOLNPGM("Business Card is ", p_float_t(thickness, 4), "mm thick.");
 
-    restore_ubl_active_state_and_leave();
+    restore_ubl_active_state();
 
     return thickness;
   }
@@ -1069,7 +1063,7 @@ void set_message_with_feedback(FSTR_P const fstr) {
       if (_click_and_hold([]{
         SERIAL_ECHOLNPGM("\nMesh only partially populated.");
         do_z_clearance(Z_CLEARANCE_DEPLOY_PROBE);
-      })) return restore_ubl_active_state_and_leave();
+      })) return restore_ubl_active_state();
 
       // Store the Z position minus the shim height
       z_values[lpos.x][lpos.y] = current_position.z - thick;
@@ -1084,10 +1078,8 @@ void set_message_with_feedback(FSTR_P const fstr) {
 
     if (do_ubl_mesh_map) display_map(param.T_map_type);  // show user where we're probing
 
-    restore_ubl_active_state_and_leave();
+    restore_ubl_active_state();
     do_blocking_move_to_xy_z(pos, Z_CLEARANCE_DEPLOY_PROBE);
-
-    TERN_(EXTENSIBLE_UI, ExtUI::onLevelingDone());
   }
 
   /**
@@ -1193,7 +1185,7 @@ void set_message_with_feedback(FSTR_P const fstr) {
     } while (lpos.x >= 0 && --param.R_repetition > 0);
 
     if (do_ubl_mesh_map) display_map(param.T_map_type);
-    restore_ubl_active_state_and_leave();
+    restore_ubl_active_state();
 
     do_blocking_move_to_xy_z(pos, Z_TWEEN_SAFE_CLEARANCE);
 
@@ -1345,17 +1337,20 @@ void unified_bed_leveling::save_ubl_active_state_and_disable() {
   set_bed_leveling_enabled(false);
 }
 
-void unified_bed_leveling::restore_ubl_active_state_and_leave() {
+void unified_bed_leveling::restore_ubl_active_state(const bool is_done/*=true*/) {
   TERN_(HAS_MARLINUI_MENU, ui.release());
   #if ENABLED(UBL_DEVEL_DEBUGGING)
     if (--ubl_state_recursion_chk) {
-      SERIAL_ECHOLNPGM("restore_ubl_active_state_and_leave() called too many times.");
+      SERIAL_ECHOLNPGM("restore_ubl_active_state() called too many times.");
       set_message_with_feedback(GET_TEXT_F(MSG_UBL_RESTORE_ERROR));
       return;
     }
   #endif
   set_bed_leveling_enabled(ubl_state_at_invocation);
-  TERN_(EXTENSIBLE_UI, ExtUI::onLevelingDone());
+
+  if (is_done) {
+    TERN_(EXTENSIBLE_UI, ExtUI::onLevelingDone());
+  }
 }
 
 mesh_index_pair unified_bed_leveling::find_furthest_invalid_mesh_point() {
@@ -1904,7 +1899,8 @@ void unified_bed_leveling::smart_fill_mesh() {
       print_hex_word(i);
       SERIAL_ECHOPGM(": ");
       for (uint16_t j = 0; j < 16; j++) {
-        persistentStore.read_data(i + j, &cccc, sizeof(uint8_t));
+        int pos = i + j;
+        persistentStore.read_data(pos, &cccc, sizeof(uint8_t));
         print_hex_byte(cccc);
         SERIAL_CHAR(' ');
       }

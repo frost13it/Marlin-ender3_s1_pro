@@ -23,8 +23,7 @@
 
 /**
  * BigTreeTech SKR 1.4 pin assignments
- * Schematic: https://green-candy.osdn.jp/external/MarlinFW/board_schematics/BTT%20SKR%20V1.4%20+%20Turbo/BTT%20SKR%20V1.4-SCH.pdf
- * Origin: https://github.com/bigtreetech/BIGTREETECH-SKR-V1.3/blob/master/BTT%20SKR%20V1.4/Hardware/BTT%20SKR%20V1.4-SCH.pdf
+ * Schematic: https://github.com/bigtreetech/BIGTREETECH-SKR-V1.3/blob/master/BTT%20SKR%20V1.4/Hardware/BTT%20SKR%20V1.4-SCH.pdf
  */
 
 #include "env_validate.h"
@@ -132,6 +131,13 @@
 //
 #ifndef Z_MIN_PROBE_PIN
   #define Z_MIN_PROBE_PIN                  P0_10
+#endif
+
+//
+// Probe enable
+//
+#if ENABLED(PROBE_ENABLE_DISABLE) && !defined(PROBE_ENABLE_PIN)
+  #define PROBE_ENABLE_PIN            SERVO0_PIN
 #endif
 
 //
@@ -591,8 +597,8 @@
 //
 // NeoPixel LED
 //
-#ifndef NEOPIXEL_PIN
-  #define NEOPIXEL_PIN                     P1_24
+#ifndef BOARD_NEOPIXEL_PIN
+  #define BOARD_NEOPIXEL_PIN               P1_24
 #endif
 
 /**

@@ -2,6 +2,7 @@ SCRIPTS_DIR := buildroot/share/scripts
 CONTAINER_RT_BIN := docker
 CONTAINER_RT_OPTS := --rm -v $(PWD):/code -v platformio-cache:/root/.platformio
 CONTAINER_IMAGE := marlin-dev
+UNIT_TEST_CONFIG ?= default
 
 help:
 	@echo "Tasks for local development:"
@@ -12,7 +13,11 @@ help:
 	@echo "make tests-single-local-docker : Run a single test locally, using docker"
 	@echo "make tests-all-local           : Run all tests locally"
 	@echo "make tests-all-local-docker    : Run all tests locally, using docker"
-	@echo "make setup-local-docker        : Build the local docker image"
+	@echo "make unit-test-single-local    : Run unit tests for a single config locally"
+	@echo "make unit-test-single-local-docker : Run unit tests for a single config locally, using docker"
+	@echo "make unit-test-all-local      : Run all code tests locally"
+	@echo "make unit-test-all-local-docker : Run all code tests locally, using docker"
+	@echo "make setup-local-docker        : Setup local docker using buildx"
 	@echo ""
 	@echo "Options for testing:"
 	@echo "  TEST_TARGET          Set when running tests-single-*, to select the"
@@ -22,6 +27,9 @@ help:
 	@echo "                       run on GitHub CI"
 	@echo "  ONLY_TEST            Limit tests to only those that contain this, or"
 	@echo "                       the index of the test (1-based)"
+	@echo "  UNIT_TEST_CONFIG     Set the name of the config from the test folder, without"
+	@echo "                       the leading number. Default is 'default'". Used with the
+	@echo "                       unit-test-single-* tasks"
 	@echo "  VERBOSE_PLATFORMIO   If you want the full PIO output, set any value"
 	@echo "  GIT_RESET_HARD       Used by CI: reset all local changes. WARNING:"
 	@echo "                       THIS WILL UNDO ANY CHANGES YOU'VE MADE!"
@@ -43,7 +51,7 @@ tests-single-local:
 tests-single-local-docker:
 	@if ! test -n "$(TEST_TARGET)" ; then echo "***ERROR*** Set TEST_TARGET=<your-module> or use make tests-all-local-docker" ; return 1; fi
 	@if ! $(CONTAINER_RT_BIN) images -q $(CONTAINER_IMAGE) > /dev/null ; then $(MAKE) setup-local-docker ; fi
-	$(CONTAINER_RT_BIN) run $(CONTAINER_RT_OPTS) $(CONTAINER_IMAGE) $(MAKE) tests-single-local TEST_TARGET=$(TEST_TARGET) VERBOSE_PLATFORMIO=$(VERBOSE_PLATFORMIO) GIT_RESET_HARD=$(GIT_RESET_HARD) ONLY_TEST="$(ONLY_TEST)"
+	$(CONTAINER_RT_BIN) run $(CONTAINER_RT_OPTS) $(CONTAINER_IMAGE) make tests-single-local TEST_TARGET=$(TEST_TARGET) VERBOSE_PLATFORMIO=$(VERBOSE_PLATFORMIO) GIT_RESET_HARD=$(GIT_RESET_HARD) ONLY_TEST="$(ONLY_TEST)"
 
 tests-all-local:
 	export PATH="./buildroot/bin/:./buildroot/tests/:${PATH}" \
@@ -52,10 +60,24 @@ tests-all-local:
 
 tests-all-local-docker:
 	@if ! $(CONTAINER_RT_BIN) images -q $(CONTAINER_IMAGE) > /dev/null ; then $(MAKE) setup-local-docker ; fi
-	$(CONTAINER_RT_BIN) run $(CONTAINER_RT_OPTS) $(CONTAINER_IMAGE) $(MAKE) tests-all-local VERBOSE_PLATFORMIO=$(VERBOSE_PLATFORMIO) GIT_RESET_HARD=$(GIT_RESET_HARD)
+	$(CONTAINER_RT_BIN) run $(CONTAINER_RT_OPTS) $(CONTAINER_IMAGE) make tests-all-local VERBOSE_PLATFORMIO=$(VERBOSE_PLATFORMIO) GIT_RESET_HARD=$(GIT_RESET_HARD)
+
+unit-test-single-local:
+	platformio run -t marlin_$(UNIT_TEST_CONFIG) -e linux_native_test
+
+unit-test-single-local-docker:
+	@if ! $(CONTAINER_RT_BIN) images -q $(CONTAINER_IMAGE) > /dev/null ; then $(MAKE) setup-local-docker ; fi
+	$(CONTAINER_RT_BIN) run $(CONTAINER_RT_OPTS)  $(CONTAINER_IMAGE) make unit-test-single-local UNIT_TEST_CONFIG=$(UNIT_TEST_CONFIG)
+
+unit-test-all-local:
+	platformio run -t test-marlin -e linux_native_test
+
+unit-test-all-local-docker:
+	@if ! $(CONTAINER_RT_BIN) images -q $(CONTAINER_IMAGE) > /dev/null ; then $(MAKE) setup-local-docker ; fi
+	$(CONTAINER_RT_BIN) run $(CONTAINER_RT_OPTS)  $(CONTAINER_IMAGE) make unit-test-all-local
 
 setup-local-docker:
-	$(CONTAINER_RT_BIN) build -t $(CONTAINER_IMAGE) -f docker/Dockerfile .
+	$(CONTAINER_RT_BIN) buildx build -t $(CONTAINER_IMAGE) -f docker/Dockerfile .
 
 PINS := $(shell find Marlin/src/pins -mindepth 2 -name '*.h')
 

@@ -86,7 +86,7 @@ void GcodeSuite::G35() {
 
   const uint8_t screw_thread = parser.byteval('S', TRAMMING_SCREW_THREAD);
   if (!WITHIN(screw_thread, 30, 51) || screw_thread % 10 > 1) {
-    SERIAL_ECHOLNPGM("?(S)crew thread must be 30, 31, 40, 41, 50, or 51.");
+    SERIAL_ECHOLNPGM(GCODE_ERR_MSG("(S)crew thread must be 30, 31, 40, 41, 50, or 51."));
     return;
   }
 
@@ -113,83 +113,88 @@ void GcodeSuite::G35() {
 
   bool err_break = false;
 
-bool probed_points[G35_PROBE_COUNT] = {false};
+  bool probed_points[G35_PROBE_COUNT] = {false};
 
-// Probe all positions
-for (uint8_t i = 0; i < G35_PROBE_COUNT; ++i) {
-  const float z_probed_height = probe.probe_at_point(tramming_points[i], PROBE_PT_RAISE);
-  if (isnan(z_probed_height)) {
-    SERIAL_ECHO(
-      F("G35 failed at point "), i + 1, F(" ("), FPSTR(pgm_read_ptr(&tramming_point_name[i])), C(')'),
-      FPSTR(SP_X_STR), tramming_points[i].x, FPSTR(SP_Y_STR), tramming_points[i].y
-    );
-    err_break = true;
-    break;
-  }
-
-  if (DEBUGGING(LEVELING)) {
-    DEBUG_ECHOLN(
-      F("Probing point "), i + 1, F(" ("), FPSTR(pgm_read_ptr(&tramming_point_name[i])), C(')'),
-      FPSTR(SP_X_STR), tramming_points[i].x, FPSTR(SP_Y_STR), tramming_points[i].y,
-      FPSTR(SP_Z_STR), z_probed_height
-    );
-  }
-  rtscheck.RTS_SndData(z_probed_height * 1000, ASSISTED_TRAMMING_POINT_1_VP + i);
-  #if ENABLED(LCD_RTS_DEBUG_LEVELING)
-    SERIAL_ECHO_MSG("tramming_point_name[i] ", tramming_point_name[i]);
-    SERIAL_ECHO_MSG("z_probed_height ", z_probed_height);
-  #endif
-  z_measured[i] = z_probed_height;
-  probed_points[i] = true; // Mark this point as probed
-}
-
-if (!err_break) {
-  const float threads_factor[] = { 0.5, 0.7, 0.8 };
-
-  // Calculate adjusts
+  // Probe all positions
   for (uint8_t i = 0; i < G35_PROBE_COUNT; ++i) {
-    if (!probed_points[i]) continue; // Skip points that were not probed
+    const float z_probed_height = probe.probe_at_point(tramming_points[i], PROBE_PT_RAISE);
+    if (isnan(z_probed_height)) {
+      SERIAL_ECHOLN(
+        F("G35 failed at point "), i + 1, 
+        F(" ("), FPSTR(pgm_read_ptr(&tramming_point_name[i])), C(')'),
+        FPSTR(SP_X_STR), tramming_points[i].x, 
+        FPSTR(SP_Y_STR), tramming_points[i].y
+      );
+      err_break = true;
+      break;
+    }
 
-    const float diff = z_measured[0] - z_measured[i],
-                adjust = ABS(diff) < 0.001f ? 0 : diff / threads_factor[(screw_thread - 30) / 10];
-
-    const int full_turns = trunc(adjust);
-    const float decimal_part = adjust - float(full_turns);
-    const int minutes = trunc(decimal_part * 60.0f);
-
-    char turns[4];
-    char mins[4];
-    itoa(ABS(full_turns), turns, 10);
-    itoa(ABS(minutes), mins, 10);
-
-    char str[26];
-    strcpy(str, (screw_thread & 1) == (adjust > 0) ? "DOWN " : "UP ");
-    strcat(str, turns);
-    strcat(str, " turns & ");
-    strcat(str, mins);
-    strcat(str, " mins");
+    if (DEBUGGING(LEVELING)) {
+      DEBUG_ECHOLN(
+        F("Probing point "), i + 1, F(" ("), FPSTR(pgm_read_ptr(&tramming_point_name[i])), C(')'),
+        FPSTR(SP_X_STR), tramming_points[i].x, FPSTR(SP_Y_STR), tramming_points[i].y,
+        FPSTR(SP_Z_STR), z_probed_height
+      );
+    }
+    rtscheck.RTS_SndData(z_probed_height * 1000, ASSISTED_TRAMMING_POINT_1_VP + i);
     #if ENABLED(LCD_RTS_DEBUG_LEVELING)
-      SERIAL_ECHOPGM("Turn ");
-      SERIAL_ECHOPGM_P((char *)pgm_read_ptr(&tramming_point_name[i]));
-      SERIAL_ECHOPGM(" ", (screw_thread & 1) == (adjust > 0) ? "DOWN" : "UP", " by ", ABS(full_turns), " turns");
-      if (minutes) SERIAL_ECHOPGM(" and ", ABS(minutes), " minutes");
-      if (ENABLED(REPORT_TRAMMING_MM)) SERIAL_ECHOPGM(" (", -diff, "mm)");
-      SERIAL_EOL();
+      SERIAL_ECHO_MSG("tramming_point_name[i] ", tramming_point_name[i]);
+      SERIAL_ECHO_MSG("z_probed_height ", z_probed_height);
     #endif
-    
-    #if ENABLED(E3S1PRO_RTS)
-      unsigned long addr = ASSISTED_TRAMMING_POINT_TEXT_VP + i * 26;
-      for(int j = 0; j < 26; j++) {
-        RTS_ResetSingleVP(addr + j);
-      }
-      rtscheck.RTS_SndData(str, addr);
-    #endif
+    z_measured[i] = z_probed_height;
+    probed_points[i] = true; // Mark this point as probed
   }
-  leveling_running = 0;
-  RTS_ShowPage(98);
-}
-  else
+
+  if (!err_break) {
+    const float threads_factor[] = { 0.5, 0.7, 0.8 };
+
+    // Calculate adjusts
+    for (uint8_t i = 0; i < G35_PROBE_COUNT; ++i) {
+      if (!probed_points[i]) continue; // Skip points that were not probed
+
+      const float diff = z_measured[0] - z_measured[i],
+                  adjust = ABS(diff) < 0.001f ? 0 : diff / threads_factor[(screw_thread - 30) / 10];
+
+      const int full_turns = trunc(adjust);
+      const float decimal_part = adjust - float(full_turns);
+      const int minutes = trunc(decimal_part * 60.0f);
+
+      char turns[4];
+      char mins[4];
+      itoa(ABS(full_turns), turns, 10);
+      itoa(ABS(minutes), mins, 10);
+
+      char str[26];
+      strcpy(str, (screw_thread & 1) == (adjust > 0) ? "DOWN " : "UP ");
+      strcat(str, turns);
+      strcat(str, " turns & ");
+      strcat(str, mins);
+      strcat(str, " mins");
+      #if ENABLED(LCD_RTS_DEBUG_LEVELING)
+        SERIAL_ECHOPGM("Turn ");
+        SERIAL_ECHOPGM_P((char *)pgm_read_ptr(&tramming_point_name[i]));
+        SERIAL_ECHOPGM(" ", (screw_thread & 1) == (adjust > 0) ? "DOWN" : "UP", " by ", ABS(full_turns), " turns");
+        if (minutes) SERIAL_ECHOPGM(" and ", ABS(minutes), " minutes");
+        if (ENABLED(REPORT_TRAMMING_MM)) SERIAL_ECHOPGM(" (", -diff, "mm)");
+        SERIAL_EOL();
+      #endif
+      
+      #if ENABLED(E3S1PRO_RTS)
+        unsigned long addr = ASSISTED_TRAMMING_POINT_TEXT_VP + i * 26;
+        for(int j = 0; j < 26; j++) {
+          RTS_ResetSingleVP(addr + j);
+        }
+        rtscheck.RTS_SndData(str, addr);
+      #endif
+    }
+    leveling_running = 0;
+    RTS_ShowPage(98);
+  
+  } else {
+  
     SERIAL_ECHOLNPGM("G35 aborted.");
+  
+  }
 
   // Restore the active tool after homing
   probe.use_probing_tool(false);
