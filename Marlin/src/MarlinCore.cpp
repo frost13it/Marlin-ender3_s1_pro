@@ -274,7 +274,7 @@ PGMSTR(M112_KILL_STR, "M112 Shutdown");
 MarlinState marlin_state = MF_INITIALIZING;
 
 // For M109 and M190, this flag may be cleared (by M108) to exit the wait loop
-bool wait_for_heatup = true;
+bool wait_for_heatup = false;
 
 #if ENABLED(E3S1PRO_RTS)
   uint8_t language_change_font;
