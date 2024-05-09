@@ -888,12 +888,12 @@ volatile bool Temperature::raw_temps_ready = false;
       if (ELAPSED(ms, ui_next_temp_ms)) { // æ›²çº¿
         ui_next_temp_ms = ms + 1000UL;
         uint16_t uiTemp[1];
-        if (g_uiAutoPIDRuningDiff == 1) {
+        if (g_uiAutoPIDRunningDiff == 1) {
           uiTemp[0] = thermalManager.temp_hotend[0].celsius;
           rtscheck.RTS_SendCurveData(6, uiTemp, 1);
           rtscheck.RTS_SndData(g_uiCurveDataCnt++, WRITE_CURVE_DDR_CMD);
           SERIAL_ECHOLNPGM("Autopid hotend running. Temp: ", uiTemp[0], " Cycle: ", cycles, "/", ncycles);         
-        } else if (g_uiAutoPIDRuningDiff == 2) {
+        } else if (g_uiAutoPIDRunningDiff == 2) {
           uiTemp[0] = thermalManager.temp_bed.celsius;
           rtscheck.RTS_SendCurveData(5, uiTemp, 1);
           rtscheck.RTS_SndData(g_uiCurveDataCnt++, WRITE_CURVE_DDR_CMD);

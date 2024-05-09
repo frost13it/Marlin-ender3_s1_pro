@@ -379,17 +379,17 @@ G29_TYPE GcodeSuite::G29() {
       // X and Y specify points in each direction, overriding the default
       // These values may be saved with the completed mesh
       abl.grid_points.set(
-        parser.byteval('X', lcd_rts_settings.max_points),
-        parser.byteval('Y', lcd_rts_settings.max_points)
+        parser.byteval('X', GRID_USED_POINTS_X),
+        parser.byteval('Y', GRID_USED_POINTS_Y)
       );
       if (parser.seenval('P')) abl.grid_points.x = abl.grid_points.y = parser.value_int();
 
-      if (!WITHIN(abl.grid_points.x, 2, lcd_rts_settings.max_points)) {
-        SERIAL_ECHOLNPGM(GCODE_ERR_MSG("Probe points (X) implausible (2-" STRINGIFY(lcd_rts_settings.max_points) ")."));
+      if (!WITHIN(abl.grid_points.x, 2, GRID_USED_POINTS_X)) {
+        SERIAL_ECHOLNPGM(GCODE_ERR_MSG("Probe points (X) implausible (2-" STRINGIFY(GRID_USED_POINTS_X) ")."));
         G29_RETURN(false, false);
       }
-      if (!WITHIN(abl.grid_points.y, 2, lcd_rts_settings.max_points)) {
-        SERIAL_ECHOLNPGM(GCODE_ERR_MSG("Probe points (Y) implausible (2-" STRINGIFY(lcd_rts_settings.max_points) ")."));
+      if (!WITHIN(abl.grid_points.y, 2, GRID_USED_POINTS_Y)) {
+        SERIAL_ECHOLNPGM(GCODE_ERR_MSG("Probe points (Y) implausible (2-" STRINGIFY(GRID_USED_POINTS_Y) ")."));
         G29_RETURN(false, false);
       }
 

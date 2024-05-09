@@ -31,7 +31,11 @@
 #if ENABLED(E3S1PRO_RTS)
   #include "../../lcd/rts/e3s1pro/lcd_rts.h"
   #include "../../lcd/rts/e3s1pro/preview.h"
-  int action;
+  uint8_t action;
+  uint8_t m19_x;
+  uint8_t m19_y;
+  uint8_t m19_f;
+  uint8_t m19_p;
 #endif
 
 /**
@@ -186,6 +190,44 @@ switch(action){
             SERIAL_ECHO_MSG("M19 PRINTDONE arrived S", action);
         #endif
         return;
+    break;
+    case 7:
+        if(leveling_running == 0)
+        {    
+            if (parser.seenval('P')){
+                m19_p = parser.value_int();
+                RTS_SetProbeCount(m19_p, 1);
+                #if ENABLED(LCD_RTS_DEBUG_LCD)
+                    SERIAL_ECHO_MSG("M19 m19_p arrived P", m19_p);
+                #endif          
+            } 
+            if (parser.seenval('F')){
+                m19_f = parser.value_int();
+                RTS_SetGridMaxPoints(m19_f, 1);
+                #if ENABLED(LCD_RTS_DEBUG_LCD)
+                    SERIAL_ECHO_MSG("M19 m19_f arrived F", m19_f);
+                #endif          
+            }
+            if (parser.seenval('X')){
+                m19_x = parser.value_int();
+                RTS_SetProbeMarginX(m19_x, 1);
+                #if ENABLED(LCD_RTS_DEBUG_LCD)
+                    SERIAL_ECHO_MSG("M19 m19_x arrived X", m19_x);
+                #endif        
+            }
+            if (parser.seenval('Y')){
+                m19_y = parser.value_int();
+                RTS_SetProbeMarginY(m19_y, 1);
+                #if ENABLED(LCD_RTS_DEBUG_LCD)
+                    SERIAL_ECHO_MSG("M19 m19_y arrived Y", m19_y);
+                #endif          
+            }
+            settings.save();
+        }else{
+                #if ENABLED(LCD_RTS_DEBUG_LCD)
+                    SERIAL_ECHO_MSG("M19 S7 arrived.");
+                #endif  
+        }
     break;
     default:
         #if ENABLED(LCD_RTS_DEBUG_LCD)

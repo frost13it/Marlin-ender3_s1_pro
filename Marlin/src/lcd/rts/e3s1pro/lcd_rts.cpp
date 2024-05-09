@@ -273,9 +273,9 @@ int16_t g_autoPIDHotBedTempTargetset = 0;
 int8_t g_autoPIDHeaterCyclesTargetset = 0;
 int8_t g_autoPIDHotBedCyclesTargetset = 0;
 
-bool g_uiAutoPIDHotbedRuningFlag = false;
-bool g_uiAutoPIDNozzleRuningFlag = false;
-int8_t g_uiAutoPIDRuningDiff = 0;
+bool g_uiAutoPIDHotbedRunningFlag = false;
+bool g_uiAutoPIDNozzleRunningFlag = false;
+int8_t g_uiAutoPIDRunningDiff = 0;
 int16_t g_uiCurveDataCnt = 0;
 
 int16_t advance_k_set = 0;
@@ -1394,10 +1394,10 @@ void RTSSHOW::RTS_HandleData(void)
         RTS_ResetSingleVP(WRITE_CURVE_DDR_CMD);
         RTS_SndData("                           ", PID_TEXT_OUT_VP);        
         RTS_ShowPage(83);
-        if(g_uiAutoPIDNozzleRuningFlag == true){
+        if(g_uiAutoPIDNozzleRunningFlag == true){
         }else{          
         RTS_ResetSingleVP(AUTO_PID_RUN_NOZZLE_TIS_VP);
-        RTS_SndData(lang, AUTO_PID_NOZZLE_TIS_VP);        
+        RTS_SendLang(AUTO_PID_NOZZLE_TIS_VP);        
         }
       }
       else if(recdat.data[0] == 162)
@@ -1417,10 +1417,10 @@ void RTSSHOW::RTS_HandleData(void)
         RTS_ResetSingleVP(WRITE_CURVE_DDR_CMD);    
         RTS_SndData("                           ", PID_TEXT_OUT_VP);             
         RTS_ShowPage(84);
-        if(g_uiAutoPIDHotbedRuningFlag == true){        
+        if(g_uiAutoPIDHotbedRunningFlag == true){        
         }else{
         RTS_ResetSingleVP(AUTO_PID_RUN_HOTBED_TIS_VP);
-        RTS_SndData(lang, AUTO_PID_HOTBED_TIS_VP);
+        RTS_SendLang(AUTO_PID_HOTBED_TIS_VP);
         }
       }
       else if (recdat.data[0] == 163) {
@@ -2058,7 +2058,7 @@ void RTSSHOW::RTS_HandleData(void)
         thermalManager.setTargetHotend(temphot, 0);
         RTS_SndData(thermalManager.temp_hotend[0].target, HEAD_SET_TEMP_VP);
       } else { // è‡ªåŠ¨PID
-          if ((g_uiAutoPIDNozzleRuningFlag == true) || (recdat.data[0] < 200)) {
+          if ((g_uiAutoPIDNozzleRunningFlag == true) || (recdat.data[0] < 200)) {
               RTS_SndData(g_autoPIDHeaterTempTargetset, HEAD_SET_TEMP_VP);
               break;
           }
@@ -2080,7 +2080,7 @@ void RTSSHOW::RTS_HandleData(void)
         thermalManager.setTargetBed(tempbed);
          RTS_SndData(temp_bed_display, BED_SET_TEMP_VP);
       } else { // è‡ªåŠ¨PID
-        if ((g_uiAutoPIDHotbedRuningFlag == true) || (recdat.data[0] < 60)) {
+        if ((g_uiAutoPIDHotbedRunningFlag == true) || (recdat.data[0] < 60)) {
             RTS_SndData(g_autoPIDHotBedTempTargetset, BED_SET_TEMP_VP);
             break;
         }
@@ -2089,7 +2089,6 @@ void RTSSHOW::RTS_HandleData(void)
         RTS_SndData(g_autoPIDHotBedTempTargetset, BED_SET_TEMP_VP);
       }
       break;
-
     case PrepareEnterKey:
       if(recdat.data[0] == 1)
       {
@@ -2097,9 +2096,9 @@ void RTSSHOW::RTS_HandleData(void)
       }
       else if(recdat.data[0] == 2)
       {
-        // jail        
-        if(g_uiAutoPIDNozzleRuningFlag == true) break;          
-        if(g_uiAutoPIDHotbedRuningFlag == true) break;        
+        // Adv.set       
+        if(g_uiAutoPIDNozzleRunningFlag == true) break;          
+        if(g_uiAutoPIDHotbedRunningFlag == true) break;        
         RTS_ShowPage(33);
       }
       else if(recdat.data[0] == 3)
@@ -2177,7 +2176,8 @@ void RTSSHOW::RTS_HandleData(void)
       {
         if(!printingIsActive() && leveling_running == 0){
           RTS_ShowPage(21);
-          settings.save();delay(100);
+          //settings.save();
+          delay(100);
         }
       }
       else if(recdat.data[0] == 0x10)
@@ -2596,7 +2596,7 @@ void RTSSHOW::RTS_HandleData(void)
       }  
       else if(recdat.data[0] == 164)
       { // 00A4
-        RTS_SndData(lang, AUTO_LEVELING_START_TITLE_VP);
+        RTS_SendLang(AUTO_LEVELING_START_TITLE_VP);
         if(axes_should_home()) {
           waitway = 15;
           RTS_G28MoveOne();
@@ -3184,102 +3184,89 @@ void RTSSHOW::RTS_HandleData(void)
       RTS_SndData(temp_preheat_bed, PREHEAT_CUST_SET_BED_TEMP_VP);
       break;
 
-    case SetGridMaxPoints: 
-      {
-        temp_grid_max_points = recdat.data[0];
-        RTS_SetGridMaxPoints(temp_grid_max_points);
-      }    
-      break;
+    if (leveling_running == 0 && !printingIsActive()){   
+      case SetGridMaxPoints: 
+        {
+          temp_grid_max_points = recdat.data[0];
+          RTS_SetGridMaxPoints(temp_grid_max_points, 0);
+        }    
+        break;
 
-      case SetProbeMarginX: 
-      {
-        temp_probe_margin_x = recdat.data[0];
-        RTS_SetProbeMarginX(temp_probe_margin_x);
-      }    
-      break;      
+        case SetProbeMarginX: 
+        {
+          temp_probe_margin_x = recdat.data[0];
+          RTS_SetProbeMarginX(temp_probe_margin_x, 0);
+        }    
+        break;      
 
-      case SetProbeMarginY: 
-      {
-        temp_probe_margin_y = recdat.data[0];
-        RTS_SetProbeMarginY(temp_probe_margin_y);
-      }    
-      break;      
+        case SetProbeMarginY: 
+        {
+          temp_probe_margin_y = recdat.data[0];
+          RTS_SetProbeMarginY(temp_probe_margin_y, 0);
+        }    
+        break;      
 
-    case SetProbeCount: 
-      {
-        temp_grid_probe_count = recdat.data[0];
-        RTS_SetProbeCount(temp_grid_probe_count);
-      }    
-      break;
-
+      case SetProbeCount: 
+        {
+          temp_grid_probe_count = recdat.data[0];
+          RTS_SetProbeCount(temp_grid_probe_count, 0);
+        }    
+        break;
+    }
     case StoreMemoryKey:
+      // Motion
       if(recdat.data[0] == 1)
       {
-        RTS_ShowPage(37);
-      }
-      if(recdat.data[0] == 2)
-      {
-        queue.enqueue_now_P(PSTR("M502"));
-        RTS_ShowPage(33);
-        settings.save();
-        RTS_SendDefaultRates();
-        // delay(100);
-      }
-      else if(recdat.data[0] == 3)
-      {
-        RTS_ShowPage(33);
-      }
-      else if(recdat.data[0] == 4)
-      {    
         RTS_SndData(planner.extruder_advance_K[0] * 1000, ADVANCE_K_SET);
         RTS_ShowPage(34); 
-        settings.save();     
-      }
-      else if(recdat.data[0] == 5)
-      {  
-        RTS_ShowPage(39);
-      }
-      else if(recdat.data[0] == 7)
+      } 
+      // RX
+      else if(recdat.data[0] == 2)
       {
         RTS_ShowPage(38);
       }
-      else if(recdat.data[0] == 8)
+      // Acceleration
+      else if(recdat.data[0] == 3)
       {
         rtscheck.RTS_SendLoadedData(5);        
         RTS_ShowPage(36);
       }
-      else if(recdat.data[0] == 9)
-      {
-        RTS_ShowPage(37);
+      // Jerk
+      else if(recdat.data[0] == 4)
+      {    
+        RTS_ShowPage(37);  
       }
-      else if(recdat.data[0] == 0x0A)
+      // Feedrate
+      else if(recdat.data[0] == 5)
       {
         RTS_ShowPage(35);
+      }      
+      // Manual PID
+      else if(recdat.data[0] == 6)
+      {  
+        RTS_ShowPage(39);
       }
-      else if(recdat.data[0] == 0x0B)
+      // Device and save
+      else if(recdat.data[0] == 7)
       {
         RTS_ShowPage(33);
         settings.save();
         delay(100);
-      }
-      else if(recdat.data[0] == 0x0C)
+      } // Leave to Motion and save
+      else if(recdat.data[0] == 8)
       {
         RTS_ShowPage(34);
         settings.save();
         delay(100);
       }
-      else if(recdat.data[0] == 0x0D)
-      {         
-        RTS_ShowPage(33);
-        // settings.save();
-        // delay(100);
-      }
-      else if(recdat.data[0] == 0x0E)
-      {         
-        RTS_ShowPage(33);
-        settings.save();
-        delay(100);
-      }      
+      else if(recdat.data[0] == 9)
+      { // Leave to device and save
+        if(!printingIsActive() && leveling_running == 0){
+          RTS_ShowPage(21);
+          settings.save();
+          delay(100);
+        }
+      }        
       else if (recdat.data[0] == 161)
       { // 00A1
          g_autoPIDHeaterTempTargetset = g_autoPIDHeaterTempTargetset;     
@@ -3291,12 +3278,12 @@ void RTSSHOW::RTS_HandleData(void)
          g_autoPIDHeaterCycles =  g_autoPIDHeaterCyclesTargetset;  
         }                                     
         char cmd[30];
-        g_uiAutoPIDNozzleRuningFlag = true;
-        g_uiAutoPIDRuningDiff = 1;
+        g_uiAutoPIDNozzleRunningFlag = true;
+        g_uiAutoPIDRunningDiff = 1;
         g_uiCurveDataCnt = 0;
         RTS_SndData(lang + 10, AUTO_PID_START_NOZZLE_VP);
         RTS_ResetSingleVP(AUTO_PID_NOZZLE_TIS_VP);
-        RTS_SndData(lang, AUTO_PID_RUN_NOZZLE_TIS_VP);
+        RTS_SendLang(AUTO_PID_RUN_NOZZLE_TIS_VP);
         memset(cmd, 0, sizeof(cmd));
         sprintf_P(cmd, PSTR("M303 E0 C%d S%d"), g_autoPIDHeaterCycles, g_autoPIDHeaterTempTarget);
         gcode.process_subcommands_now(cmd);
@@ -3310,9 +3297,9 @@ void RTSSHOW::RTS_HandleData(void)
         hal.watchdog_refresh();
         settings.save();
         delay(1000);
-        g_uiAutoPIDRuningDiff = 0;
-        RTS_SndData(lang, AUTO_PID_START_NOZZLE_VP);
-        g_uiAutoPIDNozzleRuningFlag = false;
+        g_uiAutoPIDRunningDiff = 0;
+        RTS_SendLang(AUTO_PID_START_NOZZLE_VP);
+        g_uiAutoPIDNozzleRunningFlag = false;
       } 
       else if (recdat.data[0] == 162)
       {    
@@ -3324,13 +3311,13 @@ void RTSSHOW::RTS_HandleData(void)
         if (g_autoPIDHotBedCyclesTargetset != 0) { 
          g_autoPIDHotBedCycles =  g_autoPIDHotBedCyclesTargetset;  
         }
-        g_uiAutoPIDHotbedRuningFlag = true;
-        g_uiAutoPIDRuningDiff = 2;
+        g_uiAutoPIDHotbedRunningFlag = true;
+        g_uiAutoPIDRunningDiff = 2;
         g_uiCurveDataCnt = 0;
         char cmd[30];
         RTS_SndData(lang + 10, AUTO_PID_START_HOTBED_VP);
         RTS_ResetSingleVP(AUTO_PID_HOTBED_TIS_VP);
-        RTS_SndData(lang, AUTO_PID_RUN_HOTBED_TIS_VP);
+        RTS_SendLang(AUTO_PID_RUN_HOTBED_TIS_VP);
         memset(cmd, 0, sizeof(cmd));
         sprintf_P(cmd, PSTR("M303 E-1 C%d S%d"), g_autoPIDHotBedCycles, g_autoPIDHotBedTempTarget);
         gcode.process_subcommands_now(cmd);
@@ -3344,21 +3331,17 @@ void RTSSHOW::RTS_HandleData(void)
         hal.watchdog_refresh();
         settings.save();
         delay(1000);
-        g_uiAutoPIDRuningDiff = 0;
-        RTS_SndData(lang, AUTO_PID_START_HOTBED_VP);
-        g_uiAutoPIDHotbedRuningFlag = false;
+        g_uiAutoPIDRunningDiff = 0;
+        RTS_SendLang(AUTO_PID_START_HOTBED_VP);
+        g_uiAutoPIDHotbedRunningFlag = false;
       }
       else if(recdat.data[0] == 163)
       { // 00A3
         // Jail
-        if(g_uiAutoPIDNozzleRuningFlag == true) break;          
-        if(g_uiAutoPIDHotbedRuningFlag == true) break;   
+        if(g_uiAutoPIDNozzleRunningFlag == true) break;          
+        if(g_uiAutoPIDHotbedRunningFlag == true) break;   
         RTS_ShowPage(85);
       }
-      else if(recdat.data[0] == 164)
-      { // Hotend Offsets 00A4
-        RTS_ShowPage(86);
-      }                            
       break;
 
     case FanSpeedEnterKey:
@@ -3876,7 +3859,7 @@ void RTSSHOW::RTS_HandleData(void)
         }
 
         const char* commands[] = {
-            "M92", "M201", "M203", "M204", "M205", "M206", "M301", "M304", "M593 X", "M593 Y", "M851", "M900"
+            "M92", "M201", "M203", "M204", "M205", "M206", "M301", "M304", "M593 X", "M593 Y", "M851", "M900", "M19"
         };
         // Define the buffer to hold the command string
         char buffer[100];
@@ -3987,8 +3970,18 @@ void RTSSHOW::RTS_HandleData(void)
             } else if (i == 11) {
                 char valueStr[10];
                 dtostrf(planner.extruder_advance_K[0], 1, 3, valueStr);
-
                 snprintf(buffer, sizeof(buffer), " K%s", valueStr);
+                card.write(buffer, strlen(buffer));
+            } else if (i == 12) {
+                char valueStr1[4]; // 4 characters to accommodate a 3-digit uint8_t and null terminator
+                snprintf(valueStr1, sizeof(valueStr1), "%u", lcd_rts_settings.probe_margin_x);
+                char valueStr2[4]; // 4 characters to accommodate a 3-digit uint8_t and null terminator
+                snprintf(valueStr2, sizeof(valueStr2), "%u", lcd_rts_settings.probe_margin_y_back);
+                char valueStr3[4]; // 4 characters to accommodate a 3-digit uint8_t and null terminator
+                snprintf(valueStr3, sizeof(valueStr3), "%u", lcd_rts_settings.max_points);
+                char valueStr4[4]; // 4 characters to accommodate a 3-digit uint8_t and null terminator
+                snprintf(valueStr4, sizeof(valueStr4), "%u", lcd_rts_settings.total_probing);
+                snprintf(buffer, sizeof(buffer), " S7 X%s Y%s F%s P%s", valueStr1, valueStr2, valueStr3, valueStr4);
                 card.write(buffer, strlen(buffer));
             }
             card.write((char*)"\n", 1);
@@ -4542,152 +4535,152 @@ void EachMomentUpdate(void)
 
 void RTSSHOW::languagedisplayUpdate(void)
 {
-  RTS_SndData(lang, MAIN_PAGE_BLUE_TITLE_VP);
-  RTS_SndData(lang, SELECT_FILE_BLUE_TITLE_VP);
-  RTS_SndData(lang, PREPARE_PAGE_BLUE_TITLE_VP);
-  RTS_SndData(lang, SETTING_PAGE_BLUE_TITLE_VP);
-  RTS_SndData(lang, MAIN_PAGE_BLACK_TITLE_VP);
-  RTS_SndData(lang, SELECT_FILE_BLACK_TITLE_VP);
-  RTS_SndData(lang, PREPARE_PAGE_BLACK_TITLE_VP);
-  RTS_SndData(lang, SETTING_PAGE_BLACK_TITLE_VP);
-  RTS_SndData(lang, PRINT_ADJUST_MENT_TITLE_VP);
-  RTS_SndData(lang, PRINT_SPEED_TITLE_VP);
-  RTS_SndData(lang, HEAD_SET_TITLE_VP);
-  RTS_SndData(lang, BED_SET_TITLE_VP);
-  RTS_SndData(lang, LEVEL_ZOFFSET_TITLE_VP);
-  RTS_SndData(lang, FAN_CONTROL_TITLE_VP);
-  RTS_SndData(lang, LED_CONTROL_TITLE_VP);
-  RTS_SndData(lang, MOVE_AXIS_ENTER_GREY_TITLE_VP);
-  RTS_SndData(lang, CHANGE_FILAMENT_GREY_TITLE_VP);
-  RTS_SndData(lang, PREHAET_PAGE_GREY_TITLE_VP);
-  RTS_SndData(lang, MOVE_AXIS_ENTER_BLACK_TITLE_VP);
-  RTS_SndData(lang, CHANGE_FILAMENT_BLACK_TITLE_VP);
-  RTS_SndData(lang, PREHAET_PAGE_BLACK_TITLE_VP);
-  RTS_SndData(lang, PREHEAT_PLA_BUTTON_TITLE_VP);
-  RTS_SndData(lang, PREHEAT_ABS_BUTTON_TITLE_VP);
-  RTS_SndData(lang, PREHEAT_PETG_BUTTON_TITLE_VP);
-  RTS_SndData(lang, PREHEAT_CUST_BUTTON_TITLE_VP);  
-  RTS_SndData(lang, COOL_DOWN_BUTTON_TITLE_VP);
-  RTS_SndData(lang, FILAMENT_LOAD_BUTTON_TITLE_VP);
-  RTS_SndData(lang, FILAMENT_UNLOAD_BUTTON_TITLE_VP);
-  RTS_SndData(lang, LANGUAGE_SELECT_ENTER_VP);
-  RTS_SndData(lang, FACTORY_DEFAULT_ENTER_TITLE_VP);
-  RTS_SndData(lang, LEVELING_PAGE_TITLE_VP);
-  RTS_SndData(lang, PRINTER_DEVICE_GREY_TITLE_VP);
-  RTS_SndData(lang, PRINTER_ADVINFO_GREY_TITLE_VP);
-  RTS_SndData(lang, PRINTER_INFO_ENTER_GREY_TITLE_VP);
-  RTS_SndData(lang, PRINTER_DEVICE_BLACK_TITLE_VP);
-  RTS_SndData(lang, PRINTER_ADVINFO_BLACK_TITLE_VP);
-  RTS_SndData(lang, PRINTER_INFO_ENTER_BLACK_TITLE_VP);
-  RTS_SndData(lang, PREHEAT_PLA_SET_TITLE_VP);
-  RTS_SndData(lang, PREHEAT_ABS_SET_TITLE_VP);
-  RTS_SndData(lang, PREHEAT_PETG_SET_TITLE_VP);
-  RTS_SndData(lang, PREHEAT_CUST_SET_TITLE_VP);
-  RTS_SndData(lang, STORE_MEMORY_CONFIRM_TITLE_VP);
-  RTS_SndData(lang, STORE_MEMORY_CANCEL_TITLE_VP);
-  RTS_SndData(lang, FILAMENT_UNLOAD_IGNORE_TITLE_VP);
-  RTS_SndData(lang, FILAMENT_USEUP_TITLE_VP);
-  RTS_SndData(lang, BUTTON_CHECK_CONFIRM_TITLE_VP);
-  RTS_SndData(lang, BUTTON_CHECK_CANCEL_TITLE_VP);
-  RTS_SndData(lang, FILAMENT_LOAD_TITLE_VP);
-  RTS_SndData(lang, FILAMENT_LOAD_RESUME_TITLE_VP);
-  RTS_SndData(lang, PAUSE_PRINT_POP_TITLE_VP);
-  RTS_SndData(lang, STOP_PRINT_POP_TITLE_VP);
-  RTS_SndData(lang, POWERCONTINUE_POP_TITLE_VP);
-  RTS_SndData(lang, AUTO_HOME_WAITING_POP_TITLE_VP);
-  RTS_SndData(lang, BEDLEVELING_WAIT_TITLE_VP);
-  RTS_SndData(lang, RESTORE_FACTORY_TITLE_VP);
-  RTS_SndData(lang, RESET_WIFI_SETTING_TITLE_VP);
-  RTS_SndData(lang, KILL_THERMAL_RUNAWAY_TITLE_VP);
-  RTS_SndData(lang, KILL_HEATING_FAIL_TITLE_VP);
-  RTS_SndData(lang, KILL_THERMISTOR_ERROR_TITLE_VP);
-  RTS_SndData(lang, WIND_AUTO_SHUTDOWN_TITLE_VP);
-  RTS_SndData(lang, RESET_WIFI_SETTING_BUTTON_VP);
-  RTS_SndData(lang, PRINTER_AUTO_SHUTDOWN_TITLE_VP);
-  RTS_SndData(lang, WIND_AUTO_SHUTDOWN_PAGE_VP);
-  RTS_SndData(lang, AUTO_LEVELING_START_TITLE_VP);
-  RTS_SndData(lang, AUX_LEVELING_GREY_TITLE_VP);
-  RTS_SndData(lang, AUTO_LEVELING_GREY_TITLE_VP);
-  RTS_SndData(lang, AUX_LEVELING_BLACK_TITLE_VP);
-  RTS_SndData(lang, AUTO_LEVELING_BLACK_TITLE_VP);
-  RTS_SndData(lang, LANGUAGE_SELECT_PAGE_TITLE_VP);
-  RTS_SndData(lang, ADV_SETTING_MOTION_TITLE_VP);
-  RTS_SndData(lang, ADV_SETTING_PID_TITLE_VP);
-  RTS_SndData(lang, ADV_SETTING_WIFI_TITLE_VP);
-  RTS_SndData(lang, MOTION_SETTING_TITLE_VP);
-  RTS_SndData(lang, MOTION_SETTING_STEPSMM_TITLE_VP);
-  RTS_SndData(lang, MOTION_SETTING_ACCEL_TITLE_VP);
-  RTS_SndData(lang, MOTION_SETTING_JERK_TITLE_VP);
-  RTS_SndData(lang, MOTION_SETTING_VELOCITY_TITLE_VP);
-  RTS_SndData(lang, MAX_VELOCITY_SETTING_TITLE_VP);
-  RTS_SndData(lang, MAX_VELOCITY_XAXIS_TITLE_VP);
-  RTS_SndData(lang, MAX_VELOCITY_YAXIS_TITLE_VP);
-  RTS_SndData(lang, MAX_VELOCITY_ZAXIS_TITLE_VP);
-  RTS_SndData(lang, MAX_VELOCITY_EAXIS_TITLE_VP);
-  RTS_SndData(lang, MAX_ACCEL_SETTING_TITLE_VP);
-  RTS_SndData(lang, MAX_ACCEL_XAXIS_TITLE_VP);
-  RTS_SndData(lang, MAX_ACCEL_YAXIS_TITLE_VP);
-  RTS_SndData(lang, MAX_ACCEL_ZAXIS_TITLE_VP);
-  RTS_SndData(lang, MAX_ACCEL_EAXIS_TITLE_VP);
-  RTS_SndData(lang, MAX_JERK_SETTING_TITLE_VP);
-  RTS_SndData(lang, MAX_JERK_XAXIS_TITLE_VP);
-  RTS_SndData(lang, MAX_JERK_YAXIS_TITLE_VP);
-  RTS_SndData(lang, MAX_JERK_ZAXIS_TITLE_VP);
-  RTS_SndData(lang, MAX_JERK_EAXIS_TITLE_VP);
-  RTS_SndData(lang, MAX_STEPSMM_SETTING_TITLE_VP);
-  RTS_SndData(lang, MAX_STEPSMM_XAXIS_TITLE_VP);
-  RTS_SndData(lang, MAX_STEPSMM_YAXIS_TITLE_VP);
-  RTS_SndData(lang, MAX_STEPSMM_ZAXIS_TITLE_VP);
-  RTS_SndData(lang, MAX_STEPSMM_EAXIS_TITLE_VP);
-  RTS_SndData(lang, TEMP_PID_SETTING_TITLE_VP);
-  RTS_SndData(lang, NOZZLE_TEMP_P_TITLE_VP);
-  RTS_SndData(lang, NOZZLE_TEMP_I_TITLE_VP);
-  RTS_SndData(lang, NOZZLE_TEMP_D_TITLE_VP);
-  RTS_SndData(lang, HOTBED_TEMP_P_TITLE_VP);
-  RTS_SndData(lang, HOTBED_TEMP_I_TITLE_VP);
-  RTS_SndData(lang, HOTBED_TEMP_D_TITLE_VP);
-  RTS_SndData(lang, FILAMENT_CONTROL_TITLE_VP);
-  RTS_SndData(lang, POWERCONTINUE_CONTROL_TITLE_VP);
-  RTS_SndData(lang, MACHINE_TYPE_ABOUT_CHAR_VP);
-  RTS_SndData(lang, FIRMWARE_VERSION_ABOUT_CHAR_VP);
-  RTS_SndData(lang, PRINTER_DISPLAY_VERSION_TITLE_VP);
-  RTS_SndData(lang, HARDWARE_VERSION_ABOUT_TITLE_VP);
-  RTS_SndData(lang, WEBSITE_ABOUT_CHAR_VP);
-  RTS_SndData(lang, PRINTER_PRINTSIZE_TITLE_VP);
-  RTS_SndData(lang, PLA_SETTINGS_TITLE_VP);
-  RTS_SndData(lang, ABS_SETTINGS_TITLE_VP);
-  RTS_SndData(lang, PETG_SETTINGS_TITLE_VP);
-  RTS_SndData(lang, CUST_SETTINGS_TITLE_VP);  
-  RTS_SndData(lang, LEVELING_WAY_TITLE_VP);
-  RTS_SndData(lang, SOUND_SETTING_VP);
-  RTS_SndData(lang, PRINT_FINISH_ICON_VP);
+  RTS_SendLang(MAIN_PAGE_BLUE_TITLE_VP);
+  RTS_SendLang(SELECT_FILE_BLUE_TITLE_VP);
+  RTS_SendLang(PREPARE_PAGE_BLUE_TITLE_VP);
+  RTS_SendLang(SETTING_PAGE_BLUE_TITLE_VP);
+  RTS_SendLang(MAIN_PAGE_BLACK_TITLE_VP);
+  RTS_SendLang(SELECT_FILE_BLACK_TITLE_VP);
+  RTS_SendLang(PREPARE_PAGE_BLACK_TITLE_VP);
+  RTS_SendLang(SETTING_PAGE_BLACK_TITLE_VP);
+  RTS_SendLang(PRINT_ADJUST_MENT_TITLE_VP);
+  RTS_SendLang(PRINT_SPEED_TITLE_VP);
+  RTS_SendLang(HEAD_SET_TITLE_VP);
+  RTS_SendLang(BED_SET_TITLE_VP);
+  RTS_SendLang(LEVEL_ZOFFSET_TITLE_VP);
+  RTS_SendLang(FAN_CONTROL_TITLE_VP);
+  RTS_SendLang(LED_CONTROL_TITLE_VP);
+  RTS_SendLang(MOVE_AXIS_ENTER_GREY_TITLE_VP);
+  RTS_SendLang(CHANGE_FILAMENT_GREY_TITLE_VP);
+  RTS_SendLang(PREHAET_PAGE_GREY_TITLE_VP);
+  RTS_SendLang(MOVE_AXIS_ENTER_BLACK_TITLE_VP);
+  RTS_SendLang(CHANGE_FILAMENT_BLACK_TITLE_VP);
+  RTS_SendLang(PREHAET_PAGE_BLACK_TITLE_VP);
+  RTS_SendLang(PREHEAT_PLA_BUTTON_TITLE_VP);
+  RTS_SendLang(PREHEAT_ABS_BUTTON_TITLE_VP);
+  RTS_SendLang(PREHEAT_PETG_BUTTON_TITLE_VP);
+  RTS_SendLang(PREHEAT_CUST_BUTTON_TITLE_VP);  
+  RTS_SendLang(COOL_DOWN_BUTTON_TITLE_VP);
+  RTS_SendLang(FILAMENT_LOAD_BUTTON_TITLE_VP);
+  RTS_SendLang(FILAMENT_UNLOAD_BUTTON_TITLE_VP);
+  RTS_SendLang(LANGUAGE_SELECT_ENTER_VP);
+  RTS_SendLang(FACTORY_DEFAULT_ENTER_TITLE_VP);
+  RTS_SendLang(LEVELING_PAGE_TITLE_VP);
+  RTS_SendLang(PRINTER_DEVICE_GREY_TITLE_VP);
+  RTS_SendLang(PRINTER_ADVINFO_GREY_TITLE_VP);
+  RTS_SendLang(PRINTER_INFO_ENTER_GREY_TITLE_VP);
+  RTS_SendLang(PRINTER_DEVICE_BLACK_TITLE_VP);
+  RTS_SendLang(PRINTER_ADVINFO_BLACK_TITLE_VP);
+  RTS_SendLang(PRINTER_INFO_ENTER_BLACK_TITLE_VP);
+  RTS_SendLang(PREHEAT_PLA_SET_TITLE_VP);
+  RTS_SendLang(PREHEAT_ABS_SET_TITLE_VP);
+  RTS_SendLang(PREHEAT_PETG_SET_TITLE_VP);
+  RTS_SendLang(PREHEAT_CUST_SET_TITLE_VP);
+  RTS_SendLang(STORE_MEMORY_CONFIRM_TITLE_VP);
+  RTS_SendLang(STORE_MEMORY_CANCEL_TITLE_VP);
+  RTS_SendLang(FILAMENT_UNLOAD_IGNORE_TITLE_VP);
+  RTS_SendLang(FILAMENT_USEUP_TITLE_VP);
+  RTS_SendLang(BUTTON_CHECK_CONFIRM_TITLE_VP);
+  RTS_SendLang(BUTTON_CHECK_CANCEL_TITLE_VP);
+  RTS_SendLang(FILAMENT_LOAD_TITLE_VP);
+  RTS_SendLang(FILAMENT_LOAD_RESUME_TITLE_VP);
+  RTS_SendLang(PAUSE_PRINT_POP_TITLE_VP);
+  RTS_SendLang(STOP_PRINT_POP_TITLE_VP);
+  RTS_SendLang(POWERCONTINUE_POP_TITLE_VP);
+  RTS_SendLang(AUTO_HOME_WAITING_POP_TITLE_VP);
+  RTS_SendLang(BEDLEVELING_WAIT_TITLE_VP);
+  RTS_SendLang(RESTORE_FACTORY_TITLE_VP);
+  RTS_SendLang(RESET_WIFI_SETTING_TITLE_VP);
+  RTS_SendLang(KILL_THERMAL_RUNAWAY_TITLE_VP);
+  RTS_SendLang(KILL_HEATING_FAIL_TITLE_VP);
+  RTS_SendLang(KILL_THERMISTOR_ERROR_TITLE_VP);
+  RTS_SendLang(WIND_AUTO_SHUTDOWN_TITLE_VP);
+  RTS_SendLang(RESET_WIFI_SETTING_BUTTON_VP);
+  RTS_SendLang(PRINTER_AUTO_SHUTDOWN_TITLE_VP);
+  RTS_SendLang(WIND_AUTO_SHUTDOWN_PAGE_VP);
+  RTS_SendLang(AUTO_LEVELING_START_TITLE_VP);
+  RTS_SendLang(AUX_LEVELING_GREY_TITLE_VP);
+  RTS_SendLang(AUTO_LEVELING_GREY_TITLE_VP);
+  RTS_SendLang(AUX_LEVELING_BLACK_TITLE_VP);
+  RTS_SendLang(AUTO_LEVELING_BLACK_TITLE_VP);
+  RTS_SendLang(LANGUAGE_SELECT_PAGE_TITLE_VP);
+  RTS_SendLang(ADV_SETTING_MOTION_TITLE_VP);
+  RTS_SendLang(ADV_SETTING_PID_TITLE_VP);
+  RTS_SendLang(ADV_SETTING_WIFI_TITLE_VP);
+  RTS_SendLang(MOTION_SETTING_TITLE_VP);
+  RTS_SendLang(MOTION_SETTING_STEPSMM_TITLE_VP);
+  RTS_SendLang(MOTION_SETTING_ACCEL_TITLE_VP);
+  RTS_SendLang(MOTION_SETTING_JERK_TITLE_VP);
+  RTS_SendLang(MOTION_SETTING_VELOCITY_TITLE_VP);
+  RTS_SendLang(MAX_VELOCITY_SETTING_TITLE_VP);
+  RTS_SendLang(MAX_VELOCITY_XAXIS_TITLE_VP);
+  RTS_SendLang(MAX_VELOCITY_YAXIS_TITLE_VP);
+  RTS_SendLang(MAX_VELOCITY_ZAXIS_TITLE_VP);
+  RTS_SendLang(MAX_VELOCITY_EAXIS_TITLE_VP);
+  RTS_SendLang(MAX_ACCEL_SETTING_TITLE_VP);
+  RTS_SendLang(MAX_ACCEL_XAXIS_TITLE_VP);
+  RTS_SendLang(MAX_ACCEL_YAXIS_TITLE_VP);
+  RTS_SendLang(MAX_ACCEL_ZAXIS_TITLE_VP);
+  RTS_SendLang(MAX_ACCEL_EAXIS_TITLE_VP);
+  RTS_SendLang(MAX_JERK_SETTING_TITLE_VP);
+  RTS_SendLang(MAX_JERK_XAXIS_TITLE_VP);
+  RTS_SendLang(MAX_JERK_YAXIS_TITLE_VP);
+  RTS_SendLang(MAX_JERK_ZAXIS_TITLE_VP);
+  RTS_SendLang(MAX_JERK_EAXIS_TITLE_VP);
+  RTS_SendLang(MAX_STEPSMM_SETTING_TITLE_VP);
+  RTS_SendLang(MAX_STEPSMM_XAXIS_TITLE_VP);
+  RTS_SendLang(MAX_STEPSMM_YAXIS_TITLE_VP);
+  RTS_SendLang(MAX_STEPSMM_ZAXIS_TITLE_VP);
+  RTS_SendLang(MAX_STEPSMM_EAXIS_TITLE_VP);
+  RTS_SendLang(TEMP_PID_SETTING_TITLE_VP);
+  RTS_SendLang(NOZZLE_TEMP_P_TITLE_VP);
+  RTS_SendLang(NOZZLE_TEMP_I_TITLE_VP);
+  RTS_SendLang(NOZZLE_TEMP_D_TITLE_VP);
+  RTS_SendLang(HOTBED_TEMP_P_TITLE_VP);
+  RTS_SendLang(HOTBED_TEMP_I_TITLE_VP);
+  RTS_SendLang(HOTBED_TEMP_D_TITLE_VP);
+  RTS_SendLang(FILAMENT_CONTROL_TITLE_VP);
+  RTS_SendLang(POWERCONTINUE_CONTROL_TITLE_VP);
+  RTS_SendLang(MACHINE_TYPE_ABOUT_CHAR_VP);
+  RTS_SendLang(FIRMWARE_VERSION_ABOUT_CHAR_VP);
+  RTS_SendLang(PRINTER_DISPLAY_VERSION_TITLE_VP);
+  RTS_SendLang(HARDWARE_VERSION_ABOUT_TITLE_VP);
+  RTS_SendLang(WEBSITE_ABOUT_CHAR_VP);
+  RTS_SendLang(PRINTER_PRINTSIZE_TITLE_VP);
+  RTS_SendLang(PLA_SETTINGS_TITLE_VP);
+  RTS_SendLang(ABS_SETTINGS_TITLE_VP);
+  RTS_SendLang(PETG_SETTINGS_TITLE_VP);
+  RTS_SendLang(CUST_SETTINGS_TITLE_VP);  
+  RTS_SendLang(LEVELING_WAY_TITLE_VP);
+  RTS_SendLang(SOUND_SETTING_VP);
+  RTS_SendLang(PRINT_FINISH_ICON_VP);
   #if HAS_CUTTER
-    RTS_SndData(lang, SELECT_LASER_WARNING_TIPS_VP);
-    RTS_SndData(lang, SELECT_FDM_WARNING_TIPS_VP);
-    RTS_SndData(lang, PRINT_MOVE_AXIS_VP);
-    RTS_SndData(lang, PRINT_DIRECT_ENGRAV_VP);
-    RTS_SndData(lang, PRINT_RUN_RANGE_VP);
-    RTS_SndData(lang, PRINT_RETURN_VP);
-    RTS_SndData(lang, PRINT_WARNING_TIPS_VP);
-    RTS_SndData(lang, DEVICE_SWITCH_LASER_VP);
-    RTS_SndData(lang, FIRST_SELECT_DEVICE_TYPE);
-    RTS_SndData(lang, HOME_LASER_ENGRAVE_VP);
-    RTS_SndData(lang, PREPARE_ADJUST_FOCUS_VP);
-    RTS_SndData(lang, PREPARE_SWITCH_FDM_VP);
-    RTS_SndData(lang, FIRST_DEVICE_FDM);
-    RTS_SndData(lang, FIRST_DEVICE_LASER);
-    RTS_SndData(lang, FOCUS_SET_FOCUS_TIPS);   
+    RTS_SendLang(SELECT_LASER_WARNING_TIPS_VP);
+    RTS_SendLang(SELECT_FDM_WARNING_TIPS_VP);
+    RTS_SendLang(PRINT_MOVE_AXIS_VP);
+    RTS_SendLang(PRINT_DIRECT_ENGRAV_VP);
+    RTS_SendLang(PRINT_RUN_RANGE_VP);
+    RTS_SendLang(PRINT_RETURN_VP);
+    RTS_SendLang(PRINT_WARNING_TIPS_VP);
+    RTS_SendLang(DEVICE_SWITCH_LASER_VP);
+    RTS_SendLang(FIRST_SELECT_DEVICE_TYPE);
+    RTS_SendLang(HOME_LASER_ENGRAVE_VP);
+    RTS_SendLang(PREPARE_ADJUST_FOCUS_VP);
+    RTS_SendLang(PREPARE_SWITCH_FDM_VP);
+    RTS_SendLang(FIRST_DEVICE_FDM);
+    RTS_SendLang(FIRST_DEVICE_LASER);
+    RTS_SendLang(FOCUS_SET_FOCUS_TIPS);   
   #endif
-    RTS_SndData(lang, AUTO_PID_INLET_VP);
-    RTS_SndData(lang, AUTO_PID_HOTBED_INLET_VP);
-    RTS_SndData(lang, AUTO_PID_HOTBED_TIS_VP);
-    RTS_SndData(lang, AUTO_PID_NOZZLE_INLET_VP);
-    RTS_SndData(lang, AUTO_PID_NOZZLE_TIS_VP);  
-    RTS_SndData(lang, AUTO_PID_START_NOZZLE_VP);
-    RTS_SndData(lang, AUTO_PID_START_HOTBED_VP);
-    RTS_SndData(lang, MESH_LEVELING_BLACK_TITLE_VP);
-    RTS_SndData(lang, SHAPING_X_TITLE_VP);
-    RTS_SndData(lang, SHAPING_Y_TITLE_VP);
+  RTS_SendLang(AUTO_PID_INLET_VP);
+  RTS_SendLang(AUTO_PID_HOTBED_INLET_VP);
+  RTS_SendLang(AUTO_PID_HOTBED_TIS_VP);
+  RTS_SendLang(AUTO_PID_NOZZLE_INLET_VP);
+  RTS_SendLang(AUTO_PID_NOZZLE_TIS_VP);  
+  RTS_SendLang(AUTO_PID_START_NOZZLE_VP);
+  RTS_SendLang(AUTO_PID_START_HOTBED_VP);
+  RTS_SendLang(MESH_LEVELING_BLACK_TITLE_VP);
+  RTS_SendLang(SHAPING_X_TITLE_VP);
+  RTS_SendLang(SHAPING_Y_TITLE_VP);
 }
 
 // looping at the loop function
@@ -4859,7 +4852,7 @@ void RTS_AutoBedLevelPage() {
             rtscheck.RTS_SndData(min_value * 1000, MESH_POINT_MIN); // this is intended to send this variable twice. it simply does not work sending once..
             rtscheck.RTS_SndData(max_value * 1000, MESH_POINT_MAX);
             rtscheck.RTS_SndData(deviation * 1000, MESH_POINT_DEVIATION);
-            rtscheck.RTS_SndData(lang, AUTO_LEVELING_START_TITLE_VP);
+            RTS_SendLang(AUTO_LEVELING_START_TITLE_VP);
             if (bedlevel.mesh_is_valid()) {
               int counter1 = 0;
               for (int blupp = 0; blupp < (lcd_rts_settings.max_points * lcd_rts_settings.max_points); blupp++) {
@@ -5041,7 +5034,7 @@ void RTS_LoadMesh(void)
       rtscheck.RTS_SndData(min_value * 1000, MESH_POINT_MIN);
       rtscheck.RTS_SndData(max_value * 1000, MESH_POINT_MAX);
       rtscheck.RTS_SndData(deviation * 1000, MESH_POINT_DEVIATION);
-      rtscheck.RTS_SndData(lang, AUTO_LEVELING_START_TITLE_VP);
+      RTS_SendLang(AUTO_LEVELING_START_TITLE_VP);
 
       if(!printingIsActive()){
         queue.enqueue_now_P(PSTR("M420 S1"));
@@ -5360,104 +5353,107 @@ void RTS_ResetSingleVP(int vpaddress)
   rtscheck.RTS_SndData(0, vpaddress);  
 }
 
-void RTS_SetProbeCount(uint8_t probescount)
+void RTS_SetProbeCount(uint8_t probescount, uint8_t m19load)
 {
-  if (leveling_running == 0 && !printingIsActive()){ 
-    if (probescount < 1){
-      probescount = 1;
-    }
-    if (probescount > 5){
-      probescount = 5;
-    }
-    lcd_rts_settings.total_probing = probescount;
-    rtscheck.RTS_SndData(probescount, PROBE_COUNT_VP);
-    RTS_SetBltouchHSMode();
+  if (probescount < 1){
+    probescount = 1;
   }
+  if (probescount > 5){
+    probescount = 5;
+  }
+  lcd_rts_settings.total_probing = probescount;
+  rtscheck.RTS_SndData(probescount, PROBE_COUNT_VP);
+  RTS_SetBltouchHSMode();
 }
 
-void RTS_SetProbeMarginX(uint8_t marginx)
+void RTS_SetProbeMarginX(uint8_t marginx, uint8_t m19load)
 {
-  if (leveling_running == 0 && !printingIsActive()){ 
-    probe_offset_x_temp = fabs(probe.offset_xy.x);
-    int max_reachable_pos_x = X_MAX_POS - custom_ceil(probe_offset_x_temp);
-    int min_calc_margin_x = X_BED_SIZE - max_reachable_pos_x;
-    min_calc_margin_x = fabs(min_calc_margin_x); // Ensure it's positive
-    if(min_calc_margin_x > marginx){
-    marginx = min_calc_margin_x;
+  probe_offset_x_temp = fabs(probe.offset_xy.x);
+  int max_reachable_pos_x = X_MAX_POS - custom_ceil(probe_offset_x_temp);
+  int min_calc_margin_x = X_BED_SIZE - max_reachable_pos_x;
+  min_calc_margin_x = fabs(min_calc_margin_x); // Ensure it's positive
+  if(min_calc_margin_x > marginx){
+  marginx = min_calc_margin_x;
+  }
+  #if ENABLED(ENDER_3S1_PLUS)
+    if(marginx <= 27){
+      marginx= 27;
     }
-    #if ENABLED(ENDER_3S1_PLUS)
-      if(marginx <= 27){
-        marginx= 27;
-      }
-    #endif
-    lcd_rts_settings.probe_margin_x = marginx;
-    #if ENABLED(LCD_RTS_DEBUG_MARGIN_X)
-      SERIAL_ECHO_MSG("SetX min_calc_margin_x: ", min_calc_margin_x);
-      SERIAL_ECHO_MSG("SetX lcd_rts_settings.probe_margin_x: ", lcd_rts_settings.probe_margin_x);
-    #endif           
-    RTS_SendLevelingSiteData(1);
+  #endif
+  lcd_rts_settings.probe_margin_x = marginx;
+  #if ENABLED(LCD_RTS_DEBUG_MARGIN_X)
+    SERIAL_ECHO_MSG("SetX min_calc_margin_x: ", min_calc_margin_x);
+    SERIAL_ECHO_MSG("SetX lcd_rts_settings.probe_margin_x: ", lcd_rts_settings.probe_margin_x);
+  #endif           
+  RTS_SendLevelingSiteData(1);
+  if (m19load == 0){    
     settings.save();
   }
 }
 
-void RTS_SetProbeMarginY(uint8_t marginy)
+void RTS_SetProbeMarginY(uint8_t marginy, uint8_t m19load)
 {
-  if (leveling_running == 0 && !printingIsActive()){ 
-    probe_offset_y_temp = fabs(probe.offset_xy.y);
-    int max_reachable_pos_y = Y_MAX_POS - custom_ceil(probe_offset_y_temp);
-    int min_calc_margin_y = Y_BED_SIZE - max_reachable_pos_y;
-    if(min_calc_margin_y <= 10){
-      min_calc_margin_y=10;
+  probe_offset_y_temp = fabs(probe.offset_xy.y);
+  int max_reachable_pos_y = Y_MAX_POS - custom_ceil(probe_offset_y_temp);
+  int min_calc_margin_y = Y_BED_SIZE - max_reachable_pos_y;
+  if(min_calc_margin_y <= 10){
+    min_calc_margin_y=10;
+  }
+  if(min_calc_margin_y > marginy){
+    if(lcd_rts_settings.probe_margin_x <= min_calc_margin_y){      
+      lcd_rts_settings.probe_margin_y_front = lcd_rts_settings.probe_margin_x;
+      lcd_rts_settings.probe_margin_y_back = min_calc_margin_y;
+    }else{
+      lcd_rts_settings.probe_margin_y_front = min_calc_margin_y;
+      lcd_rts_settings.probe_margin_y_back = min_calc_margin_y;
     }
-    if(min_calc_margin_y > marginy){
-      if(lcd_rts_settings.probe_margin_x <= min_calc_margin_y){      
-        lcd_rts_settings.probe_margin_y_front = lcd_rts_settings.probe_margin_x;
-        lcd_rts_settings.probe_margin_y_back = min_calc_margin_y;
-      }else{
-        lcd_rts_settings.probe_margin_y_front = min_calc_margin_y;
-        lcd_rts_settings.probe_margin_y_back = min_calc_margin_y;
-      }
-    }else if(min_calc_margin_y < marginy){
-      if(lcd_rts_settings.probe_margin_x <= marginy){
-        lcd_rts_settings.probe_margin_y_front = lcd_rts_settings.probe_margin_x;
-        lcd_rts_settings.probe_margin_y_back = marginy;
-      }else{    
-        lcd_rts_settings.probe_margin_y_front = marginy;
-        lcd_rts_settings.probe_margin_y_back = marginy;
-      }
-    }else if(min_calc_margin_y == marginy){
+  }else if(min_calc_margin_y < marginy){
+    if(lcd_rts_settings.probe_margin_x <= marginy){
+      lcd_rts_settings.probe_margin_y_front = lcd_rts_settings.probe_margin_x;
+      lcd_rts_settings.probe_margin_y_back = marginy;
+    }else{    
       lcd_rts_settings.probe_margin_y_front = marginy;
       lcd_rts_settings.probe_margin_y_back = marginy;
     }
-    #if ENABLED(LCD_RTS_DEBUG_MARGIN_Y)
-      SERIAL_ECHO_MSG("SetX min_calc_margin_y: ", min_calc_margin_y);
-      SERIAL_ECHO_MSG("SetX lcd_rts_settings.probe_margin_y_front: ", lcd_rts_settings.probe_margin_y_front);
-      SERIAL_ECHO_MSG("SetX lcd_rts_settings.probe_margin_y_back: ", lcd_rts_settings.probe_margin_y_back);
-    #endif    
-    RTS_SendLevelingSiteData(2);
+  }else if(min_calc_margin_y == marginy){
+    lcd_rts_settings.probe_margin_y_front = marginy;
+    lcd_rts_settings.probe_margin_y_back = marginy;
+  }
+  #if ENABLED(LCD_RTS_DEBUG_MARGIN_Y)
+    SERIAL_ECHO_MSG("SetX min_calc_margin_y: ", min_calc_margin_y);
+    SERIAL_ECHO_MSG("SetX lcd_rts_settings.probe_margin_y_front: ", lcd_rts_settings.probe_margin_y_front);
+    SERIAL_ECHO_MSG("SetX lcd_rts_settings.probe_margin_y_back: ", lcd_rts_settings.probe_margin_y_back);
+  #endif    
+  RTS_SendLevelingSiteData(2);
+  if (m19load == 0){
     settings.save();
   }
 }
 
-void RTS_SetGridMaxPoints(uint8_t gridmaxpoints)
+void RTS_SetGridMaxPoints(uint8_t gridmaxpoints, uint8_t m19load)
 {
-  if (leveling_running == 0 && !printingIsActive()){        
-    if (gridmaxpoints == 5 || gridmaxpoints == 7 || gridmaxpoints == 10){
-      RTS_ResetMesh();
-      lcd_rts_settings.max_points = gridmaxpoints;
-      RTS_LoadMeshPointOffsets();
-      RTS_SetBltouchHSMode();
-      rtscheck.RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT);
-      rtscheck.RTS_SndData(gridmaxpoints, SET_GRID_MAX_POINTS_VP);
-      bedlevel.max_points.x = gridmaxpoints;
-      bedlevel.max_points.y = gridmaxpoints;
-      queue.enqueue_now_P(PSTR("M84"));
-      queue.enqueue_now_P(PSTR("G92.9Z0"));
+  if (gridmaxpoints == 5 || gridmaxpoints == 7 || gridmaxpoints == 10){
+    RTS_ResetMesh();
+    lcd_rts_settings.max_points = gridmaxpoints;
+    RTS_LoadMeshPointOffsets();
+    RTS_SetBltouchHSMode();
+    rtscheck.RTS_SndData(lcd_rts_settings.max_points * lcd_rts_settings.max_points, AUTO_BED_LEVEL_END_POINT);
+    rtscheck.RTS_SndData(gridmaxpoints, SET_GRID_MAX_POINTS_VP);
+    bedlevel.max_points.x = gridmaxpoints;
+    bedlevel.max_points.y = gridmaxpoints;
+    queue.enqueue_now_P(PSTR("M84"));
+    queue.enqueue_now_P(PSTR("G92.9Z0"));
+    if (m19load == 0){
       rtscheck.RTS_ChangeLevelingPage();
-      RTS_ShowMotorFreeIcon(true);
     }
+    RTS_ShowMotorFreeIcon(true);
   }
 } 
+
+void RTS_SendLang(int vpaddress)
+{
+  rtscheck.RTS_SndData(lang, vpaddress);
+}
 
 void RTS_MoveAxisHoming(void)
 {

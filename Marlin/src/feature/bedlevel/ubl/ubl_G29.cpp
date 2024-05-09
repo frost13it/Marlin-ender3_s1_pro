@@ -870,7 +870,7 @@ void unified_bed_leveling::shift_mesh_height() {
       if (touchscreen_requested_mesh == 1) {
         queue.enqueue_one(F("G29 P1 C T"));
       }
-      rtscheck.RTS_SndData(lang, AUTO_LEVELING_START_TITLE_VP);
+      RTS_SendLang(AUTO_LEVELING_START_TITLE_VP);
       leveling_running = 0;
     #endif
 

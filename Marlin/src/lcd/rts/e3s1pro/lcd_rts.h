@@ -878,11 +878,11 @@ void RTS_SendHeadCurrentTemp();
 void RTS_SendMoveaxisUnitIcon(uint8_t icon);
 void RTS_SendDefaultRates();
 float* getM503_settings();
-void RTS_SetProbeCount(uint8_t probescount);
-void RTS_SetProbeMarginX(uint8_t marginx);
-void RTS_SetProbeMarginY(uint8_t marginy);
-void RTS_SetGridMaxPoints(uint8_t gridmaxpoints);
-
+void RTS_SetProbeCount(uint8_t probescount, uint8_t m19load);
+void RTS_SetProbeMarginX(uint8_t marginx, uint8_t m19load);
+void RTS_SetProbeMarginY(uint8_t marginy, uint8_t m19load);
+void RTS_SetGridMaxPoints(uint8_t gridmaxpoints, uint8_t m19load);
+void RTS_SendLang(int vpaddress);
 void RTS_GetRemainTime(void);
 void RTS_SendProgress(uint8_t progresspercent);
 
@@ -903,7 +903,7 @@ void RTS_SendM73Icon(bool icon);
 void RTS_MoveParkNozzle(void);
 void RTS_CommandPause(void);
 
-extern int8_t g_uiAutoPIDRuningDiff;
+extern int8_t g_uiAutoPIDRunningDiff;
 extern int16_t g_uiCurveDataCnt;
 extern uint8_t leveling_running;
 extern uint8_t color_sp_offset;
