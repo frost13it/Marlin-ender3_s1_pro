@@ -17,7 +17,7 @@
 //#define LCD_RTS_DEBUG_PRINTTIME
 //#define LCD_RTS_DEBUG_LEVELING
 
-#include <Wstring.h>
+#include <WString.h>
 #include <stdio.h>
 #include <string.h>
 //#include <Arduino.h>
