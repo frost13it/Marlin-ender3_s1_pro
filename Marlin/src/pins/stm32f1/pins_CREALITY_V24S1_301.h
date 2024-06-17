@@ -80,7 +80,7 @@
 // Heaters / Fans
 //
 #define HEATER_BED_PIN                      PA7   // HOT BED
-#define FAN1_PIN                            PC0   // extruder fan
+#define FAN1_PIN                            PC1   // extruder fan
 
 //
 // SD Card
@@ -110,10 +110,10 @@
   //#define HEATER_0_PIN                    -1
   //#define HEATER_BED_PIN                  -1
   #define FAN0_PIN                          PA0
-  #define SPINDLE_LASER_ENA_PIN             PC0   // FET 1
-  #define SPINDLE_LASER_PWM_PIN             PC0   // Bed FET
-  #define SPINDLE_DIR_PIN                   PC0   // FET 4
-  #define LASER_SOFT_PWM_PIN                PC0
+  #define SPINDLE_LASER_ENA_PIN             PC1   // FET 1
+  #define SPINDLE_LASER_PWM_PIN             PC1   // Bed FET
+  #define SPINDLE_DIR_PIN                   PC1   // FET 4
+  #define LASER_SOFT_PWM_PIN                PC1
 #endif
 
 #include "pins_CREALITY_V4.h"
